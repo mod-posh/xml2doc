@@ -1,0 +1,9 @@
+﻿<Project>
+  <UsingTask TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
+             AssemblyFile="$(MSBuildThisFileDirectory)..\lib\net9.0\Xml2Doc.MSBuild.dll" />
+  <Target Name="Xml2Doc_Generate" AfterTargets="Build"
+          Condition="'$(Xml2Doc_Enabled)' == 'true' and Exists('$(DocumentationFile)')">
+    <MakeDir Directories="$(Xml2Doc_OutputDir)" />
+    <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)" OutputDirectory="$(Xml2Doc_OutputDir)" />
+  </Target>
+</Project>

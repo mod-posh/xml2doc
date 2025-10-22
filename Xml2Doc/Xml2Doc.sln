@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Core", "src\Xml2Doc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Cli", "src\Xml2Doc.Cli\Xml2Doc.Cli.csproj", "{A5DFBD66-50FF-EEA0-76CD-5126D036B619}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.MSBuild", "src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj", "{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

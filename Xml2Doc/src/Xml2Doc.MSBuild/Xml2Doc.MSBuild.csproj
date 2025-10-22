@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>XmlDocMd.MSBuild</AssemblyName>
+    <PackageId>XmlDocMd.MSBuild</PackageId>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <Description>MSBuild task + targets to run XmlDocMd during build.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build" Version="17.14.28" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.14.28" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
+  </ItemGroup>
+</Project>
