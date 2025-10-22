@@ -9,11 +9,30 @@ using Xml2Doc.Core.Models;
 
 namespace Xml2Doc.Core
 {
+    /// <summary>
+    /// Renders an <see cref="Xml2Doc.Core.Models.Xml2Doc"/> model into Markdown files.
+    /// </summary>
     public sealed class MarkdownRenderer
     {
+        /// <summary>
+        /// The loaded XML documentation model to render.
+        /// </summary>
         private readonly Models.Xml2Doc _model;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MarkdownRenderer"/> class.
+        /// </summary>
+        /// <param name="model">The XML documentation model to render.</param>
         public MarkdownRenderer(Models.Xml2Doc model) => _model = model;
 
+        /// <summary>
+        /// Renders all types from the model into Markdown files within the specified output directory.
+        /// </summary>
+        /// <param name="outDir">The output directory. It is created if it does not exist.</param>
+        /// <remarks>
+        /// Produces one <c>.md</c> file per type and an <c>index.md</c> table of contents.
+        /// Existing files with the same names will be overwritten.
+        /// </remarks>
         public void RenderToDirectory(string outDir)
         {
             Directory.CreateDirectory(outDir);
@@ -33,6 +52,11 @@ namespace Xml2Doc.Core
             File.WriteAllText(Path.Combine(outDir, "index.md"), toc.ToString());
         }
 
+        /// <summary>
+        /// Renders a single type and its members to a Markdown document.
+        /// </summary>
+        /// <param name="type">The type member (<c>T:</c> entry) to render.</param>
+        /// <returns>The Markdown content for the specified type.</returns>
         private string RenderType(XMember type)
         {
             var sb = new StringBuilder();
@@ -86,6 +110,11 @@ namespace Xml2Doc.Core
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Builds a concise header for a member, e.g., <c>M: Method(…)</c>.
+        /// </summary>
+        /// <param name="m">The member to summarize.</param>
+        /// <returns>A short header containing the kind prefix and simplified signature.</returns>
         private static string MemberHeader(XMember m)
         {
             var simple = m.Id[(m.Id.LastIndexOf('.') + 1)..];
@@ -93,13 +122,37 @@ namespace Xml2Doc.Core
             return $"{m.Kind}: {name}";
         }
 
+        /// <summary>
+        /// Generates a file name for a type ID suitable for use on disk.
+        /// </summary>
+        /// <param name="typeId">The type documentation ID (without the <c>T:</c> prefix).</param>
+        /// <returns>The markdown file name. Generic angle brackets are replaced with square brackets.</returns>
         private static string FileNameFor(string typeId)
             => typeId.Replace('<', '[').Replace('>', ']') + ".md";
 
+        /// <summary>
+        /// Computes a display name for a documentation ID.
+        /// </summary>
+        /// <param name="id">The documentation ID.</param>
+        /// <returns>The display text. Currently returns the ID as-is.</returns>
         private static string DisplayName(string id) => id;
 
+        /// <summary>
+        /// Converts a documentation ID to a Markdown anchor.
+        /// </summary>
+        /// <param name="id">The documentation ID.</param>
+        /// <returns>A lowercase anchor string.</returns>
         private static string IdToAnchor(string id) => id.ToLowerInvariant();
 
+        /// <summary>
+        /// Converts XML documentation nodes to Markdown text.
+        /// </summary>
+        /// <param name="element">The XML element to normalize (e.g., <c>summary</c>, <c>returns</c>, or <c>param</c>).</param>
+        /// <returns>The normalized Markdown text, or an empty string if <paramref name="element"/> is <see langword="null"/>.</returns>
+        /// <remarks>
+        /// Supports <c>&lt;see cref="..." /&gt;</c> links (to types and members) and <c>&lt;paramref name="..." /&gt;</c>.
+        /// Collapses whitespace and trims trailing/leading spaces.
+        /// </remarks>
         private string NormalizeXmlToMarkdown(XElement? element)
         {
             if (element is null) return string.Empty;
