@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Core", "src\Xml2Doc.Core\Xml2Doc.Core.csproj", "{FEF273C3-B55B-F398-F3D2-64E449A800BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Cli", "src\Xml2Doc.Cli\Xml2Doc.Cli.csproj", "{A5DFBD66-50FF-EEA0-76CD-5126D036B619}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{FEF273C3-B55B-F398-F3D2-64E449A800BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FEF273C3-B55B-F398-F3D2-64E449A800BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FEF273C3-B55B-F398-F3D2-64E449A800BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5DFBD66-50FF-EEA0-76CD-5126D036B619}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
