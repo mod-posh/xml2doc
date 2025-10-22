@@ -15,7 +15,7 @@ jobs:
         id: get_version
         uses: mod-posh/GetProjectVersion@0.0.4.0
         with:
-          Filename: '${{ vars.PROJECT_NAME }}.csproj'
+          Filename: 'Directory.Build.props'
           verbose: "verbose"
 
       - name: Create Release Notes
