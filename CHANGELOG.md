@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.0](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.1.0) - 2025-10-22
-
-### Added
-- Improved display names (shortened namespaces, formatted generics like `List<T>`).
-- Added support for `<remarks>`, `<example>`, `<seealso>`, and `<exception>` tags.
-- Added `--single` flag for single-file Markdown output.
-- Added file naming modes to include/exclude generic arity/backticks.
-
----
-
 ## [1.0.0](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.0.0) - 2025-10-22
 
 ### Added
