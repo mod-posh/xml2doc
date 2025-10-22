@@ -13,7 +13,7 @@ jobs:
 
       - name: Get Project Version
         id: get_version
-        uses: mod-posh/GetProjectVersion@0.0.4.0
+        uses: mod-posh/GetProjectVersion@main
         with:
           Filename: 'Directory.Build.props'
           verbose: "verbose"
