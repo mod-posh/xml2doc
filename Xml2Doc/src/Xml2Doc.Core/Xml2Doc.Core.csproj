@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Description>Core library to convert C# XML doc comments into Markdown with cross-links.</Description>
+    <PackageId>Xml2Doc.Core</PackageId>
+    <RepositoryUrl>https://github.com/mod-posh/xml2doc</RepositoryUrl>
+    <Authors>Jeffrey Patton</Authors>
+  </PropertyGroup>
+</Project>
