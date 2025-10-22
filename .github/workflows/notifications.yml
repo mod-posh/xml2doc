@@ -1,0 +1,41 @@
+name: Announce New Release
+
+on:
+  workflow_run:
+    workflows: ["New Release"]  # Make sure this matches `release.yml`
+    types:
+      - completed
+
+jobs:
+  send_notification:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Only run if the release workflow was successful
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Get Latest Tag
+        id: latest_tag
+        run: |
+          LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post to Bluesky
+        uses: mod-posh/Post2BlueSky@v0.0.3.0
+        with:
+          Message: |
+            Version ${{ env.latest_tag }} of ${{ vars.Project_Name }} is available! 🎉  
+            See details here: ${{ github.server_url }}/${{ github.repository }}
+          verbose: "verbose"
+          bluesky_api_key: ${{ secrets.bluesky_api_key }}
+          bluesky_identifier: ${{ secrets.bluesky_identifier }}
+
+      - name: Post to Discord
+        uses: mod-posh/Post2Discord@v0.0.3.2
+        with:
+          message: |
+            Version ${{ env.latest_tag }} of ${{ vars.Project_Name }} is available! 🎉  
+            See details here: ${{ github.server_url }}/${{ github.repository }}
+          discordWebhook: ${{ secrets.DISCORD_WEBHOOK }}

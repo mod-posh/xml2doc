@@ -1,0 +1,28 @@
+name: Merge Test Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run_tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ vars.DOTNET_VERSION }}
+      - name: Restore dependencies
+        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
+      - name: Build
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
+      - name: Publish Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Test Results
+          path: '**/TestResults/*.trx'

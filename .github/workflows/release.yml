@@ -1,0 +1,110 @@
+name: New Release
+
+on:
+  milestone:
+    types: [closed]
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Get Project Version
+        id: get_version
+        uses: mod-posh/GetProjectVersion@v0.0.3.0
+        with:
+          Filename: '${{ vars.PROJECT_NAME }}.csproj'
+          verbose: "verbose"
+
+      - name: Create Release Notes
+        uses: mod-posh/Issue2ReleaseNotes@v0.0.3.3
+        with:
+          milestone_number: ${{ github.event.milestone.number }}
+          verbose: 'verbose'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Latest Changes
+        run: git pull origin ${{ github.ref_name }}
+        shell: bash
+
+      - name: Create Release
+        uses: mod-posh/NewTaggedRelease@v0.0.3.2
+        with:
+          name: 'Release v${{ env.VERSION }}'
+          filename: 'RELEASE.md'
+          version: ${{ env.VERSION }}
+          verbose: 'verbose'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install PowerShell
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y powershell
+
+      - name: Update README using custom action
+        uses: mod-posh/UpdateReadme@main
+        with:
+          project_name: "${{ vars.PROJECT_NAME }}"
+          verbose: true
+
+      - name: Install XMLDocMD Tool
+        run: dotnet tool install --global xmldocmd
+
+      - name: Build Project
+        run: dotnet build ${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.csproj --configuration Release
+
+      - name: Pack Project
+        run: dotnet pack ${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.csproj --configuration Release --output ./publish /p:PackageId=${{ vars.PROJECT_ID }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Find and Copy Build Files to Publish Folder
+        shell: pwsh
+        run: |
+          # Find the DLL's exact location within any bin/Release/ directory
+          $dllPath = Get-ChildItem -Path . -Recurse -Filter "${{ vars.PROJECT_NAME }}.dll" -File | Select-Object -First 1
+
+          if (-not $dllPath) {
+            Write-Error "Error: DLL not found!"
+            exit 1
+          }
+
+          # Extract the parent bin/Release directory path
+          $releaseDir = $dllPath.Directory.FullName
+
+          Write-Output "Found DLL at: $dllPath"
+          Write-Output "Copying all files from: $releaseDir"
+
+          # Ensure publish directory exists
+          New-Item -Path "./publish" -ItemType Directory -Force
+
+          # Copy everything from the located Release folder into ./publish/
+          Copy-Item -Path "$releaseDir\*" -Destination "./publish/" -Recurse -Force
+
+
+      - name: Generate Documentation
+        run: |
+          xmldocmd ./publish/${{ vars.PROJECT_NAME }}.dll Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
+        env:
+          PATH: ${{ github.runner.tool_cache }}/.dotnet/tools:$PATH:~/.dotnet/tools
+
+      - name: Run markdownlint-cli2-action
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: '**/*.md'
+          fix: true
+
+      - name: Commit Documentation Changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin
+          git rebase origin/${{ github.ref_name }} || git pull --rebase
+          git add Docs/
+          git commit -m "Update documentation for release v${{ env.VERSION }}"
+          git push origin ${{ github.ref_name }}
+        if: success()
+        

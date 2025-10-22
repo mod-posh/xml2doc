@@ -1,0 +1,25 @@
+* text=auto
+*.sh text eol=lf
+*.bat text eol=crlf
+
+*.cs text diff=csharp
+*.sln merge=union
+*.csproj merge=union
+*.vbproj merge=union
+*.fsproj merge=union
+*.dbproj merge=union
+
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.ps1xml text eol=crlf
+*.pssc text eol=crlf
+*.psrc text eol=crlf
+*.cdxml text eol=crlf
+
+*.yaml text
+*.yml text
+*.yaml diff=yaml
+*.yml diff=yaml
+*.yaml merge=yaml
+*.yml merge=yaml
