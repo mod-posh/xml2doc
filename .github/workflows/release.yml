@@ -49,9 +49,6 @@ jobs:
           project_name: "${{ vars.PROJECT_NAME }}"
           verbose: true
 
-      - name: Install XMLDocMD Tool
-        run: dotnet tool install --global xmldocmd
-
       - name: Build Project
         run: dotnet build ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --configuration Release
 
@@ -69,23 +66,23 @@ jobs:
       - name: Push to NuGet
         run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
+      - name: Install Project CLI Tool
+        run: dotnet tool install --global --add-source ./publish Xml2Doc.Cli
+
       - name: Generate Documentation
         run: |
-          # Add .NET tools to PATH
-          export PATH="$PATH:$HOME/.dotnet/tools"
+          # Find the Core XML documentation file
+          xmlDocFile="${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release/net9.0/Xml2Doc.Core.xml"
 
-          # Find the Core DLL from build output
-          coreDll=$(find ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release -name "Xml2Doc.Core.dll" | head -1)
-
-          if [ -z "$coreDll" ]; then
-            echo "Error: Xml2Doc.Core.dll not found!"
-            echo "Contents of Release directory:"
-            ls -la ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release/ || echo "Directory not found"
+          if [ -f "$xmlDocFile" ]; then
+            echo "Generating docs from: $xmlDocFile"
+            xml2doc --xml "$xmlDocFile" --out Docs
+          else
+            echo "Error: XML documentation file not found!"
+            echo "Contents of build directory:"
+            ls -la ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release/net9.0/ || echo "Directory not found"
             exit 1
           fi
-
-          echo "Generating docs from: $coreDll"
-          xmldocmd "$coreDll" Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
 
       - name: Run markdownlint-cli2-action
         uses: DavidAnson/markdownlint-cli2-action@v16

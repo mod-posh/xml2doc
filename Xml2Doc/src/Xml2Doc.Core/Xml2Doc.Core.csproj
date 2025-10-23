@@ -3,6 +3,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Core library to convert C# XML doc comments into Markdown with cross-links.</Description>
     <PackageId>Xml2Doc.Core</PackageId>
     <RepositoryUrl>https://github.com/mod-posh/xml2doc</RepositoryUrl>
