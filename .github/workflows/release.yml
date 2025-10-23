@@ -53,18 +53,18 @@ jobs:
         run: dotnet tool install --global xmldocmd
 
       - name: Build Project
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
 
       - name: Pack Projects Individually
         run: |
           # Pack Core Library first (since others depend on it)
-          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Core/Xml2Doc.Core.csproj --configuration Release --output ./publish --no-build
+          dotnet pack ${{ github.workspace }}/src/Xml2Doc.Core/Xml2Doc.Core.csproj --configuration Release --output ./publish --no-build
 
           # Pack CLI Tool
-          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj --configuration Release --output ./publish --no-build
+          dotnet pack ${{ github.workspace }}/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj --configuration Release --output ./publish --no-build
 
           # Pack MSBuild Package
-          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj --configuration Release --output ./publish --no-build
+          dotnet pack ${{ github.workspace }}/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj --configuration Release --output ./publish --no-build
 
       - name: Push to NuGet
         run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
@@ -72,7 +72,7 @@ jobs:
       - name: Generate Documentation
         run: |
           # Find the Core DLL from build output
-          coreDll=$(find ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Core/bin/Release -name "Xml2Doc.Core.dll" | head -1)
+          coreDll=$(find ${{ github.workspace }}/src/Xml2Doc.Core/bin/Release -name "Xml2Doc.Core.dll" | head -1)
 
           if [ -z "$coreDll" ]; then
             echo "Error: Xml2Doc.Core.dll not found!"
