@@ -6,6 +6,10 @@ Per-type files + index.md
 
 CLI tool + MSBuild task
 
+## DOCUMENTATION
+
+* issue-6: Add comments
+
 ## TASK
 
 * issue-8: Cleanup  Repo
@@ -15,8 +19,4 @@ CLI tool + MSBuild task
 * issue-3: Build out Xml2Doc.Core
 * issue-2: Setup initial Xml2Doc Structure
 * issue-1: Clean up template repo
-
-## DOCUMENTATION
-
-* issue-6: Add comments
 
