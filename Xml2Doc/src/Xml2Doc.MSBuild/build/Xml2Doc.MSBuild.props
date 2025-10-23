@@ -1,6 +1,6 @@
 ﻿<Project>
   <PropertyGroup>
-    <XmlDocMd_Enabled>true</Xml2Doc_Enabled>
-    <XmlDocMd_OutputDir>$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
+    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
+    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
   </PropertyGroup>
 </Project>
