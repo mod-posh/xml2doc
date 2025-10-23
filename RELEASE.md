@@ -6,14 +6,17 @@ Per-type files + index.md
 
 CLI tool + MSBuild task
 
-## NO LABEL
+## TASK
 
 * issue-8: Cleanup  Repo
 * issue-7: Create test solution for testing
-* issue-6: Add comments
 * issue-5: Build out Xml2Doc.MsBuild
 * issue-4: Build out Xml2Doc.Cli
 * issue-3: Build out Xml2Doc.Core
 * issue-2: Setup initial Xml2Doc Structure
 * issue-1: Clean up template repo
+
+## DOCUMENTATION
+
+* issue-6: Add comments
 
