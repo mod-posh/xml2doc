@@ -71,18 +71,21 @@ jobs:
 
       - name: Generate Documentation
         run: |
+          # Add .NET tools to PATH
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
           # Find the Core DLL from build output
           coreDll=$(find ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release -name "Xml2Doc.Core.dll" | head -1)
 
           if [ -z "$coreDll" ]; then
             echo "Error: Xml2Doc.Core.dll not found!"
+            echo "Contents of Release directory:"
+            ls -la ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/bin/Release/ || echo "Directory not found"
             exit 1
           fi
 
           echo "Generating docs from: $coreDll"
           xmldocmd "$coreDll" Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
-        env:
-          PATH: $PATH:~/.dotnet/tools
 
       - name: Run markdownlint-cli2-action
         uses: DavidAnson/markdownlint-cli2-action@v16
