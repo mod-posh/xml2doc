@@ -1,3 +1,6 @@
+| Latest Version | Nuget.org | Issues | Testing | License | Discord |
+|-----------------|-----------------|----------------|----------------|----------------|----------------|
+| [![Latest Version](https://img.shields.io/github/v/tag/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/tags) | [![Nuget.org](https://img.shields.io/nuget/dt/ModPosh.Xml2Doc)](https://www.nuget.org/packages/ModPosh.Xml2Doc) | [![GitHub issues](https://img.shields.io/github/issues/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/issues) | [![Merge Test Workflow](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml/badge.svg)](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml) | [![GitHub license](https://img.shields.io/github/license/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/blob/master/LICENSE) | [![Discord Server](https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5493894cf60b300587_full_logo_white_RGB.svg)](https://discord.com/channels/1044305359021555793/1044305781627035811) |
 # Xml2Doc
 
 Convert C# XML documentation files into clean Markdown output with cross-links and optional single-page output.
