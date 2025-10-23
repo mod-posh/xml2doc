@@ -53,41 +53,34 @@ jobs:
         run: dotnet tool install --global xmldocmd
 
       - name: Build Project
-        run: dotnet build ${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.csproj --configuration Release
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
 
-      - name: Pack Project
-        run: dotnet pack ${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.csproj --configuration Release --output ./publish /p:PackageId=${{ vars.PROJECT_ID }}
+      - name: Pack Projects Individually
+        run: |
+          # Pack Core Library first (since others depend on it)
+          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Core/Xml2Doc.Core.csproj --configuration Release --output ./publish --no-build
+
+          # Pack CLI Tool
+          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj --configuration Release --output ./publish --no-build
+
+          # Pack MSBuild Package
+          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj --configuration Release --output ./publish --no-build
 
       - name: Push to NuGet
         run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
-      - name: Find and Copy Build Files to Publish Folder
-        shell: pwsh
-        run: |
-          # Find the DLL's exact location within any bin/Release/ directory
-          $dllPath = Get-ChildItem -Path . -Recurse -Filter "${{ vars.PROJECT_NAME }}.dll" -File | Select-Object -First 1
-
-          if (-not $dllPath) {
-            Write-Error "Error: DLL not found!"
-            exit 1
-          }
-
-          # Extract the parent bin/Release directory path
-          $releaseDir = $dllPath.Directory.FullName
-
-          Write-Output "Found DLL at: $dllPath"
-          Write-Output "Copying all files from: $releaseDir"
-
-          # Ensure publish directory exists
-          New-Item -Path "./publish" -ItemType Directory -Force
-
-          # Copy everything from the located Release folder into ./publish/
-          Copy-Item -Path "$releaseDir\*" -Destination "./publish/" -Recurse -Force
-
-
       - name: Generate Documentation
         run: |
-          xmldocmd ./publish/${{ vars.PROJECT_NAME }}.dll Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
+          # Find the Core DLL from build output
+          coreDll=$(find ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/src/Xml2Doc.Core/bin/Release -name "Xml2Doc.Core.dll" | head -1)
+
+          if [ -z "$coreDll" ]; then
+            echo "Error: Xml2Doc.Core.dll not found!"
+            exit 1
+          fi
+
+          echo "Generating docs from: $coreDll"
+          xmldocmd "$coreDll" Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
         env:
           PATH: ${{ github.runner.tool_cache }}/.dotnet/tools:$PATH:~/.dotnet/tools
 
@@ -107,4 +100,4 @@ jobs:
           git commit -m "Update documentation for release v${{ env.VERSION }}"
           git push origin ${{ github.ref_name }}
         if: success()
-        
+
