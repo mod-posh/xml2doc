@@ -82,7 +82,7 @@ jobs:
           echo "Generating docs from: $coreDll"
           xmldocmd "$coreDll" Docs --visibility private --clean --namespace ${{ vars.PROJECT_NAMESPACE }} --namespace-pages
         env:
-          PATH: ${{ github.runner.tool_cache }}/.dotnet/tools:$PATH:~/.dotnet/tools
+          PATH: $PATH:~/.dotnet/tools
 
       - name: Run markdownlint-cli2-action
         uses: DavidAnson/markdownlint-cli2-action@v16
