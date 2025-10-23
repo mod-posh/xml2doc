@@ -3,11 +3,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>XmlDocMd.MSBuild</AssemblyName>
-    <PackageId>XmlDocMd.MSBuild</PackageId>
+    <AssemblyName>Xml2Doc.MSBuild</AssemblyName>
+    <PackageId>Xml2Doc.MSBuild</PackageId>
     <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <Description>MSBuild task + targets to run XmlDocMd during build.</Description>
+    <Description>MSBuild task + targets to run Xml2Doc during build.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
