@@ -1,7 +1,6 @@
 <!-- Directory.Build.props (repo root) -->
 <Project>
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
     <!-- Common metadata -->
     <Company>mod-posh</Company>
     <Authors>Jeffrey Patton</Authors>
@@ -9,7 +8,7 @@
     <RepositoryType>git</RepositoryType>
 
     <!-- Version: set once for all (override per project if needed) -->
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <!-- Licensing (metadata only; LICENSE lives in repo root) -->
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
 
@@ -20,7 +19,7 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
     <!-- Build defaults -->
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
