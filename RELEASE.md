@@ -1,22 +1,17 @@
-# Version 1.0.0 Release
+# Version 1.1.0 Release
 
-Basic XML→MD, cross-links for <see> and anchors for members
-
-Per-type files + index.md
-
-CLI tool + MSBuild task
-
-## DOCUMENTATION
-
-* issue-6: Add comments
+- Better display names (shorten namespaces, format `List<T>` generics).
+- Support for `<remarks>`, `<example>`, `<seealso>`, `<exception>`.
+- Single-file output flag `--single` for merged Markdown.
+- File naming modes (toggle inclusion of generic arity/backticks).
 
 ## TASK
 
-* issue-8: Cleanup  Repo
-* issue-7: Create test solution for testing
-* issue-5: Build out Xml2Doc.MsBuild
-* issue-4: Build out Xml2Doc.Cli
-* issue-3: Build out Xml2Doc.Core
-* issue-2: Setup initial Xml2Doc Structure
-* issue-1: Clean up template repo
+* issue-11: Add MSBuild flags for single-file mode, filename style, namespace trimming, and code-block language, bringing full feature parity with the updated MarkdownRenderer.
+* issue-10: Update CLI to use RendererOptions, support new rendering features (single-file, filename modes), and align help/output with the improved MarkdownRenderer..
+* issue-9: Enhance MarkdownRenderer with cleaner names, alias support, richer XML tag handling, and options for single-file output and filename modes.
+
+## DOCUMENTATION
+
+* issue-12: Add README to each project
 
