@@ -1,7 +1,9 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Reflection.Emit;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using System.Collections.Concurrent;
 using Xml2Doc.Core.Models;
 
 namespace Xml2Doc.Core;
@@ -12,7 +14,11 @@ namespace Xml2Doc.Core;
 /// <remarks>
 /// - Use <see cref="RenderToDirectory(string)"/> to emit one file per type plus an index.
 /// - Use <see cref="RenderToSingleFile(string)"/> to generate a single consolidated Markdown file.
-/// Rendering is influenced by <see cref="RendererOptions"/> (filename style, code block language, and display trimming).
+/// - Overloaded methods are grouped under a single header with each overload listed as a bullet.
+/// - <c>&lt;inheritdoc&gt;</c> is resolved and merged via <see cref="InheritDocResolver"/> before rendering.
+/// <para>
+/// Rendering is influenced by <see cref="RendererOptions"/> (filename style, code block language, and optional root namespace trimming).
+/// </para>
 /// </remarks>
 /// <seealso cref="RendererOptions"/>
 /// <seealso cref="FileNameMode"/>
@@ -43,7 +49,10 @@ public sealed class MarkdownRenderer
     /// <param name="outDir">The output directory. It is created if it does not exist.</param>
     /// <remarks>
     /// Existing files with the same names are overwritten.
+    /// Filenames are produced according to <see cref="RendererOptions.FileNameMode"/>.
     /// </remarks>
+    /// <exception cref="IOException">An I/O error occurs while writing files.</exception>
+    /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
     public void RenderToDirectory(string outDir)
     {
         Directory.CreateDirectory(outDir);
@@ -62,6 +71,8 @@ public sealed class MarkdownRenderer
     /// Renders all types to a single Markdown file that includes an index followed by each type section.
     /// </summary>
     /// <param name="outPath">The output file path. The containing directory is created if necessary.</param>
+    /// <exception cref="IOException">An I/O error occurs while writing the file.</exception>
+    /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
     public void RenderToSingleFile(string outPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
@@ -85,6 +96,7 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Gets all documented types (<c>T:</c> members) from the model.
     /// </summary>
+    /// <returns>An enumeration of members whose kind is <c>"T"</c> (types).</returns>
     private IEnumerable<XMember> GetTypes() =>
         _model.Members.Values.Where(m => m.Kind == "T");
 
@@ -93,6 +105,9 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="types">The set of types to include in the index.</param>
     /// <returns>Markdown content for the index page.</returns>
+    /// <remarks>
+    /// Uses <see cref="ShortTypeDisplay(string)"/> for display and <see cref="FileNameFor(string, FileNameMode)"/> for links.
+    /// </remarks>
     private string RenderIndex(IEnumerable<XMember> types)
     {
         var sb = new StringBuilder();
@@ -110,6 +125,9 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="type">The type (<c>T:</c> entry) to render.</param>
     /// <returns>Markdown content for the specified type.</returns>
+    /// <remarks>
+    /// Members are grouped by simple name; method overloads are listed together under one heading.
+    /// </remarks>
     private string RenderType(XMember type)
     {
         var sb = new StringBuilder();
@@ -170,10 +188,28 @@ public sealed class MarkdownRenderer
             .OrderBy(m => m.Id)
             .ToList();
 
+        // Group by the simple member name (dot before '('), not the last dot in the whole ID.
+        static string GroupKey(XMember mm)
+        {
+            var id = mm.Id; // e.g., "M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)"
+            var parenIdx = id.IndexOf('(');
+            var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
+            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Add(System.Int32, ...)"
+            var nameOnly = nameAndParams.Split('(')[0];                // "Add"
+            
+            // pretty generic method arity: ``2 -> <T1,T2>
+            nameOnly = Regex.Replace(nameOnly, @"``(\d+)", m =>
+            {
+                var n = int.Parse(m.Groups[1].Value);
+                return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
+            });
+            return nameOnly;
+        }
+        
         var groups = members
-            .GroupBy(m => m.Id[(m.Id.LastIndexOf('.') + 1)..].Split('(')[0]) // simple member name
-            .OrderBy(g => g.Key)
-            .ToList();
+                    .GroupBy(GroupKey)
+                    .OrderBy(g => g.Key)
+                    .ToList();
 
         foreach (var g in groups)
         {
@@ -202,30 +238,55 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="m">The member to summarize.</param>
     /// <returns>A short header containing the member kind and simplified signature.</returns>
+    /// <remarks>
+    /// Handles brace-aware parameter splitting (XML-doc generics use <c>{}</c>) and formats generic arity (e.g., <c>``2</c> → <c>&lt;T1,T2&gt;</c>).
+    /// </remarks>
     private string MemberHeader(XMember m)
     {
-        // Show "Method: Foo(int, string)" with short type names
-        var namePart = m.Id[(m.Id.LastIndexOf('.') + 1)..]; // e.g. MethodName(System.Int32,System.String)
-        var name = namePart;
+        // Example m.Id: "M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)"
+        var id = m.Id;
 
-        // Replace parameter type list with simplified names
-        name = Regex.Replace(name, @"\((.*)\)", match =>
+        // 1) Find the dot before the method/property name (last dot BEFORE '(')
+        var parenIdx = id.IndexOf('(');
+        var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
+        var namePart = cut >= 0 ? id.Substring(cut + 1) : id; // "Add(System.Int32,System.Int32)"
+
+        // 2) Replace parameter list with simplified names (brace-aware split)
+        namePart = Regex.Replace(namePart, @"\((.*)\)", match =>
         {
             var inner = match.Groups[1].Value;
-            if (string.IsNullOrEmpty(inner)) return "()";
-            var parts = inner.Split(',', StringSplitOptions.TrimEntries);
+            if (string.IsNullOrWhiteSpace(inner)) return "()";
+
+            static IEnumerable<string> SplitParams(string s)
+            {
+                var depth = 0; var start = 0;
+                for (int i = 0; i < s.Length; i++)
+                {
+                    var ch = s[i];
+                    if (ch == '{') depth++;
+                    else if (ch == '}') depth--;
+                    else if (ch == ',' && depth == 0)
+                    {
+                        yield return s.Substring(start, i - start);
+                        start = i + 1;
+                    }
+                }
+                yield return s.Substring(start);
+            }
+
+            var parts = SplitParams(inner).Select(p => p.Trim());
             var simplified = parts.Select(ShortenSignatureType).ToArray();
             return $"({string.Join(", ", simplified)})";
         });
 
-        // Pretty generics in the simple name: ``2 -> &lt;T1,T2&gt;, ``1 -> &lt;T1&gt;
-        name = Regex.Replace(name, @"``(\d+)", m =>
+        // Pretty generics in the simple name: ``2 -> <T1,T2>, ``1 -> <T1>
+        namePart = Regex.Replace(namePart, @"``(\d+)", m2 =>
         {
-            var n = int.Parse(m.Groups[1].Value);
+            var n = int.Parse(m2.Groups[1].Value);
             return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
         });
 
-        return $"{KindToWord(m.Kind)}: {name}";
+        return $"{KindToWord(m.Kind)}: {namePart}";
     }
 
     /// <summary>
@@ -246,6 +307,7 @@ public sealed class MarkdownRenderer
     /// Produces a short display name for a type ID, optionally trimming a root namespace and formatting generic arity as <c>&lt;T1,T2&gt;</c>.
     /// </summary>
     /// <param name="typeId">The type documentation ID (portion after the <c>T:</c> prefix).</param>
+    /// <returns>The simple type name with generic arity displayed, and the root namespace removed if configured.</returns>
     private string ShortTypeDisplay(string typeId)
     {
         // Optionally trim root namespace prefix for display
@@ -337,6 +399,9 @@ public sealed class MarkdownRenderer
     /// <param name="cref">The cref value (e.g., <c>T:Namespace.Type</c>, <c>M:Namespace.Type.Method</c>).</param>
     /// <param name="displayFallback">Optional display text if the cref cannot be resolved.</param>
     /// <returns>A Markdown link, or the fallback/display text if unavailable.</returns>
+    /// <remarks>
+    /// Member anchors are generated via <see cref="IdToAnchor(string)"/> and use the lowercase documentation ID.
+    /// </remarks>
     private string CrefToMarkdown(string? cref, string? displayFallback = null)
     {
         if (string.IsNullOrWhiteSpace(cref)) return displayFallback ?? string.Empty;
@@ -345,12 +410,15 @@ public sealed class MarkdownRenderer
 
         if (kind == "T")
         {
-            return $"[{ShortenTypeName(cref)}]({FileNameFor(id, _opt.FileNameMode)})";
+            // Use type display (handles arity, trimming, aliases)
+            return $"[{ShortTypeDisplay(id)}]({FileNameFor(id, _opt.FileNameMode)})";
         }
         else
         {
+            // Member: show a friendly label (MethodName(params)), link to the type file + anchor
             var typeId = id.Split('.')[0];
-            return $"[{displayFallback ?? id}]({FileNameFor(typeId, _opt.FileNameMode)}#{IdToAnchor(id)})";
+            var label = displayFallback ?? ShortLabelFromCref(cref);
+            return $"[{label}]({FileNameFor(typeId, _opt.FileNameMode)}#{IdToAnchor(id)})";
         }
     }
 
@@ -360,6 +428,10 @@ public sealed class MarkdownRenderer
     /// <param name="typeId">The type ID (portion after the kind prefix).</param>
     /// <param name="mode">The file name generation mode.</param>
     /// <returns>A file-system-friendly name ending with <c>.md</c>.</returns>
+    /// <remarks>
+    /// In <see cref="FileNameMode.CleanGenerics"/> the generic arity (e.g., <c>`1</c>) is removed and generic braces are normalized.
+    /// Angle brackets are replaced with square brackets to avoid filesystem issues.
+    /// </remarks>
     private static string FileNameFor(string typeId, FileNameMode mode)
     {
         var name = typeId;
@@ -382,6 +454,7 @@ public sealed class MarkdownRenderer
     /// Converts a documentation ID into a Markdown anchor.
     /// </summary>
     /// <param name="id">The documentation ID (portion after the kind prefix).</param>
+    /// <returns>Lowercase anchor text that can be referenced in links.</returns>
     private static string IdToAnchor(string id) => id.ToLowerInvariant();
 
     /// <summary>
@@ -389,11 +462,14 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="sa">The <c>seealso</c> element.</param>
     /// <returns>A Markdown link or normalized text.</returns>
+    /// <remarks>
+    /// Supports <c>cref</c> to local API links and <c>href</c> for external URLs.
+    /// </remarks>
     private string SeeAlsoToMarkdown(XElement sa)
     {
         var cref = (string?)sa.Attribute("cref");
         if (!string.IsNullOrWhiteSpace(cref))
-            return CrefToMarkdown(cref, displayFallback: ShortenTypeName(cref));
+            return CrefToMarkdown(cref, displayFallback: ShortLabelFromCref(cref));
         var href = (string?)sa.Attribute("href");
         if (!string.IsNullOrWhiteSpace(href))
             return $"[{sa.Value}]({href})";
@@ -420,6 +496,113 @@ public sealed class MarkdownRenderer
         return last;
     }
 
+    /// <summary>
+    /// Creates a short, human-friendly label from a cref string.
+    /// </summary>
+    /// <param name="cref">
+    /// A cref such as <c>T:Namespace.Type</c> or <c>M:Namespace.Type.Method(Type,Type)</c>.
+    /// </param>
+    /// <returns>
+    /// For types, the short type display (with generic arity formatted). For methods, the method name with
+    /// simplified parameter types. For other kinds, the simple member identifier.
+    /// </returns>
+    /// <remarks>
+    /// Handles XML-doc generic braces by converting <c>{}</c> to <c>&lt;&gt;</c>, applies C# aliases, and trims namespaces
+    /// from generic arguments to keep labels compact.
+    /// </remarks>
+    private string ShortLabelFromCref(string cref)
+    {
+        if (string.IsNullOrWhiteSpace(cref))
+            return string.Empty;
+
+        // Split "K:Namespace.Type.Member(...)" into (K, rest)
+        var parts = cref.Split(':', 2);
+        var kind = parts.Length == 2 ? parts[0] : "";
+        var id = parts.Length == 2 ? parts[1] : cref;
+
+        if (kind == "T")
+        {
+            // Type
+            return ShortTypeDisplay(id);
+        }
+
+        if (kind == "M")
+        {
+            // Method: Namespace.Type.Method(Type,Type)
+            var parenIdx = id.IndexOf('(');
+            var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
+            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Method(Type,Type)"
+            var paren = nameAndParams.IndexOf('(');
+            var methodName = paren >= 0 ? nameAndParams[..paren] : nameAndParams;
+            var paramList = (paren >= 0 && nameAndParams.EndsWith(")"))
+                ? nameAndParams.Substring(paren + 1, nameAndParams.Length - paren - 2) // inside (...)
+                : string.Empty;
+
+            static IEnumerable<string> SplitParams(string s)
+            {
+                // Handles nested generic braces in XML-doc form: IEnumerable{List{T}}
+                var depth = 0; var start = 0;
+                for (int i = 0; i < s.Length; i++)
+                {
+                    var ch = s[i];
+                    if (ch == '{') depth++;
+                    else if (ch == '}') depth--;
+                    else if (ch == ',' && depth == 0)
+                    {
+                        yield return s.Substring(start, i - start);
+                        start = i + 1;
+                    }
+                }
+                if (s.Length > 0) yield return s.Substring(start);
+            }
+
+            string FormatParam(string p)
+            {
+                p = p.Trim();
+
+                // XML-doc generics use {} – convert first, then alias/shorten
+                p = p.Replace('{', '<').Replace('}', '>');
+                p = ApplyAliases(p);
+
+                // Optionally trim namespaces inside generic args
+                if (p.Contains('<') && p.Contains('>'))
+                {
+                    var lt = p.IndexOf('<');
+                    var gt = p.LastIndexOf('>');
+                    if (lt >= 0 && gt > lt)
+                    {
+                        var head = p[..(lt + 1)];
+                        var inner = p.Substring(lt + 1, gt - lt - 1);
+                        inner = string.Join(", ", inner.Split(',').Select(x => x.Trim().Split('.').Last()));
+                        var tail = p[gt..];
+                        p = head + inner + tail;
+                    }
+                }
+
+                // For non-generic names, just drop namespace noise
+                if (!p.Contains('<'))
+                    p = p.Split('.').Last();
+
+                return p;
+            }
+
+            var formattedParams = string.IsNullOrWhiteSpace(paramList)
+                ? string.Empty
+                : string.Join(", ", SplitParams(paramList).Select(FormatParam));
+
+            return string.IsNullOrEmpty(formattedParams)
+                ? $"{methodName}()"
+                : $"{methodName}({formattedParams})";
+        }
+
+        // Properties/Fields/Events: show simple member identifier (after last dot)
+        if (id.Contains('.'))
+            return id[(id.LastIndexOf('.') + 1)..];
+
+        return id;
+    }
+
+
     // === XML → Markdown normalization ===
 
     /// <summary>
@@ -437,7 +620,7 @@ public sealed class MarkdownRenderer
     /// - <c>&lt;para&gt;</c> (emits paragraph breaks)
     /// - <c>&lt;c&gt;</c> and <c>&lt;code&gt;</c> (inline code or fenced blocks; language from <see cref="RendererOptions.CodeBlockLanguage"/>)
     /// - <c>&lt;example&gt;</c> (detects code and renders as fenced blocks when possible)
-    /// Whitespace is collapsed and trimmed.
+    /// Whitespace is collapsed and trimmed; stray space before punctuation is removed.
     /// </remarks>
     private string NormalizeXmlToMarkdown(XElement? element, bool preferCodeBlocks = false)
     {
@@ -466,7 +649,7 @@ public sealed class MarkdownRenderer
                     var cref = (string?)e.Attribute("cref");
                     if (!string.IsNullOrWhiteSpace(cref))
                     {
-                        text.Append(CrefToMarkdown(cref, displayFallback: ShortenTypeName(cref)));
+                        text.Append(CrefToMarkdown(cref, displayFallback: ShortLabelFromCref(cref)));
                     }
                     else
                     {
@@ -505,6 +688,18 @@ public sealed class MarkdownRenderer
         var result = Regex.Replace(text.ToString().Trim(), "\\s+", " ").Replace(" .", ".");
         return result;
     }
+
+    /// <summary>
+    /// Renders a single member section or overload list item, including summary, parameters, returns, exceptions, examples, and see-also.
+    /// </summary>
+    /// <param name="m">The member to render.</param>
+    /// <param name="sb">The output builder to append Markdown to.</param>
+    /// <param name="asOverload">
+    /// If <see langword="true"/>, renders as a bullet item under an overload group; otherwise renders as a full section with a heading.
+    /// </param>
+    /// <remarks>
+    /// If an <c>&lt;inheritdoc&gt;</c> tag is present, inherited content is resolved via <see cref="InheritDocResolver"/> and merged before rendering.
+    /// </remarks>
     private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
     {
         // inheritdoc: if present, merge content
@@ -566,7 +761,7 @@ public sealed class MarkdownRenderer
             {
                 var cref = (string?)e.Attribute("cref");
                 var desc = NormalizeXmlToMarkdown(e);
-                var link = CrefToMarkdown(cref, displayFallback: ShortenTypeName(cref ?? string.Empty));
+                var link = CrefToMarkdown(cref, displayFallback: cref is null ? null : ShortLabelFromCref(cref));
                 sb.AppendLine($"- {link} — {desc}");
             }
         }
