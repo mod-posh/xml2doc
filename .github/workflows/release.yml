@@ -47,7 +47,7 @@ jobs:
         uses: mod-posh/UpdateReadme@main
         with:
           project_names: "Xml2Doc.Core,Xml2Doc.Cli,Xml2Doc.MSBuild"
-          verbose: true
+          verbose: 'verbose'
 
       - name: Build Project
         run: dotnet build ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --configuration Release
