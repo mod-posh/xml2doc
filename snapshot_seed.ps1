@@ -13,3 +13,6 @@ New-Item -ItemType Directory -Path $out | Out-Null
 dotnet run --project .\Xml2Doc\src\Xml2Doc.Cli -- --xml $xml --out $out --file-names clean --rootns Xml2Doc.Sample --lang csharp
 Copy-Item (Join-Path $out index.md) .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\index.verified.md -Force
 Copy-Item (Join-Path $out Xml2Doc.Sample.Mathx.md) .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.Mathx.verified.md -Force
+# Copy the GenericPlayground page into snapshots
+New-Item -ItemType Directory -Force -Path .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames | Out-Null
+Copy-Item (Join-Path $out Xml2Doc.Sample.GenericPlayground.md) .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.GenericPlayground.verified.md -Force
