@@ -1,28 +1,34 @@
-# Xml2Doc.Core.Models.XMember
+# XMember
 
-Represents a single <member> element from an XML documentation file.
+Represents a single `<member>` element from an XML documentation file.
 
-## M: XElement)
+## Method: XElement)
 
-Represents a single <member> element from an XML documentation file.
+Represents a single `<member>` element from an XML documentation file.
 
 **Parameters**
 
-- `Name` — The full documentation ID (e.g., M:Namespace.Type.Method(System.String)).
+- `Name` — The full documentation ID (e.g., `M:Namespace.Type.Method(System.String)`).
 - `Element` — The underlying XML element for this member.
 
-## P: Element
+## Property: Element
 
 The underlying XML element for this member.
 
-## P: Id
+## Property: Id
 
 Gets the identifier portion of the documentation ID after the colon.
 
-## P: Kind
+**Example**
+
+```csharp
+M:MyNamespace.MyType.MyMethod(System.String)
+```
+
+## Property: Kind
 
 Gets the kind prefix of the documentation ID before the colon.
 
-## P: Name
+## Property: Name
 
-The full documentation ID (e.g., M:Namespace.Type.Method(System.String)).
+The full documentation ID (e.g., `M:Namespace.Type.Method(System.String)`).
