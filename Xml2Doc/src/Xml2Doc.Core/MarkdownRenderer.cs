@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using System.Collections.Concurrent;
 using Xml2Doc.Core.Models;
 
 namespace Xml2Doc.Core;
@@ -162,95 +163,33 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        // members
+        // members (grouped by simple name for overloads)
         var members = _model.Members.Values
             .Where(m => m.Kind is "M" or "P" or "F" or "E")
             .Where(m => m.Id.StartsWith(type.Id + ".", StringComparison.Ordinal))
             .OrderBy(m => m.Id)
             .ToList();
 
-        foreach (var m in members)
+        var groups = members
+            .GroupBy(m => m.Id[(m.Id.LastIndexOf('.') + 1)..].Split('(')[0]) // simple member name
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        foreach (var g in groups)
         {
-            sb.AppendLine($"## {MemberHeader(m)}");
-
-            // summary
-            var ms = NormalizeXmlToMarkdown(m.Element.Element("summary"));
-            if (!string.IsNullOrWhiteSpace(ms))
+            if (g.First().Kind == "M" && g.Count() > 1)
             {
-                sb.AppendLine(ms);
+                // one header, list each overload as a bullet
+                sb.AppendLine($"## Method: {g.Key}");
+                foreach (var mem in g)
+                    RenderMember(mem, sb, asOverload: true);
+                sb.AppendLine();
             }
-
-            // params
-            var ps = m.Element.Elements("param").ToList();
-            if (ps.Count > 0)
+            else
             {
-                sb.AppendLine();
-                sb.AppendLine("**Parameters**");
-                foreach (var p in ps)
-                {
-                    var name = (string?)p.Attribute("name") ?? "";
-                    var text = NormalizeXmlToMarkdown(p);
-                    sb.AppendLine($"- `{name}` — {text}");
-                }
+                // single member as a full section
+                RenderMember(g.First(), sb, asOverload: false);
             }
-
-            // returns
-            var ret = m.Element.Element("returns");
-            if (ret != null)
-            {
-                sb.AppendLine();
-                sb.AppendLine("**Returns**");
-                sb.AppendLine();
-                sb.AppendLine(NormalizeXmlToMarkdown(ret));
-            }
-
-            // exceptions
-            var exTags = m.Element.Elements("exception").ToList();
-            if (exTags.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("**Exceptions**");
-                foreach (var e in exTags)
-                {
-                    var cref = (string?)e.Attribute("cref");
-                    var desc = NormalizeXmlToMarkdown(e);
-                    var link = CrefToMarkdown(cref, displayFallback: ShortenTypeName(cref ?? string.Empty));
-                    sb.AppendLine($"- {link} — {desc}");
-                }
-            }
-
-            // examples
-            var examples = m.Element.Elements("example").ToList();
-            if (examples.Count > 0)
-            {
-                sb.AppendLine();
-                foreach (var ex in examples)
-                {
-                    var exMd = NormalizeXmlToMarkdown(ex, preferCodeBlocks: true);
-                    if (!string.IsNullOrWhiteSpace(exMd))
-                    {
-                        sb.AppendLine("**Example**");
-                        sb.AppendLine();
-                        sb.AppendLine(exMd);
-                    }
-                }
-            }
-
-            // seealso
-            var memberSeeAlsos = m.Element.Elements("seealso").ToList();
-            if (memberSeeAlsos.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("**See also**");
-                foreach (var sa in memberSeeAlsos)
-                {
-                    var link = SeeAlsoToMarkdown(sa);
-                    if (!string.IsNullOrWhiteSpace(link))
-                        sb.AppendLine($"- {link}");
-                }
-            }
-
-            sb.AppendLine();
         }
 
         return sb.ToString();
@@ -565,5 +504,104 @@ public sealed class MarkdownRenderer
 
         var result = Regex.Replace(text.ToString().Trim(), "\\s+", " ").Replace(" .", ".");
         return result;
+    }
+    private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
+    {
+        // inheritdoc: if present, merge content
+        var inherit = m.Element.Element("inheritdoc");
+        if (inherit != null)
+        {
+            var target = InheritDocResolver.ResolveInheritedMember(_model, m);
+            if (target != null)
+                InheritDocResolver.MergeInheritedContent(m.Element, target);
+        }
+
+        // Heading
+        if (asOverload)
+        {
+            // overload list bullet with signature
+            sb.AppendLine($"- `{MemberHeader(m)}`");
+        }
+        else
+        {
+            sb.AppendLine($"## {MemberHeader(m)}");
+        }
+
+        // summary
+        var ms = NormalizeXmlToMarkdown(m.Element.Element("summary"));
+        if (!string.IsNullOrWhiteSpace(ms))
+            sb.AppendLine(ms);
+
+        // params
+        var ps = m.Element.Elements("param").ToList();
+        if (ps.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Parameters**");
+            foreach (var p in ps)
+            {
+                var name = (string?)p.Attribute("name") ?? "";
+                var text = NormalizeXmlToMarkdown(p);
+                sb.AppendLine($"- `{name}` — {text}");
+            }
+        }
+
+        // returns
+        var ret = m.Element.Element("returns");
+        if (ret != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Returns**");
+            sb.AppendLine();
+            sb.AppendLine(NormalizeXmlToMarkdown(ret));
+        }
+
+        // exceptions
+        var exTags = m.Element.Elements("exception").ToList();
+        if (exTags.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Exceptions**");
+            foreach (var e in exTags)
+            {
+                var cref = (string?)e.Attribute("cref");
+                var desc = NormalizeXmlToMarkdown(e);
+                var link = CrefToMarkdown(cref, displayFallback: ShortenTypeName(cref ?? string.Empty));
+                sb.AppendLine($"- {link} — {desc}");
+            }
+        }
+
+        // examples
+        var examples = m.Element.Elements("example").ToList();
+        if (examples.Count > 0)
+        {
+            sb.AppendLine();
+            foreach (var ex in examples)
+            {
+                var exMd = NormalizeXmlToMarkdown(ex, preferCodeBlocks: true);
+                if (!string.IsNullOrWhiteSpace(exMd))
+                {
+                    sb.AppendLine("**Example**");
+                    sb.AppendLine();
+                    sb.AppendLine(exMd);
+                }
+            }
+        }
+
+        // seealso
+        var memberSeeAlsos = m.Element.Elements("seealso").ToList();
+        if (memberSeeAlsos.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**See also**");
+            foreach (var sa in memberSeeAlsos)
+            {
+                var link = SeeAlsoToMarkdown(sa);
+                if (!string.IsNullOrWhiteSpace(link))
+                    sb.AppendLine($"- {link}");
+            }
+        }
+
+        sb.AppendLine();
     }
 }
