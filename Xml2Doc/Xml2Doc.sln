@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Cli", "src\Xml2Doc.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.MSBuild", "src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj", "{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Tests", "tests\Xml2Doc.Tests\Xml2Doc.Tests.csproj", "{BE6AC39A-36F2-EFF8-3EB0-890E5183C49A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xml2Doc.Sample", "tests\Xml2Doc.Sample\Xml2Doc.Sample.csproj", "{042D8F8E-AF99-071F-1C26-5FD105AD7F3B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F4B56CB-A4B2-0B79-11DD-2C4311AA2D71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE6AC39A-36F2-EFF8-3EB0-890E5183C49A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE6AC39A-36F2-EFF8-3EB0-890E5183C49A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE6AC39A-36F2-EFF8-3EB0-890E5183C49A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE6AC39A-36F2-EFF8-3EB0-890E5183C49A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{042D8F8E-AF99-071F-1C26-5FD105AD7F3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{042D8F8E-AF99-071F-1C26-5FD105AD7F3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{042D8F8E-AF99-071F-1C26-5FD105AD7F3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{042D8F8E-AF99-071F-1C26-5FD105AD7F3B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
