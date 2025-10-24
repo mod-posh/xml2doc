@@ -94,10 +94,21 @@ jobs:
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin
-          git rebase origin/${{ github.ref_name }} || git pull --rebase
-          git add Docs/
-          git commit -m "Update documentation for release v${{ env.VERSION }}"
-          git push origin ${{ github.ref_name }}
-        if: success()
 
+          # Check if there are any changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected, committing..."
+
+            # Stage all changes (documentation and any markdownlint fixes)
+            git add .
+
+            # Commit the changes
+            git commit -m "Update documentation and fix markdown formatting for release v${{ env.VERSION }}"
+
+            # Pull any remote changes and push
+            git pull --rebase origin ${{ github.ref_name }} || true
+            git push origin ${{ github.ref_name }}
+          else
+            echo "No changes to commit"
+          fi
+        if: success()
