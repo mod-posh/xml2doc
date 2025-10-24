@@ -9,6 +9,7 @@
     </Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>xml-doc;markdown;documentation;dotnet;mod-posh;xml2doc;generator;library</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

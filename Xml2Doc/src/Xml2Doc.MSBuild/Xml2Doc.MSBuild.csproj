@@ -12,6 +12,7 @@
     </Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>xml-doc;markdown;documentation;msbuild;build;automation;mod-posh;xml2doc</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -13,6 +13,7 @@
     </Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>xml-doc;markdown;documentation;cli;dotnet-tool;mod-posh;xml2doc;generator</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
