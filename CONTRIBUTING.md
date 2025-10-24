@@ -32,7 +32,7 @@ There are many ways to contribute to this project:
 
 ## Community Guidelines
 
-We expect all contributors to be respectful and constructive in their communication. Harassment, trolling, and abuse are strictly prohibited. 
+We expect all contributors to be respectful and constructive in their communication. Harassment, trolling, and abuse are strictly prohibited.
 
 ## Feedback and Questions
 

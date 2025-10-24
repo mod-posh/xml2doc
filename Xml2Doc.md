@@ -39,6 +39,7 @@ Xml2Doc/
 ### 1. Generate XML docs in your project
 
 Add this to your `.csproj`:
+
 ```xml
 <PropertyGroup>
   <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -89,7 +90,7 @@ Current version: **1.0.0**
 
 ### Planned for **1.1.0**
 
-* Better display names (shorten namespaces, format `List<T>` generics).
-* Support for `<remarks>`, `<example>`, `<seealso>`, `<exception>`.
-* Single-file output flag `--single` for merged Markdown.
-* File naming modes (toggle inclusion of generic arity/backticks).
+- Better display names (shorten namespaces, format `List<T>` generics).
+- Support for `<remarks>`, `<example>`, `<seealso>`, `<exception>`.
+- Single-file output flag `--single` for merged Markdown.
+- File naming modes (toggle inclusion of generic arity/backticks).

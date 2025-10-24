@@ -19,4 +19,3 @@ CLI tool + MSBuild task
 * issue-3: Build out Xml2Doc.Core
 * issue-2: Setup initial Xml2Doc Structure
 * issue-1: Clean up template repo
-
