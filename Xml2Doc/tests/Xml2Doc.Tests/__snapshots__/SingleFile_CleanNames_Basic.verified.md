@@ -1,4 +1,5 @@
 # API Reference
+
 - [Mathx](Xml2Doc.Sample.Mathx.md)
 
 # Mathx
@@ -6,10 +7,12 @@
 Math helpers for demos.
 
 ## Method: Int32)
+
 - `Method: Int32)`
 Add three integers.
 
 **Parameters**
+
 - `a` — First.
 - `b` — Second.
 - `c` — Third.
@@ -22,6 +25,7 @@ Sum of all.
 Add two integers.
 
 **Parameters**
+
 - `a` — Left addend.
 - `b` — Right addend.
 
@@ -39,6 +43,7 @@ var s = Mathx.Add(1,2); // 3
 Alias that calls [int)](Xml2Doc.md#xml2doc.sample.mathx.add(system.int32,system.int32)).
 
 **Parameters**
+
 - `a` — Left addend.
 - `b` — Right addend.
 
@@ -51,6 +56,3 @@ Sum of `a` and `b`.
 ```csharp
 var s = Mathx.Add(1,2); // 3
 ```
-
-
-

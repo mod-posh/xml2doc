@@ -21,4 +21,3 @@
 * issue-15: Make Markdown output cleaner by grouping method overloads together with shared names.
 * issue-14: Add first-pass inheritdoc support that merges summaries and params from referenced or base members.
 * issue-13: Bring the CLI up to feature parity with MSBuild by adding `--rootns`, `--lang`, and `--config` support.
-
