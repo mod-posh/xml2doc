@@ -1,19 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Exe</OutputType>
     <PackAsTool>true</PackAsTool>
+    <!-- Tool command shown when installed via dotnet tool; compiled exe remains Xml2Doc.Cli.exe -->
     <ToolCommandName>xml2doc</ToolCommandName>
-    <PackageId>Xml2Doc.Cli</PackageId>
-    <AssemblyName>XmlDocMd.Cli</AssemblyName>
-    <Description>CLI to convert C# XML doc comments into Markdown.</Description>
-    <Authors>Jeffrey Patton</Authors>
-    <RepositoryUrl>https://github.com/mod-posh/xml2doc</RepositoryUrl>
-    <Version>0.1.0</Version>
+
+    <Description>
+      Command-line tool for Xml2Doc — convert C# XML documentation into Markdown directly from your terminal or CI pipeline.
+      Supports single-file mode, filename options, and namespace trimming. Part of the mod-posh Xml2Doc suite.
+    </Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>xml-doc;markdown;documentation;cli;dotnet-tool;mod-posh;xml2doc;generator</PackageTags>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>

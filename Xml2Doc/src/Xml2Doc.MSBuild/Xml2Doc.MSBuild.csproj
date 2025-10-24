@@ -1,20 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Xml2Doc.MSBuild</AssemblyName>
-    <PackageId>Xml2Doc.MSBuild</PackageId>
+    <!-- Pack as build assets (no lib assembly referenced by consumers) -->
     <IsPackable>true</IsPackable>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <Description>MSBuild task + targets to run Xml2Doc during build.</Description>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+
+    <Description>
+      MSBuild integration for Xml2Doc — automatically generate Markdown documentation when building your project.
+      Supports single-file output, filename modes, and root namespace trimming. Part of the mod-posh Xml2Doc suite.
+    </Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>xml-doc;markdown;documentation;msbuild;build;automation;mod-posh;xml2doc</PackageTags>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
-  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Build" Version="17.14.28" />
     <PackageReference Include="Microsoft.Build.Framework" Version="17.14.28" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
+  </ItemGroup>
+
+  <!-- ship props/targets as build assets -->
+  <ItemGroup>
+    <!-- Update filenames/paths if yours differ -->
+    <None Include="build\Xml2Doc.MSBuild.props" Pack="true" PackagePath="build/Xml2Doc.MSBuild.props" />
+    <None Include="build\Xml2Doc.MSBuild.targets" Pack="true" PackagePath="build/Xml2Doc.MSBuild.targets" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>

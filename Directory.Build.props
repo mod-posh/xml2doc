@@ -1,11 +1,32 @@
+<!-- Directory.Build.props (repo root) -->
 <Project>
   <PropertyGroup>
-    <!-- Single source of truth -->
-    <Version>1.0.0</Version>
-    <!-- Optional: -->
-    <PackageVersion>1.0.0</PackageVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <PackageId>ModPosh.Xml2Doc</PackageId>
+    <TargetFramework>net9.0</TargetFramework>
+    <!-- Common metadata -->
+    <Company>mod-posh</Company>
+    <Authors>Jeffrey Patton</Authors>
+    <RepositoryUrl>https://github.com/mod-posh/Xml2Doc</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- Version: set once for all (override per project if needed) -->
+    <Version>1.1.0</Version>
+    <!-- Licensing (metadata only; LICENSE lives in repo root) -->
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+
+    <!-- SourceLink + symbols (helps debugging for all pkgs) -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Build defaults -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- SourceLink for all projects -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
 </Project>

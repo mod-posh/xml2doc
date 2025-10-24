@@ -1,12 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Description>Core library to convert C# XML doc comments into Markdown with cross-links.</Description>
-    <PackageId>Xml2Doc.Core</PackageId>
-    <RepositoryUrl>https://github.com/mod-posh/xml2doc</RepositoryUrl>
-    <Authors>Jeffrey Patton</Authors>
+    <!-- Inherits TFM/Nullable/etc. -->
+    <Description>
+      Core engine for Xml2Doc — parses C# XML documentation and renders clean, linked Markdown output.
+      Used by both the CLI and MSBuild integrations. Part of the mod-posh Xml2Doc suite.
+    </Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>xml-doc;markdown;documentation;dotnet;mod-posh;xml2doc;generator;library</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>
