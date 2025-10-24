@@ -16,7 +16,7 @@ It can be used as a **library**, a **command-line tool**, or integrated directly
 Xml2Doc includes:
 
 * **Xml2Doc.Core** — The engine that parses XML and renders Markdown.
-* **Xml2Doc.Cli** — A command-line tool (`Xml2Doc.Cli.exe`) for quick, scriptable conversions.
+* **Xml2Doc.Cli** — A command-line tool (`Xml2Doc.exe`) for quick, scriptable conversions.
 * **Xml2Doc.MSBuild** — An MSBuild integration that automatically generates Markdown docs after each build.
 
 ---
@@ -44,7 +44,7 @@ Xml2Doc includes:
 Xml2Doc/
 ├─ src/
 │   ├─ Xml2Doc.Core/         # Core parser and Markdown renderer
-│   ├─ Xml2Doc.Cli/          # CLI entrypoint (Xml2Doc.Cli.exe / dotnet tool)
+│   ├─ Xml2Doc.Cli/          # CLI entrypoint (Xml2Doc.exe / dotnet tool)
 │   └─ Xml2Doc.MSBuild/      # MSBuild task & build integration
 ├─ Directory.Build.props     # Shared configuration and metadata
 ├─ Xml2Doc.sln
@@ -79,7 +79,7 @@ dotnet build
 Run directly via the compiled executable:
 
 ```bash
-Xml2Doc.Cli.exe --xml ./bin/Debug/net9.0/MyLib.xml --out ./docs
+Xml2Doc.exe --xml ./bin/Debug/net9.0/MyLib.xml --out ./docs
 ```
 
 Or, if installed as a dotnet tool:

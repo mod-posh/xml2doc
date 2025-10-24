@@ -4,13 +4,13 @@ Command-line interface for Xml2Doc, part of the **mod-posh** organization.
 
 ## Overview
 
-`Xml2Doc.Cli.exe` provides a simple, script-friendly way to convert your C# XML documentation into Markdown.
+`Xml2Doc.exe` provides a simple, script-friendly way to convert your C# XML documentation into Markdown.
 It’s built on top of `Xml2Doc.Core` and is ideal for developers who want to generate documentation locally or in CI pipelines without custom code.
 
 ## Usage
 
 ```bash
-Xml2Doc.Cli.exe --xml ./bin/Debug/net8.0/MyLib.xml --out ./docs
+Xml2Doc.exe --xml ./bin/Debug/net8.0/MyLib.xml --out ./docs
 ````
 
 ### Options
@@ -28,7 +28,7 @@ Xml2Doc.Cli.exe --xml ./bin/Debug/net8.0/MyLib.xml --out ./docs
 ### Example
 
 ```bash
-Xml2Doc.Cli.exe --xml ./bin/Debug/net8.0/MyLib.xml --out ./docs --single --file-names clean
+Xml2Doc.exe --xml ./bin/Debug/net8.0/MyLib.xml --out ./docs --single --file-names clean
 ```
 
 Produces either a single Markdown file or per-type documentation pages, depending on your flags.
