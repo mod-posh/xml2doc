@@ -1,58 +1,90 @@
-# Xml2Doc.Core.MarkdownRenderer
+# MarkdownRenderer
 
-Renders an [Xml2Doc.Core.Models.Xml2Doc](Xml2Doc.Core.Models.Xml2Doc.md) model into Markdown files.
+Renders a parsed XML documentation model to Markdown files.
 
-## F: _model
+**Remarks**
 
-The loaded XML documentation model to render.
+- Use [string)](Xml2Doc.md#xml2doc.core.markdownrenderer.rendertodirectory(system.string)) to emit one file per type plus an index. - Use [string)](Xml2Doc.md#xml2doc.core.markdownrenderer.rendertosinglefile(system.string)) to generate a single consolidated Markdown file. Rendering is influenced by [RendererOptions](Xml2Doc.Core.RendererOptions.md) (filename style, code block language, and display trimming).
 
-## M: Xml2Doc)
+**See also**
 
-Initializes a new instance of the [Xml2Doc.Core.MarkdownRenderer](Xml2Doc.Core.MarkdownRenderer.md) class.
+- [RendererOptions](Xml2Doc.Core.RendererOptions.md)
+- [FileNameMode](Xml2Doc.Core.FileNameMode.md)
+
+## Method: RendererOptions)
+
+Initializes a new instance of [MarkdownRenderer](Xml2Doc.Core.MarkdownRenderer.md).
 
 **Parameters**
 
 - `model` — The XML documentation model to render.
+- `options` — Optional rendering options. If , defaults are used (e.g., [Verbatim](Xml2Doc.md#xml2doc.core.filenamemode.verbatim), language `csharp`).
 
-## M: String)
+## Field: Aliases
 
-Computes a display name for a documentation ID.
+Built-in mappings for fully-qualified BCL types and their C# aliases.
 
-**Parameters**
+## Method: String)
 
-- `id` — The documentation ID.
-
-**Returns**
-
-The display text. Currently returns the ID as-is.
-
-## M: String)
-
-Generates a file name for a type ID suitable for use on disk.
+Replaces fully-qualified type names and common framework type names with their C# aliases.
 
 **Parameters**
 
-- `typeId` — The type documentation ID (without the T: prefix).
+- `s` — The input type string.
 
 **Returns**
 
-The markdown file name. Generic angle brackets are replaced with square brackets.
+The aliased form (e.g., `System.String` becomes `string`).
 
-## M: String)
+## Method: String)
 
-Converts a documentation ID to a Markdown anchor.
+Converts a `cref` to a Markdown link, resolving types and members to local files/anchors.
 
 **Parameters**
 
-- `id` — The documentation ID.
+- `cref` — The cref value (e.g., `T:Namespace.Type`, `M:Namespace.Type.Method`).
+- `displayFallback` — Optional display text if the cref cannot be resolved.
 
 **Returns**
 
-A lowercase anchor string.
+A Markdown link, or the fallback/display text if unavailable.
 
-## M: XMember)
+## Method: FileNameMode)
 
-Builds a concise header for a member, e.g., M: Method(…).
+Generates a Markdown file name for a type ID based on the chosen [FileNameMode](Xml2Doc.Core.FileNameMode.md).
+
+**Parameters**
+
+- `typeId` — The type ID (portion after the kind prefix).
+- `mode` — The file name generation mode.
+
+**Returns**
+
+A file-system-friendly name ending with `.md`.
+
+## Method: GetTypes
+
+Gets all documented types (`T:` members) from the model.
+
+## Method: String)
+
+Converts a documentation ID into a Markdown anchor.
+
+**Parameters**
+
+- `id` — The documentation ID (portion after the kind prefix).
+
+## Method: String)
+
+Converts a documentation kind letter to a readable word.
+
+**Parameters**
+
+- `kind` — The kind prefix (e.g., `M`, `P`, `F`, `E`, `T`).
+
+## Method: XMember)
+
+Builds a concise header for a member (e.g., `Method: Foo(int, string)`), simplifying type names and generics.
 
 **Parameters**
 
@@ -60,36 +92,101 @@ Builds a concise header for a member, e.g., M: Method(…).
 
 **Returns**
 
-A short header containing the kind prefix and simplified signature.
+A short header containing the member kind and simplified signature.
 
-## M: XElement)
+## Method: Boolean)
 
-Converts XML documentation nodes to Markdown text.
+Normalizes XML documentation nodes to Markdown.
 
 **Parameters**
 
-- `element` — The XML element to normalize (e.g., summary, returns, or param).
+- `element` — The XML element to normalize (e.g., `summary`, `remarks`, `returns`, `param`, `example`).
+- `preferCodeBlocks` — If , prefers fenced code blocks for code samples (e.g., within `example` or `code` elements).
 
 **Returns**
 
 The normalized Markdown text, or an empty string if `element` is.
 
-## M: String)
+## Method: XMember})
 
-Renders all types from the model into Markdown files within the specified output directory.
+Builds the table of contents for the provided types.
+
+**Parameters**
+
+- `types` — The set of types to include in the index.
+
+**Returns**
+
+Markdown content for the index page.
+
+## Method: String)
+
+Renders all types to individual Markdown files in the specified directory and writes an `index.md`.
 
 **Parameters**
 
 - `outDir` — The output directory. It is created if it does not exist.
 
-## M: XMember)
+## Method: String)
 
-Renders a single type and its members to a Markdown document.
+Renders all types to a single Markdown file that includes an index followed by each type section.
 
 **Parameters**
 
-- `type` — The type member (T: entry) to render.
+- `outPath` — The output file path. The containing directory is created if necessary.
+
+## Method: XMember)
+
+Renders a single type section including summary, remarks, examples, see-also, and its members.
+
+**Parameters**
+
+- `type` — The type (`T:` entry) to render.
 
 **Returns**
 
-The Markdown content for the specified type.
+Markdown content for the specified type.
+
+## Method: XElement)
+
+Converts a `<seealso>` element into Markdown.
+
+**Parameters**
+
+- `sa` — The `seealso` element.
+
+**Returns**
+
+A Markdown link or normalized text.
+
+## Method: String)
+
+Shortens a fully-qualified type used in a signature to a compact display form.
+
+**Parameters**
+
+- `full` — The full type representation, e.g., `System.Collections.Generic.List{System.String}`.
+
+**Returns**
+
+A simplified representation, e.g., `List<string>`.
+
+## Method: String)
+
+Produces a short label from a `cref` for display purposes (e.g., replaces arity and aliases BCL types).
+
+**Parameters**
+
+- `cref` — The cref value, e.g., `T:Namespace.Type`2` or `M:Namespace.Type.Method(System.String)`.
+
+**Returns**
+
+A simplified display name.
+
+## Method: String)
+
+Produces a short display name for a type ID, optionally trimming a root namespace and formatting generic arity as `<T1,T2>`.
+
+**Parameters**
+
+- `typeId` — The type documentation ID (portion after the `T:` prefix).
