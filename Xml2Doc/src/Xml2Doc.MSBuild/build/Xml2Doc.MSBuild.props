@@ -1,6 +1,22 @@
 ﻿<Project>
   <PropertyGroup>
+    <!-- Enable/disable generation -->
     <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
+
+    <!-- Per-type output directory (when SingleFile=false) -->
     <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
+
+    <!-- Single-file mode -->
+    <Xml2Doc_SingleFile>false</Xml2Doc_SingleFile>
+    <Xml2Doc_OutputFile>$(MSBuildProjectDirectory)\docs\api.md</Xml2Doc_OutputFile>
+
+    <!-- Filename mode: verbatim | clean -->
+    <Xml2Doc_FileNameMode>verbatim</Xml2Doc_FileNameMode>
+
+    <!-- Optional display tweak -->
+    <Xml2Doc_RootNamespaceToTrim></Xml2Doc_RootNamespaceToTrim>
+
+    <!-- Code fence language for examples/code tags -->
+    <Xml2Doc_CodeBlockLanguage>csharp</Xml2Doc_CodeBlockLanguage>
   </PropertyGroup>
 </Project>

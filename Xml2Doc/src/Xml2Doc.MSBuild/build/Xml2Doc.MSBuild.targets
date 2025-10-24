@@ -1,9 +1,17 @@
 ﻿<Project>
   <UsingTask TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
              AssemblyFile="$(MSBuildThisFileDirectory)..\lib\net9.0\Xml2Doc.MSBuild.dll" />
+
   <Target Name="Xml2Doc_Generate" AfterTargets="Build"
           Condition="'$(Xml2Doc_Enabled)' == 'true' and Exists('$(DocumentationFile)')">
-    <MakeDir Directories="$(Xml2Doc_OutputDir)" />
-    <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)" OutputDirectory="$(Xml2Doc_OutputDir)" />
+    <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="'$(Xml2Doc_SingleFile)' != 'true'" />
+    <GenerateMarkdownFromXmlDoc
+        XmlPath="$(DocumentationFile)"
+        OutputDirectory="$(Xml2Doc_OutputDir)"
+        SingleFile="$(Xml2Doc_SingleFile)"
+        OutputFile="$(Xml2Doc_OutputFile)"
+        FileNameMode="$(Xml2Doc_FileNameMode)"
+        RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)"
+        CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)" />
   </Target>
 </Project>
