@@ -1,16 +1,22 @@
-# Version 1.1.0 Release
+# Version 1.2.0 Release
 
-- Better display names (shorten namespaces, format `List<T>` generics).
-- Support for `<remarks>`, `<example>`, `<seealso>`, `<exception>`.
-- Single-file output flag `--single` for merged Markdown.
-- File naming modes (toggle inclusion of generic arity/backticks).
+* Create a milestone issue titled `Xml2Doc 1.2.0 Development`.
+* Link the five feature issues as checklist items.
+* Include any relevant test coverage or doc tasks (e.g., updating README when done).
+* Use this issue to summarize changelog entries once merged.
 
-## TASK
+## ENHANCEMENT
 
-- issue-11: Add MSBuild flags for single-file mode, filename style, namespace trimming, and code-block language, bringing full feature parity with the updated MarkdownRenderer.
-- issue-10: Update CLI to use RendererOptions, support new rendering features (single-file, filename modes), and align help/output with the improved MarkdownRenderer..
-- issue-9: Enhance MarkdownRenderer with cleaner names, alias support, richer XML tag handling, and options for single-file output and filename modes.
+* issue-16: Lock down Markdown output formatting with golden snapshot tests.
+* issue-15: Make Markdown output cleaner by grouping method overloads together with shared names.
+* issue-14: Add first-pass inheritdoc support that merges summaries and params from referenced or base members.
+* issue-13: Bring the CLI up to feature parity with MSBuild by adding `--rootns`, `--lang`, and `--config` support.
 
 ## DOCUMENTATION
 
-- issue-12: Add README to each project
+* issue-18: Update Readme
+
+## TASK
+
+* issue-17: Add a small, self-contained test library to validate Xml2Doc behavior end-to-end.
+
