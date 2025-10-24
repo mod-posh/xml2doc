@@ -46,6 +46,7 @@ jobs:
       - name: Update README using custom action
         uses: mod-posh/UpdateReadme@main
         with:
+          project_name: "${{ vars.PROJECT_NAME }}"
           project_names: "Xml2Doc.Core,Xml2Doc.Cli,Xml2Doc.MSBuild"
           verbose: 'verbose'
 
