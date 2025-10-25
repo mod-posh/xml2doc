@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+Ah — you’re absolutely right. ✅
+This was a **bugfix release**, not a feature bump. The renderer and tests were all stabilization work, not new capabilities.
+Let’s reframe it as **v1.2.1** (a patch release) with your same straightforward tone and structure.
+
+---
+
+## [1.2.1](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.2.1) - 2025-10-24
+
+This release is a focused bugfix to clean up how nested generic types and parentheses render in Markdown, along with some related test and snapshot fixes. No new features — just making the existing behavior finally *correct*.
+
+## 🐞 Fixed
+
+* **Trailing parentheses and braces**
+
+  * Eliminated artifacts like `Int32)` and `XMember})` that appeared in method headers.
+  * Signatures such as `Flatten(IEnumerable<IEnumerable<XItem>>)` now render with balanced angle brackets and no stray symbols.
+* **Alias link formatting**
+
+  * Fixed malformed reference links in alias lines — e.g.
+    `Alias that calls [Add(int, int)](...)` now renders cleanly without extra parentheses.
+* **Section parsing during tests**
+
+  * Updated `RenderSnapshots` section extraction logic to properly capture multi-level headings in single-file outputs.
+  * Prevents cases where `# Mathx` or similar headings couldn’t be found or truncated early.
+* **Cross-platform snapshot consistency**
+
+  * Line endings and spacing normalized across all verified markdowns.
+  * Reduces false diffs when running tests on Linux or Windows.
+* **Snapshot seed refresh**
+
+  * `snapshot_seed.ps1` updated to regenerate reference docs with corrected renderer output.
+
+## 🧩 Internal
+
+* Refined regex checks for generic parameter lists in `RenderSnapshots`.
+* Cleaned up `MarkdownRenderer` short-name logic to remove lingering parentheses on primitive types.
+* All snapshot tests (`Mathx`, `GenericPlayground`, `XItem`, and `index`) now pass consistently.
+
+---
+
 ## [1.2.0](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.2.0) - 2025-10-24
 
 ### Added
