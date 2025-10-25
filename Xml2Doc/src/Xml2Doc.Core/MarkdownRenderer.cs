@@ -58,14 +58,15 @@ public sealed class MarkdownRenderer
     {
         Directory.CreateDirectory(outDir);
 
-        var types = GetTypes().ToList();
+        var types = GetTypes().OrderBy(t => t.Id).ToList();
+
         foreach (var t in types)
         {
             var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
-            File.WriteAllText(file, RenderType(t));
+            File.WriteAllText(file, RenderType(t, includeHeader: true));
         }
 
-        File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types));
+        File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
     }
 
     /// <summary>
@@ -77,19 +78,49 @@ public sealed class MarkdownRenderer
     public void RenderToSingleFile(string outPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-        var sb = new StringBuilder();
-        var types = GetTypes().ToList();
+        File.WriteAllText(outPath, BuildSingleFileContent());
+    }
 
-        sb.Append(RenderIndex(types));
+    /// <summary>
+    /// Returns the single-file markdown content as a string (same as RenderToSingleFile but without writing to disk).
+    /// </summary>
+    public string RenderToString() => BuildSingleFileContent();
+
+    private string BuildSingleFileContent()
+    {
+        // Build a single, consistently-ordered list and use it for both TOC and sections
+        var types = GetTypes().OrderBy(t => t.Id).ToList();
+
+        var sb = new StringBuilder();
+
+        // TOC uses in-document anchors
+        sb.Append(RenderIndex(types, useAnchors: true));
         sb.AppendLine();
 
-        foreach (var t in types.OrderBy(t => t.Id))
+        for (int i = 0; i < types.Count; i++)
         {
-            sb.Append(RenderType(t));
+            var t = types[i];
+
+            // Stable in-document anchor that matches the TOC slug
+            var typeDisplay = ShortTypeDisplay(t.Id);
+            sb.AppendLine($"<a id=\"{HeadingSlug(typeDisplay)}\"></a>");
+
+            // Emit a single, explicit top-level H1 heading (avoid duplicates).
+            sb.AppendLine($"# {typeDisplay}");
             sb.AppendLine();
+
+            // Render the rest of the type body without re-emitting the header.
+            sb.Append(RenderType(t, includeHeader: false));
+
+            if (i < types.Count - 1)
+            {
+                sb.AppendLine();
+                sb.AppendLine("---");
+                sb.AppendLine();
+            }
         }
 
-        File.WriteAllText(outPath, sb.ToString());
+        return sb.ToString();
     }
 
     // === Core rendering ===
@@ -105,19 +136,25 @@ public sealed class MarkdownRenderer
     /// Builds the table of contents for the provided types.
     /// </summary>
     /// <param name="types">The set of types to include in the index.</param>
+    /// <param name="useAnchors">
+    /// When true, emits in-document anchor links (for single-file mode). When false (default), links to per-type files.
+    /// </param>
     /// <returns>Markdown content for the index page.</returns>
     /// <remarks>
-    /// Uses <see cref="ShortTypeDisplay(string)"/> for display and <see cref="FileNameFor(string, FileNameMode)"/> for links.
-    /// The list is ordered by the full documentation ID.
+    /// Uses <see cref="ShortTypeDisplay(string)"/> for display. When <paramref name="useAnchors"/> is false,
+    /// uses <see cref="FileNameFor(string, FileNameMode)"/> for links; otherwise uses heading slugs derived from the visible heading text.
     /// </remarks>
-    private string RenderIndex(IEnumerable<XMember> types)
+    private string RenderIndex(IEnumerable<XMember> types, bool useAnchors = false)
     {
         var sb = new StringBuilder();
         sb.AppendLine("# API Reference");
-        foreach (var t in types.OrderBy(t => t.Id))
+        foreach (var t in types)
         {
             var shortName = ShortTypeDisplay(t.Id);
-            sb.AppendLine($"- [{shortName}]({FileNameFor(t.Id, _opt.FileNameMode)})");
+            var link = useAnchors
+                ? $"#{HeadingSlug(shortName)}"
+                : FileNameFor(t.Id, _opt.FileNameMode);
+            sb.AppendLine($"- [{shortName}]({link})");
         }
         return sb.ToString();
     }
@@ -126,17 +163,22 @@ public sealed class MarkdownRenderer
     /// Renders a single type section including summary, remarks, examples, see-also, and its members.
     /// </summary>
     /// <param name="type">The type (<c>T:</c> entry) to render.</param>
+    /// <param name="includeHeader">When true, includes the type heading; otherwise only renders the body.</param>
     /// <returns>Markdown content for the specified type.</returns>
     /// <remarks>
     /// Members are grouped by simple name; method overloads are listed together under one heading.
     /// </remarks>
-    private string RenderType(XMember type)
+    private string RenderType(XMember type, bool includeHeader = true)
     {
         var sb = new StringBuilder();
 
         var typeDisplay = ShortTypeDisplay(type.Id);
-        sb.AppendLine($"# {typeDisplay}");
-        sb.AppendLine();
+
+        if (includeHeader)
+        {
+            sb.AppendLine($"# {typeDisplay}");
+            sb.AppendLine();
+        }
 
         // <summary>
         var summary = NormalizeXmlToMarkdown(type.Element.Element("summary"));
@@ -205,8 +247,11 @@ public sealed class MarkdownRenderer
                 return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
             });
 
-            // strip any existing aliases (e.g., `System.Int32` -> `Int32`)
-            nameAndParams = ApplyAliases(nameAndParams).TrimStart("System.".ToCharArray());
+            // strip known framework aliases in the signature preview
+            nameAndParams = ApplyAliases(nameAndParams);
+            if (nameAndParams.StartsWith("System.", StringComparison.Ordinal))
+                nameAndParams = nameAndParams.Substring("System.".Length);
+
             return nameAndParams;
         }
 
@@ -236,6 +281,18 @@ public sealed class MarkdownRenderer
     }
 
     // === Display helpers ===
+
+    /// <summary>
+    /// Builds a slug from a heading text compatible with common Markdown engines (e.g., GitHub).
+    /// Lowercases, trims, replaces spaces with dashes, and removes non [a-z0-9-].
+    /// </summary>
+    private static string HeadingSlug(string heading)
+    {
+        var s = heading.Trim().ToLowerInvariant();
+        s = Regex.Replace(s, @"\s+", "-");
+        s = Regex.Replace(s, @"[^a-z0-9\-]", "");
+        return s;
+    }
 
     /// <summary>
     /// Builds a concise header for a member (e.g., <c>Method: Foo(int, string)</c>), simplifying type names and generics.
@@ -393,8 +450,6 @@ public sealed class MarkdownRenderer
         var s = full.Trim().Replace('{', '<').Replace('}', '>');
 
         // Convert generic placeholders BEFORE splitting:
-        // ``0, ``1 are method generic params; `0, `1 are type generic params.
-        // We display them as T1, T2, ...
         s = Regex.Replace(s, @"``(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
         s = Regex.Replace(s, @"`(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
 
@@ -403,9 +458,7 @@ public sealed class MarkdownRenderer
         if (lt < 0)
         {
             s = ApplyAliases(s);
-            // take simple identifier after aliasing
             if (s.Contains('.')) s = s.Split('.').Last();
-            // final cleanup if any System.* slipped through
             s = s.Replace("System.", string.Empty);
             return s;
         }
@@ -414,24 +467,20 @@ public sealed class MarkdownRenderer
         var gt = FindMatchingAngle(s, lt);
         if (gt < 0)
         {
-            // Malformed; fall back to simple normalization
             return s;
         }
 
-        var head = s.Substring(0, lt);                // e.g., "System.Collections.Generic.IEnumerable"
-        var inner = s.Substring(lt + 1, gt - lt - 1); // e.g., "System.Collections.Generic.IEnumerable<Xml2Doc.Sample.XItem>"
-        var tail = s.Substring(gt + 1);               // rarely used in XML IDs, but keep it safe
+        var head = s.Substring(0, lt);
+        var inner = s.Substring(lt + 1, gt - lt - 1);
+        var tail = s.Substring(gt + 1);
 
-        // Simplify the head identifier (keep the type name)
         head = ApplyAliases(head);
         if (head.Contains('.')) head = head.Split('.').Last();
         head = head.Replace("System.Collections.Generic.", string.Empty)
                    .Replace("System.", string.Empty);
 
-        // Split top-level generic args and recursively shorten each
         var args = SplitTopLevel(inner).Select(ShortenSignatureType);
         var rebuilt = $"{head}<{string.Join(", ", args)}>";
-
         return rebuilt + tail;
 
         static int FindMatchingAngle(string str, int openIdx)
@@ -532,7 +581,10 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="id">The documentation ID (portion after the kind prefix).</param>
     /// <returns>Lowercase anchor text that can be referenced in links.</returns>
-    private static string IdToAnchor(string id) => id.ToLowerInvariant();
+    private static string IdToAnchor(string id) =>
+        // Apply C# aliases so anchors don't contain raw framework type names like "System.Int32"
+        // then lowercase for stable anchors.
+        ApplyAliases(id).ToLowerInvariant();
 
     /// <summary>
     /// Converts a <c>&lt;seealso&gt;</c> element into Markdown.
@@ -694,7 +746,7 @@ public sealed class MarkdownRenderer
     /// <remarks>
     /// Supported tags include:
     /// - <c>&lt;see cref="..." /&gt;</c> and <c>&lt;see href="..."&gt;text&lt;/see&gt;</c>
-    /// - <c>&lt;paramref name="..." /&gt;</c>
+    /// - <c>&lt;paramref name=&quot;...&quot; /&gt;</c>
     /// - <c>&lt;para&gt;</c> (emits paragraph breaks)
     /// - <c>&lt;c&gt;</c> and <c>&lt;code&gt;</c> (inline code or fenced blocks; language from <see cref="RendererOptions.CodeBlockLanguage"/>)
     /// - <c>&lt;example&gt;</c> (detects code and renders as fenced blocks when possible)
