@@ -22,6 +22,7 @@ namespace Xml2Doc.Core;
 /// </remarks>
 /// <seealso cref="RendererOptions"/>
 /// <seealso cref="FileNameMode"/>
+/// <seealso cref="InheritDocResolver"/>
 public sealed class MarkdownRenderer
 {
     private readonly Models.Xml2Doc _model;
@@ -107,6 +108,7 @@ public sealed class MarkdownRenderer
     /// <returns>Markdown content for the index page.</returns>
     /// <remarks>
     /// Uses <see cref="ShortTypeDisplay(string)"/> for display and <see cref="FileNameFor(string, FileNameMode)"/> for links.
+    /// The list is ordered by the full documentation ID.
     /// </remarks>
     private string RenderIndex(IEnumerable<XMember> types)
     {
@@ -195,17 +197,19 @@ public sealed class MarkdownRenderer
             var parenIdx = id.IndexOf('(');
             var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
             var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Add(System.Int32, ...)"
-            var nameOnly = nameAndParams.Split('(')[0];                // "Add"
-            
+
             // pretty generic method arity: ``2 -> <T1,T2>
-            nameOnly = Regex.Replace(nameOnly, @"``(\d+)", m =>
+            nameAndParams = Regex.Replace(nameAndParams, @"``(\d+)", m =>
             {
                 var n = int.Parse(m.Groups[1].Value);
                 return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
             });
-            return nameOnly;
+
+            // strip any existing aliases (e.g., `System.Int32` -> `Int32`)
+            nameAndParams = ApplyAliases(nameAndParams).TrimStart("System.".ToCharArray());
+            return nameAndParams;
         }
-        
+
         var groups = members
                     .GroupBy(GroupKey)
                     .OrderBy(g => g.Key)
@@ -240,6 +244,7 @@ public sealed class MarkdownRenderer
     /// <returns>A short header containing the member kind and simplified signature.</returns>
     /// <remarks>
     /// Handles brace-aware parameter splitting (XML-doc generics use <c>{}</c>) and formats generic arity (e.g., <c>``2</c> → <c>&lt;T1,T2&gt;</c>).
+    /// Example: <c>M:Sample.Calc.Add(System.Int32,System.Int32)</c> → <c>Method: Add(int, int)</c>.
     /// </remarks>
     private string MemberHeader(XMember m)
     {
@@ -308,6 +313,9 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="typeId">The type documentation ID (portion after the <c>T:</c> prefix).</param>
     /// <returns>The simple type name with generic arity displayed, and the root namespace removed if configured.</returns>
+    /// <remarks>
+    /// Applies <see cref="RendererOptions.RootNamespaceToTrim"/> when present.
+    /// </remarks>
     private string ShortTypeDisplay(string typeId)
     {
         // Optionally trim root namespace prefix for display
@@ -373,22 +381,91 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Shortens a fully-qualified type used in a signature to a compact display form.
+    /// Shortens a fully-qualified type used in a signature to a compact display form,
+    /// preserving the outer generic type name and formatting generic arguments recursively.
+    /// Handles XML-doc generics (<c>{}</c>) → (<c>&lt;&gt;</c>), BCL aliases, and generic placeholders (<c>``0</c>/<c>`0</c> → <c>T1</c>).
     /// </summary>
-    /// <param name="full">The full type representation, e.g., <c>System.Collections.Generic.List{System.String}</c>.</param>
-    /// <returns>A simplified representation, e.g., <c>List&lt;string&gt;</c>.</returns>
     private static string ShortenSignatureType(string full)
     {
-        // e.g. System.Collections.Generic.List{System.String} -> List<string>
-        var s = full.Trim();
-        s = s.Replace('{', '<').Replace('}', '>');
-        // alias fully qualified types first
-        s = ApplyAliases(s);
-        // after aliasing, keep only final segment for generic/non-generic types
-        s = s.Split('.').Last();
-        // ``2 -> <T1,T2>, ``1 -> <T1> (signature generic parameters shown as <T>)
-        s = Regex.Replace(s, @"`\d+", m => "<T>");
-        return s;
+        if (string.IsNullOrWhiteSpace(full)) return string.Empty;
+
+        // Normalize XML-doc generics first: {T} -> <T>
+        var s = full.Trim().Replace('{', '<').Replace('}', '>');
+
+        // Convert generic placeholders BEFORE splitting:
+        // ``0, ``1 are method generic params; `0, `1 are type generic params.
+        // We display them as T1, T2, ...
+        s = Regex.Replace(s, @"``(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
+        s = Regex.Replace(s, @"`(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
+
+        // If there is no generic argument list, just alias and trim namespaces.
+        var lt = s.IndexOf('<');
+        if (lt < 0)
+        {
+            s = ApplyAliases(s);
+            // take simple identifier after aliasing
+            if (s.Contains('.')) s = s.Split('.').Last();
+            // final cleanup if any System.* slipped through
+            s = s.Replace("System.", string.Empty);
+            return s;
+        }
+
+        // Generic case: split into head + <inner> + tail using top-level <...>
+        var gt = FindMatchingAngle(s, lt);
+        if (gt < 0)
+        {
+            // Malformed; fall back to simple normalization
+            return s;
+        }
+
+        var head = s.Substring(0, lt);                // e.g., "System.Collections.Generic.IEnumerable"
+        var inner = s.Substring(lt + 1, gt - lt - 1); // e.g., "System.Collections.Generic.IEnumerable<Xml2Doc.Sample.XItem>"
+        var tail = s.Substring(gt + 1);               // rarely used in XML IDs, but keep it safe
+
+        // Simplify the head identifier (keep the type name)
+        head = ApplyAliases(head);
+        if (head.Contains('.')) head = head.Split('.').Last();
+        head = head.Replace("System.Collections.Generic.", string.Empty)
+                   .Replace("System.", string.Empty);
+
+        // Split top-level generic args and recursively shorten each
+        var args = SplitTopLevel(inner).Select(ShortenSignatureType);
+        var rebuilt = $"{head}<{string.Join(", ", args)}>";
+
+        return rebuilt + tail;
+
+        static int FindMatchingAngle(string str, int openIdx)
+        {
+            int depth = 0;
+            for (int i = openIdx; i < str.Length; i++)
+            {
+                var ch = str[i];
+                if (ch == '<') depth++;
+                else if (ch == '>')
+                {
+                    depth--;
+                    if (depth == 0) return i;
+                }
+            }
+            return -1;
+        }
+
+        static IEnumerable<string> SplitTopLevel(string s)
+        {
+            var depth = 0; int start = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                var ch = s[i];
+                if (ch == '<') depth++;
+                else if (ch == '>') depth--;
+                else if (ch == ',' && depth == 0)
+                {
+                    yield return s.Substring(start, i - start).Trim();
+                    start = i + 1;
+                }
+            }
+            if (start <= s.Length) yield return s.Substring(start).Trim();
+        }
     }
 
     // === Links & filenames ===
@@ -463,7 +540,8 @@ public sealed class MarkdownRenderer
     /// <param name="sa">The <c>seealso</c> element.</param>
     /// <returns>A Markdown link or normalized text.</returns>
     /// <remarks>
-    /// Supports <c>cref</c> to local API links and <c>href</c> for external URLs.
+    /// Supports <c>cref</c> to local API links and <c>href</c> for external URLs. If neither attribute is present,
+    /// falls back to the element content via <see cref="NormalizeXmlToMarkdown(XElement?, bool)"/>.
     /// </remarks>
     private string SeeAlsoToMarkdown(XElement sa)
     {
