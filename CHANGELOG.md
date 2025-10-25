@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-Ah — you’re absolutely right. ✅
-This was a **bugfix release**, not a feature bump. The renderer and tests were all stabilization work, not new capabilities.
-Let’s reframe it as **v1.2.1** (a patch release) with your same straightforward tone and structure.
-
----
-
 ## [1.2.1](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.2.1) - 2025-10-24
 
 This release is a focused bugfix to clean up how nested generic types and parentheses render in Markdown, along with some related test and snapshot fixes. No new features — just making the existing behavior finally *correct*.
