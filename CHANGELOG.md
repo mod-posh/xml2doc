@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release is a focused bugfix to clean up how nested generic types and parentheses render in Markdown, along with some related test and snapshot fixes. No new features — just making the existing behavior finally *correct*.
 
-## 🐞 Fixed
+## Fixed
 
 * **Trailing parentheses and braces**
 
@@ -33,7 +33,7 @@ This release is a focused bugfix to clean up how nested generic types and parent
 
   * `snapshot_seed.ps1` updated to regenerate reference docs with corrected renderer output.
 
-## 🧩 Internal
+## Internal
 
 * Refined regex checks for generic parameter lists in `RenderSnapshots`.
 * Cleaned up `MarkdownRenderer` short-name logic to remove lingering parentheses on primitive types.
