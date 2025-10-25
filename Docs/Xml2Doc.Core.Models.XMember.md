@@ -2,6 +2,15 @@
 
 Represents a single `<member>` element from an XML documentation file.
 
+## Method: #ctor(string, XElement)
+
+Represents a single `<member>` element from an XML documentation file.
+
+**Parameters**
+
+- `Name` — The full documentation ID (e.g., `M:Namespace.Type.Method(System.String)`).
+- `Element` — The underlying XML element for this member.
+
 ## Property: Element
 
 The underlying XML element for this member.
@@ -23,12 +32,3 @@ Gets the kind prefix of the documentation ID before the colon.
 ## Property: Name
 
 The full documentation ID (e.g., `M:Namespace.Type.Method(System.String)`).
-
-## Method: XElement)
-
-Represents a single `<member>` element from an XML documentation file.
-
-**Parameters**
-
-- `Name` — The full documentation ID (e.g., `M:Namespace.Type.Method(System.String)`).
-- `Element` — The underlying XML element for this member.

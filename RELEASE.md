@@ -12,4 +12,3 @@
 
 * issue-22: Add test for braces
 * issue-21: Add nested class to sample
-

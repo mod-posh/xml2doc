@@ -3,9 +3,11 @@
 Math helpers for demos.
 
 ## Method: Add(int, int, int)
+
 Add three integers.
 
 **Parameters**
+
 - `a` — First.
 - `b` — Second.
 - `c` — Third.
@@ -15,9 +17,11 @@ Add three integers.
 Sum of all.
 
 ## Method: Add(int, int)
+
 Add two integers.
 
 **Parameters**
+
 - `a` — Left addend.
 - `b` — Right addend.
 
@@ -32,9 +36,11 @@ var s = Mathx.Add(1,2); // 3
 ```
 
 ## Method: AddAlias(int, int)
+
 Alias that calls [Add(int, int)](Xml2Doc.md#xml2doc.sample.mathx.add(int,int)).
 
 **Parameters**
+
 - `a` — Left addend.
 - `b` — Right addend.
 
@@ -47,4 +53,3 @@ Sum of `a` and `b`.
 ```csharp
 var s = Mathx.Add(1,2); // 3
 ```
-
