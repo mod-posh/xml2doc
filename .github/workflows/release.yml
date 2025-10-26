@@ -68,7 +68,7 @@ jobs:
         run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Install Project CLI Tool
-        run: dotnet tool install --global --add-source ./publish Xml2Doc.Cli
+        run: dotnet tool install --verbosity diag --global --add-source ./publish Xml2Doc.Cli
 
       - name: Generate Documentation
         run: |
