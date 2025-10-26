@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.3.1) - 2025-10-26
+
+Small bugfix release focused on fixing broken internal links and tightening anchor/label consistency. No new features.
+
+### Fixed
+
+* Per‑type member links now point to the correct type page + member anchor.
+  * Previously, links could truncate to the first namespace segment (e.g., `Xml2Doc.md#...`). We now derive the containing type via the last dot before the parameter list, producing correct targets like `Xml2Doc.Core.MarkdownRenderer.md#method-rendertodirectorystring`.
+* Anchor/href matching for nested generics
+  * Link fragments for complex signatures now exactly match emitted anchors, including the closing `)`, and with `{}` normalized to `[]` and C# aliases applied.
+* Method generic arity in labels
+  * `ShortLabelFromCref` now renders method generic arity tokens (e.g., ````1`` → `<T1>`) so labels like `Transform<T1>(...)` align with expectations and tests.
+
+### Internal
+
+* Refined `CrefToMarkdown` for member link target calculation (use last dot before `(`).
+* Kept anchors stable via `IdToAnchor` (token‑aware aliasing, `{}` → `[]`, lowercased).
+* Added and hardened tests for internal linking across per‑type/single‑file modes and nested generics.
+* Removed unused usings and performed minor code hygiene across Core/CLI/MSBuild.
+
+---
+
 ## [1.3.0](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.3.0) - 2025-10-26
 
 This release focuses on correctness and predictability: stable links/anchors across modes, depth‑aware generic formatting, and paragraph‑preserving normalization. It also expands tests and documentation accordingly.
