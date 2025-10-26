@@ -412,34 +412,39 @@ public sealed class MarkdownRenderer
         ("System.Double","double"), ("System.Single","float")
     };
 
-    /// <summary>
-    /// Replaces fully-qualified type names and common framework type names with their C# aliases.
-    /// </summary>
-    /// <param name="s">The input type string.</param>
-    /// <returns>The aliased form (e.g., <c>System.String</c> becomes <c>string</c>).</returns>
-    private static string ApplyAliases(string s)
-    {
-        foreach (var (full, alias) in Aliases)
-            s = s.Replace(full, alias);
-        // Also replace common short names
-        s = s.Replace("String", "string")
-             .Replace("Int32", "int")
-             .Replace("Boolean", "bool")
-             .Replace("Object", "object")
-             .Replace("Void", "void")
-             .Replace("Int64", "long")
-             .Replace("Int16", "short")
-             .Replace("Byte", "byte")
-             .Replace("SByte", "sbyte")
-             .Replace("UInt32", "uint")
-             .Replace("UInt64", "ulong")
-             .Replace("UInt16", "ushort")
-             .Replace("Char", "char")
-             .Replace("Decimal", "decimal")
-             .Replace("Double", "double")
-             .Replace("Single", "float");
-        return s;
-    }
+// Add these fields below the existing Aliases table
+// Token-aware patterns for fully-qualified names (e.g., System.String) and short names (e.g., String).
+// We require identifier boundaries so we don't replace substrings inside larger identifiers.
+private static readonly (Regex Pattern, string Alias)[] AliasFullTokenPatterns =
+    Aliases
+        .Select(a => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(a.Full)}(?![A-Za-z0-9_])"), a.Alias))
+        .ToArray();
+
+private static readonly (Regex Pattern, string Alias)[] AliasShortTokenPatterns =
+    Aliases
+        .GroupBy(a => a.Full.Split('.').Last(), a => a.Alias) // short name -> alias
+        .Select(g => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(g.Key)}(?![A-Za-z0-9_])"), Alias: g.First()))
+        .ToArray();
+
+// Replace the existing ApplyAliases body with this token-aware implementation
+/// <summary>
+/// Replaces fully-qualified type names and common framework type names with their C# aliases,
+/// using token-aware regex so we don't corrupt longer identifiers (e.g., "StringComparer").
+/// </summary>
+private static string ApplyAliases(string s)
+{
+    if (string.IsNullOrEmpty(s)) return s;
+
+    // First replace fully-qualified names like System.String (token-aware)
+    foreach (var (pattern, alias) in AliasFullTokenPatterns)
+        s = pattern.Replace(s, alias);
+
+    // Then replace short names like String (token-aware)
+    foreach (var (pattern, alias) in AliasShortTokenPatterns)
+        s = pattern.Replace(s, alias);
+
+    return s;
+}
 
     /// <summary>
     /// Shortens a fully-qualified type used in a signature to a compact display form,
