@@ -171,6 +171,9 @@ public class RenderSnapshots
                 Console.WriteLine(md.Substring(start, length).Replace("\n", "\\n"));
             }
         }
+
+        md.ShouldContain("<a id=\"xml2doc.sample.mathx.add(int,int)\"></a>");
+        md.ShouldContain("<a id=\"xml2doc.sample.mathx.add(int,int,int)\"></a>");
     }
 
     [Fact]

@@ -16,6 +16,8 @@ namespace Xml2Doc.Core;
 /// - Use <see cref="RenderToSingleFile(string)"/> to generate a single consolidated Markdown file.
 /// - Overloaded methods are grouped under a single header with each overload listed as a bullet.
 /// - <c>&lt;inheritdoc&gt;</c> is resolved and merged via <see cref="InheritDocResolver"/> before rendering.
+/// - Each member section emits a stable HTML anchor (via <see cref="IdToAnchor(string)"/>) so cref links resolve reliably.
+/// - In single-file output, each type section also emits an anchor derived from the visible heading text (via <see cref="HeadingSlug(string)"/>).
 /// <para>
 /// Rendering is influenced by <see cref="RendererOptions"/> (filename style, code block language, and optional root namespace trimming).
 /// </para>
@@ -526,7 +528,8 @@ public sealed class MarkdownRenderer
     /// <param name="displayFallback">Optional display text if the cref cannot be resolved.</param>
     /// <returns>A Markdown link, or the fallback/display text if unavailable.</returns>
     /// <remarks>
-    /// Member anchors are generated via <see cref="IdToAnchor(string)"/> and use the lowercase documentation ID.
+    /// Member anchors are generated via <see cref="IdToAnchor(string)"/> which applies C# aliases,
+    /// normalizes XML-doc generic braces to square brackets, then lowercases for stable anchors.
     /// </remarks>
     private string CrefToMarkdown(string? cref, string? displayFallback = null)
     {
@@ -580,11 +583,20 @@ public sealed class MarkdownRenderer
     /// Converts a documentation ID into a Markdown anchor.
     /// </summary>
     /// <param name="id">The documentation ID (portion after the kind prefix).</param>
-    /// <returns>Lowercase anchor text that can be referenced in links.</returns>
+    /// <returns>Anchor text (lowercased) that can be referenced in links.</returns>
+    /// <remarks>
+    /// Applies C# aliases to framework types (e.g., <c>System.Int32</c> → <c>int</c>),
+    /// normalizes XML-doc generic braces <c>{}</c> to square brackets <c>[]</c> for HTML safety,
+    /// then lowercases the entire string for stability. Must match anchors emitted by <see cref="RenderMember(XMember, StringBuilder, bool)"/>.
+    /// </remarks>
     private static string IdToAnchor(string id) =>
-        // Apply C# aliases so anchors don't contain raw framework type names like "System.Int32"
-        // then lowercase for stable anchors.
-        ApplyAliases(id).ToLowerInvariant();
+    // Apply C# aliases so anchors don't contain raw framework type names like "System.Int32",
+    // normalize XML-doc generic braces to square brackets for HTML safety and to avoid stray "})",
+    // then lowercase for stable anchors.
+    ApplyAliases(id)
+        .Replace('{', '[')
+        .Replace('}', ']')
+        .ToLowerInvariant();
 
     /// <summary>
     /// Converts a <c>&lt;seealso&gt;</c> element into Markdown.
@@ -828,7 +840,9 @@ public sealed class MarkdownRenderer
     /// If <see langword="true"/>, renders as a bullet item under an overload group; otherwise renders as a full section with a heading.
     /// </param>
     /// <remarks>
-    /// If an <c>&lt;inheritdoc&gt;</c> tag is present, inherited content is resolved via <see cref="InheritDocResolver"/> and merged before rendering.
+    /// - Emits a stable HTML anchor <c>&lt;a id="..."&gt;&lt;/a&gt;</c> before the heading/bullet using <see cref="IdToAnchor(string)"/>
+    ///   so that <c>cref</c> links resolve to this member.
+    /// - If an <c>&lt;inheritdoc&gt;</c> tag is present, inherited content is resolved via <see cref="InheritDocResolver"/> and merged before rendering.
     /// </remarks>
     private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
     {
@@ -840,6 +854,10 @@ public sealed class MarkdownRenderer
             if (target != null)
                 InheritDocResolver.MergeInheritedContent(m.Element, target);
         }
+
+        // Emit a stable anchor for this member so cref links resolve here.
+        // Use the same transformation that CrefToMarkdown uses.
+        sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");
 
         // Heading
         if (asOverload)
