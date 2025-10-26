@@ -30,6 +30,10 @@ public sealed class MarkdownRenderer
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
 
+    // Link strategy for generated CREF links
+    private enum LinkMode { PerTypeFiles, InDocumentAnchors }
+    private LinkMode _linkMode = LinkMode.PerTypeFiles;
+
     /// <summary>
     /// Initializes a new instance of <see cref="MarkdownRenderer"/>.
     /// </summary>
@@ -58,16 +62,15 @@ public sealed class MarkdownRenderer
     /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
     public void RenderToDirectory(string outDir)
     {
+        _linkMode = LinkMode.PerTypeFiles;
+
         Directory.CreateDirectory(outDir);
-
         var types = GetTypes().OrderBy(t => t.Id).ToList();
-
         foreach (var t in types)
         {
             var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
             File.WriteAllText(file, RenderType(t, includeHeader: true));
         }
-
         File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
     }
 
@@ -90,46 +93,45 @@ public sealed class MarkdownRenderer
 
     private string BuildSingleFileContent()
     {
-        // Build a single, consistently-ordered list and use it for both TOC and sections
-        var types = GetTypes().OrderBy(t => t.Id).ToList();
-
-        var sb = new StringBuilder();
-
-        // TOC uses in-document anchors
-        sb.Append(RenderIndex(types, useAnchors: true));
-        sb.AppendLine();
-
-        for (int i = 0; i < types.Count; i++)
+        var prev = _linkMode;
+        _linkMode = LinkMode.InDocumentAnchors;
+        try
         {
-            var t = types[i];
+            var types = GetTypes().OrderBy(t => t.Id).ToList();
+            var sb = new StringBuilder();
 
-            // Stable in-document anchor that matches the TOC slug
-            var typeDisplay = ShortTypeDisplay(t.Id);
-            sb.AppendLine($"<a id=\"{HeadingSlug(typeDisplay)}\"></a>");
-
-            // Emit a single, explicit top-level H1 heading (avoid duplicates).
-            sb.AppendLine($"# {typeDisplay}");
+            sb.Append(RenderIndex(types, useAnchors: true));
             sb.AppendLine();
 
-            // Render the rest of the type body without re-emitting the header.
-            sb.Append(RenderType(t, includeHeader: false));
-
-            if (i < types.Count - 1)
+            for (int i = 0; i < types.Count; i++)
             {
+                var t = types[i];
+                var typeDisplay = ShortTypeDisplay(t.Id);
+                sb.AppendLine($"<a id=\"{HeadingSlug(typeDisplay)}\"></a>");
+                sb.AppendLine($"# {typeDisplay}");
                 sb.AppendLine();
-                sb.AppendLine("---");
-                sb.AppendLine();
+                sb.Append(RenderType(t, includeHeader: false));
+                if (i < types.Count - 1)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("---");
+                    sb.AppendLine();
+                }
             }
-        }
 
-        return sb.ToString();
+            return sb.ToString();
+        }
+        finally
+        {
+            _linkMode = prev;
+        }
     }
 
     // === Core rendering ===
 
     /// <summary>
     /// Gets all documented types (<c>T:</c> members) from the model.
-    /// </summary>
+    /// /// </summary>
     /// <returns>An enumeration of members whose kind is <c>"T"</c> (types).</returns>
     private IEnumerable<XMember> GetTypes() =>
         _model.Members.Values.Where(m => m.Kind == "T");
@@ -534,17 +536,30 @@ public sealed class MarkdownRenderer
     private string CrefToMarkdown(string? cref, string? displayFallback = null)
     {
         if (string.IsNullOrWhiteSpace(cref)) return displayFallback ?? string.Empty;
+
         var kind = cref!.Split(':')[0];
         var id = cref!.Split(':')[1];
 
+        if (_linkMode == LinkMode.InDocumentAnchors)
+        {
+            if (kind == "T")
+            {
+                var label = ShortTypeDisplay(id);
+                return $"[{label}](#{HeadingSlug(label)})";
+            }
+            else
+            {
+                var label = displayFallback ?? ShortLabelFromCref(cref);
+                return $"[{label}](#{IdToAnchor(id)})";
+            }
+        }
+
         if (kind == "T")
         {
-            // Use type display (handles arity, trimming, aliases)
             return $"[{ShortTypeDisplay(id)}]({FileNameFor(id, _opt.FileNameMode)})";
         }
         else
         {
-            // Member: show a friendly label (MethodName(params)), link to the type file + anchor
             var typeId = id.Split('.')[0];
             var label = displayFallback ?? ShortLabelFromCref(cref);
             return $"[{label}]({FileNameFor(typeId, _opt.FileNameMode)}#{IdToAnchor(id)})";
