@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
 
@@ -36,7 +35,7 @@ namespace Xml2Doc.Cli
         public static int Main(string[] args)
         {
             // Show help early
-            if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
+            if (args.Length == 0 || Array.IndexOf(args, "--help") >= 0 || Array.IndexOf(args, "-h") >= 0)
             {
                 PrintHelp();
                 return 0;
@@ -59,8 +58,13 @@ namespace Xml2Doc.Cli
                     case "--out" when i + 1 < args.Length: outArg = args[++i]; break;
                     case "--single": single = true; break;
                     case "--file-names" when i + 1 < args.Length:
-                        fileNameMode = args[++i].ToLowerInvariant() == "clean" ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
+                    {
+                        var mode = args[++i];
+                        fileNameMode = mode.Equals("clean", StringComparison.OrdinalIgnoreCase)
+                            ? FileNameMode.CleanGenerics
+                            : FileNameMode.Verbatim;
                         break;
+                    }
                     case "--rootns" when i + 1 < args.Length: rootns = args[++i]; break;
                     case "--lang" when i + 1 < args.Length: codeLang = args[++i]; break;
                     case "--config" when i + 1 < args.Length: configPath = args[++i]; break;
@@ -75,15 +79,27 @@ namespace Xml2Doc.Cli
             if (!string.IsNullOrWhiteSpace(configPath) && File.Exists(configPath))
             {
                 var json = File.ReadAllText(configPath);
-                var cfg = JsonSerializer.Deserialize<CliConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var cfg = JsonSerializer.Deserialize<CliConfig>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
                 xml ??= cfg?.Xml;
                 outArg ??= cfg?.Out;
-                if (cfg?.Single is bool s) single = s;
-                if (!string.IsNullOrWhiteSpace(cfg?.FileNames))
-                    fileNameMode = cfg!.FileNames!.Equals("clean", StringComparison.OrdinalIgnoreCase) ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
+
+                if (cfg?.Single is bool s)
+                    single = s;
+
+                var cfgNames = cfg?.FileNames;
+                if (!string.IsNullOrWhiteSpace(cfgNames))
+                    fileNameMode = cfgNames!.Equals("clean", StringComparison.OrdinalIgnoreCase)
+                        ? FileNameMode.CleanGenerics
+                        : FileNameMode.Verbatim;
+
                 rootns ??= cfg?.RootNamespace;
-                codeLang = string.IsNullOrWhiteSpace(cfg?.CodeLanguage) ? codeLang : cfg!.CodeLanguage!;
+
+                if (cfg?.CodeLanguage is string lang && !string.IsNullOrWhiteSpace(lang))
+                    codeLang = lang;
             }
 
             if (string.IsNullOrWhiteSpace(xml) || string.IsNullOrWhiteSpace(outArg))
@@ -94,7 +110,7 @@ namespace Xml2Doc.Cli
             }
 
             // 3) run
-            var model = Xml2Doc.Core.Models.Xml2Doc.Load(xml!);
+            var model = Xml2Doc.Core.Models.Xml2Doc.Load(xml);
             var options = new RendererOptions(
                 FileNameMode: fileNameMode,
                 RootNamespaceToTrim: string.IsNullOrWhiteSpace(rootns) ? null : rootns,
@@ -104,12 +120,12 @@ namespace Xml2Doc.Cli
 
             if (single)
             {
-                renderer.RenderToSingleFile(outArg!);
+                renderer.RenderToSingleFile(outArg);
                 Console.WriteLine($"Wrote single-file Markdown to {outArg}");
             }
             else
             {
-                renderer.RenderToDirectory(outArg!);
+                renderer.RenderToDirectory(outArg);
                 Console.WriteLine($"Wrote Markdown files to {outArg}");
             }
 

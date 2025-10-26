@@ -49,16 +49,16 @@ namespace Xml2Doc.Cli
         /// Accepted values: <c>verbatim</c> (default) or <c>clean</c>.
         /// Maps to the <c>--file-names</c> option and corresponds to <see cref="Core.FileNameMode"/>.
         /// </remarks>
-        public string? FileNames { get; set; }            // "verbatim" | "clean"
+        public string? FileNames { get; set; } // "verbatim" | "clean"
 
         /// <summary>
         /// Optional root namespace prefix to trim from displayed type names (e.g., <c>MyCompany.MyProduct</c>).
         /// </summary>
-        public string? RootNamespace { get; set; }        // e.g., "MyCompany.MyProduct"
+        public string? RootNamespace { get; set; } // e.g., "MyCompany.MyProduct"
 
         /// <summary>
         /// Language identifier used for fenced code blocks in generated Markdown (e.g., <c>csharp</c>).
         /// </summary>
-        public string? CodeLanguage { get; set; }         // e.g., "csharp"
+        public string? CodeLanguage { get; set; } // e.g., "csharp"
     }
 }

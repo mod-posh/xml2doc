@@ -1,4 +1,5 @@
-﻿using Microsoft.Build.Framework;
+﻿using System;
+using Microsoft.Build.Framework;
 using Xml2Doc.Core;
 
 namespace Xml2Doc.MSBuild;
@@ -93,7 +94,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     Log.LogError("SingleFile=true requires OutputFile to be set.");
                     return false;
                 }
-                renderer.RenderToSingleFile(OutputFile!);
+                renderer.RenderToSingleFile(OutputFile);
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc wrote single-file Markdown to {OutputFile}");
             }
             else
@@ -103,7 +104,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     Log.LogError("SingleFile=false requires OutputDirectory to be set.");
                     return false;
                 }
-                renderer.RenderToDirectory(OutputDirectory!);
+                renderer.RenderToDirectory(OutputDirectory);
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc wrote Markdown files to {OutputDirectory}");
             }
 
@@ -111,7 +112,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         }
         catch (Exception ex)
         {
-            Log.LogErrorFromException(ex, true);
+            Log.LogErrorFromException(ex, /*showStackTrace*/ true);
             return false;
         }
     }

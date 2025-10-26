@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace Xml2Doc.Core.Models
@@ -34,12 +31,15 @@ namespace Xml2Doc.Core.Models
         {
             var doc = XDocument.Load(xmlPath, LoadOptions.PreserveWhitespace);
             var model = new Xml2Doc();
+
             foreach (var m in doc.Descendants("member"))
             {
                 var name = (string?)m.Attribute("name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                model.Members[name!] = new XMember(name!, m);
+
+                model.Members[name] = new XMember(name, m);
             }
+
             return model;
         }
     }
@@ -57,7 +57,14 @@ namespace Xml2Doc.Core.Models
         /// <remarks>
         /// Common values: <c>T</c> (type), <c>M</c> (method), <c>P</c> (property), <c>F</c> (field), <c>E</c> (event), <c>N</c> (namespace).
         /// </remarks>
-        public string Kind => Name.Split(':')[0];
+        public string Kind
+        {
+            get
+            {
+                var i = Name.IndexOf(':');
+                return i >= 0 ? Name.Substring(0, i) : string.Empty;
+            }
+        }
 
         /// <summary>
         /// Gets the identifier portion of the documentation ID after the colon.
@@ -65,6 +72,13 @@ namespace Xml2Doc.Core.Models
         /// <example>
         /// For <c>M:MyNamespace.MyType.MyMethod(System.String)</c>, the ID is <c>MyNamespace.MyType.MyMethod(System.String)</c>.
         /// </example>
-        public string Id => Name.Split(':')[1];
+        public string Id
+        {
+            get
+            {
+                var i = Name.IndexOf(':');
+                return i >= 0 ? Name.Substring(i + 1) : Name;
+            }
+        }
     }
 }

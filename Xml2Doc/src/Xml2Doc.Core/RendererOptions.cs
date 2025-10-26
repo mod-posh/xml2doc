@@ -34,7 +34,7 @@ namespace Xml2Doc.Core
     /// </param>
     public sealed record RendererOptions(
         FileNameMode FileNameMode = FileNameMode.Verbatim,
-        string? RootNamespaceToTrim = null,    // e.g. "MyCompany.MyProduct"
+        string? RootNamespaceToTrim = null,    // e.g., "MyCompany.MyProduct"
         string CodeBlockLanguage = "csharp"    // language for fenced code blocks
     );
 }

@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 
@@ -17,7 +14,7 @@ namespace Xml2Doc.Core
             var cref = inherit?.Attribute("cref")?.Value;
             if (!string.IsNullOrWhiteSpace(cref))
             {
-                var key = $"{cref}";
+                var key = cref;
                 if (model.Members.TryGetValue(key, out var target))
                     return target.Element;
             }
@@ -54,7 +51,8 @@ namespace Xml2Doc.Core
             CopyIfMissing(into, "returns", from);
 
             // Param-wise copy
-            var intoParams = into.Elements("param").ToDictionary(p => (string?)p.Attribute("name") ?? "", StringComparer.Ordinal);
+            var intoParams = into.Elements("param")
+                                 .ToDictionary(p => (string?)p.Attribute("name") ?? "", StringComparer.Ordinal);
             foreach (var p in from.Elements("param"))
             {
                 var name = (string?)p.Attribute("name") ?? "";
@@ -63,12 +61,17 @@ namespace Xml2Doc.Core
             }
 
             // Exceptions, seealso, examples – append if not present
-            if (!into.Elements("exception").Any() && from.Elements("exception").Any())
-                into.Add(from.Elements("exception"));
-            if (!into.Elements("seealso").Any() && from.Elements("seealso").Any())
-                into.Add(from.Elements("seealso"));
-            if (!into.Elements("example").Any() && from.Elements("example").Any())
-                into.Add(from.Elements("example"));
+            var fromExceptions = from.Elements("exception");
+            if (!into.Elements("exception").Any() && fromExceptions.Any())
+                into.Add(fromExceptions);
+
+            var fromSeeAlsos = from.Elements("seealso");
+            if (!into.Elements("seealso").Any() && fromSeeAlsos.Any())
+                into.Add(fromSeeAlsos);
+
+            var fromExamples = from.Elements("example");
+            if (!into.Elements("example").Any() && fromExamples.Any())
+                into.Add(fromExamples);
         }
 
         private static void CopyIfMissing(XElement into, string name, XElement from)

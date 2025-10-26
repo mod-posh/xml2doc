@@ -39,14 +39,6 @@ This release focuses on correctness and predictability: stable links/anchors acr
 * Prevented accidental alias replacement inside larger identifiers (e.g., `StringComparer` no longer becomes `stringComparer`).
 * Stabilized Markdown output by trimming leading indentation in prose and composing paragraphs predictably, reducing snapshot churn.
 
-### Docs
-
-* README and `Xml2Doc.Core` README updated to document:
-  * Per‑type vs single‑file link behavior.
-  * Anchor strategy for types (single‑file) and members (all modes).
-  * `FileNameMode` and `RootNamespaceToTrim` with concrete examples.
-* API docs expanded for `MarkdownRenderer` (linking strategy, anchors, and renderer options).
-
 ### Internal
 
 * `ApplyAliases` refactored to token‑aware regexes for both fully‑qualified (`System.String`) and short names (`String`).
