@@ -370,16 +370,29 @@ public sealed class MarkdownRenderer
     };
 
     /// <summary>
-    /// Produces a short display name for a type ID, optionally trimming a root namespace and formatting generic arity as <c>&lt;T1,T2&gt;</c>.
+    /// Produces a short display name for a type ID, optionally trimming a root namespace and formatting generic arity as &lt;T1,T2&gt;.
     /// </summary>
-    /// <param name="typeId">The type documentation ID (portion after the <c>T:</c> prefix).</param>
-    /// <returns>The simple type name with generic arity displayed, and the root namespace removed if configured.</returns>
-    /// <remarks>
-    /// Applies <see cref="RendererOptions.RootNamespaceToTrim"/> when present.
-    /// </remarks>
     private string ShortTypeDisplay(string typeId)
     {
-        // Optionally trim root namespace prefix for display
+        // If this is a constructed generic type (XML-doc form uses {}), use the same depth-aware formatter
+        // we use for signature types so nested generics render correctly and aliases are applied.
+        if (typeId.IndexOf('{') >= 0 || typeId.IndexOf('}') >= 0 || typeId.IndexOf('<') >= 0)
+        {
+            // Normalize XML-doc braces then format with recursive, depth-aware logic
+            var normalized = typeId.Replace('{', '<').Replace('}', '>');
+            var display = ShortenSignatureType(normalized);
+
+            // Optional root namespace trim for non-BCL types (trim only the outermost head if applicable)
+            if (!string.IsNullOrEmpty(_opt.RootNamespaceToTrim) &&
+                display.StartsWith(_opt.RootNamespaceToTrim + ".", StringComparison.Ordinal))
+            {
+                display = display.Substring(_opt.RootNamespaceToTrim.Length + 1);
+            }
+
+            return display;
+        }
+
+        // Non-generic types: keep existing behavior (root namespace trim + arity -> <T1,...>)
         var id = typeId;
         if (!string.IsNullOrEmpty(_opt.RootNamespaceToTrim) &&
             id.StartsWith(_opt.RootNamespaceToTrim + ".", StringComparison.Ordinal))
@@ -387,7 +400,9 @@ public sealed class MarkdownRenderer
             id = id.Substring(_opt.RootNamespaceToTrim.Length + 1);
         }
 
-        var simple = id[(id.LastIndexOf('.') + 1)..];
+        // Take the simple type name (after the last dot in the type name itself)
+        var lastDot = id.LastIndexOf('.');
+        var simple = lastDot >= 0 ? id.Substring(lastDot + 1) : id;
 
         // Type`2 -> Type<T1,T2>
         simple = Regex.Replace(simple, @"`(\d+)", m =>
@@ -718,6 +733,24 @@ private static string ApplyAliases(string s)
                 if (s.Length > 0) yield return s.Substring(start);
             }
 
+            // Depth-aware split for generic arguments within angle brackets
+            static IEnumerable<string> SplitTopLevelGenericArgs(string s)
+            {
+                var depth = 0; var start = 0;
+                for (int i = 0; i < s.Length; i++)
+                {
+                    var ch = s[i];
+                    if (ch == '<') depth++;
+                    else if (ch == '>') depth--;
+                    else if (ch == ',' && depth == 0)
+                    {
+                        yield return s.Substring(start, i - start).Trim();
+                        start = i + 1;
+                    }
+                }
+                if (start <= s.Length) yield return s.Substring(start).Trim();
+            }
+
             string FormatParam(string p)
             {
                 p = p.Trim();
@@ -726,7 +759,7 @@ private static string ApplyAliases(string s)
                 p = p.Replace('{', '<').Replace('}', '>');
                 p = ApplyAliases(p);
 
-                // Optionally trim namespaces inside generic args
+                // Optionally trim namespaces inside generic args using depth-aware splitting
                 if (p.Contains('<') && p.Contains('>'))
                 {
                     var lt = p.IndexOf('<');
@@ -735,9 +768,15 @@ private static string ApplyAliases(string s)
                     {
                         var head = p[..(lt + 1)];
                         var inner = p.Substring(lt + 1, gt - lt - 1);
-                        inner = string.Join(", ", inner.Split(',').Select(x => x.Trim().Split('.').Last()));
+                        var trimmedArgs = SplitTopLevelGenericArgs(inner)
+                            .Select(x => x.Contains('<')
+                                ? // nested generic, trim only outer-most tokens but keep inner structure
+                                  Regex.Replace(x, @"(?<![A-Za-z0-9_])([A-Za-z0-9_.]+)(?=\s*<)", m => m.Groups[1].Value.Split('.').Last())
+                                : x.Split('.').Last()
+                            );
+                        var newInner = string.Join(", ", trimmedArgs);
                         var tail = p[gt..];
-                        p = head + inner + tail;
+                        p = head + newInner + tail;
                     }
                 }
 
