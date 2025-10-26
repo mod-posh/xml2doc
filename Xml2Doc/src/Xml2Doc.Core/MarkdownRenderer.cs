@@ -782,7 +782,7 @@ private static string ApplyAliases(string s)
     /// - <c>&lt;para&gt;</c> (emits paragraph breaks)
     /// - <c>&lt;c&gt;</c> and <c>&lt;code&gt;</c> (inline code or fenced blocks; language from <see cref="RendererOptions.CodeBlockLanguage"/>)
     /// - <c>&lt;example&gt;</c> (detects code and renders as fenced blocks when possible)
-    /// Whitespace is collapsed and trimmed; stray space before punctuation is removed.
+    /// Preserves paragraph breaks/newlines. Trims excess spaces within non-code lines without collapsing newlines.
     /// </remarks>
     private string NormalizeXmlToMarkdown(XElement? element, bool preferCodeBlocks = false)
     {
@@ -847,7 +847,98 @@ private static string ApplyAliases(string s)
             }
         }
 
-        var result = Regex.Replace(text.ToString().Trim(), "\\s+", " ").Replace(" .", ".");
+        // Preserve paragraph breaks/newlines across blank lines, but collapse soft
+        // line breaks within a paragraph to spaces. Also avoid touching fenced code blocks.
+        var raw = text.ToString().Replace("\r\n", "\n").Replace("\r", "\n");
+        var lines = raw.Split('\n');
+
+        var cleaned = new string[lines.Length];
+        var inFence = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+
+            // Detect ``` fences (ignore leading whitespace to be tolerant)
+            var ls = line.TrimStart();
+            if (ls.StartsWith("```"))
+            {
+                cleaned[i] = line; // keep fence line verbatim
+                inFence = !inFence;
+                continue;
+            }
+
+            if (inFence)
+            {
+                // Inside code block: keep verbatim
+                cleaned[i] = line;
+                continue;
+            }
+
+            // Outside code blocks: trim leading/trailing whitespace from the line,
+            // collapse tabs/spaces within the line (but don't remove newlines here),
+            // and fix stray spaces before punctuation.
+            var collapsed = Regex.Replace(line.Trim(), "[ \t]+", " ");
+
+            collapsed = collapsed.Replace(" .", ".")
+                                 .Replace(" ,", ",")
+                                 .Replace(" ;", ";")
+                                 .Replace(" :", ":")
+                                 .Replace(" )", ")")
+                                 .Replace(" ]", "]");
+
+            cleaned[i] = collapsed;
+        }
+
+        // Rebuild: for non-code segments, collapse single newlines inside a paragraph to a space,
+        // but preserve blank lines (paragraph breaks). Keep fenced code blocks verbatim.
+        var sbOut = new StringBuilder();
+        inFence = false;
+        bool prevWasBlank = true;
+
+        for (int i = 0; i < cleaned.Length; i++)
+        {
+            var line = cleaned[i];
+            var ls = line.TrimStart();
+
+            // Fence toggle
+            if (ls.StartsWith("```"))
+            {
+                // Ensure fence starts on a new line
+                if (sbOut.Length > 0 && sbOut[^1] != '\n')
+                    sbOut.Append('\n');
+
+                sbOut.Append(line).Append('\n');
+                inFence = !inFence;
+                prevWasBlank = true; // treat fence boundaries as paragraph boundaries
+                continue;
+            }
+
+            if (inFence)
+            {
+                sbOut.Append(line).Append('\n');
+                continue;
+            }
+
+            var isBlank = string.IsNullOrEmpty(line);
+            if (isBlank)
+            {
+                // paragraph break: ensure a single blank line
+                if (!prevWasBlank)
+                    sbOut.Append('\n').Append('\n');
+                prevWasBlank = true;
+            }
+            else
+            {
+                // Same paragraph: append space if previous char isn't a newline
+                if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
+                    sbOut.Append(' ');
+                sbOut.Append(line);
+                prevWasBlank = false;
+            }
+        }
+
+        var result = sbOut.ToString().Trim('\n');
         return result;
     }
 

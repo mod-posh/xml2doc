@@ -16,7 +16,7 @@ public class RenderSnapshots
     private static string SnapRoot => Path.Combine(ProjectDir, "__snapshots__");
 
     [Fact]
-    public async Task SingleFile_CleanNames_Basic()
+    public void SingleFile_CleanNames_Basic()
     {
         // Build sample XML
         var xml = Path.ChangeExtension(typeof(Xml2Doc.Sample.Mathx).Assembly.Location, ".xml");
