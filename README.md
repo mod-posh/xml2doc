@@ -1,7 +1,6 @@
 | Latest Version | Nuget.org | Issues | Testing | License | Discord |
 |-----------------|-----------------|----------------|----------------|----------------|----------------|
 | [![Latest Version](https://img.shields.io/github/v/tag/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/tags) | [![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Core?label=Xml2Doc.Core)](https://www.nuget.org/packages/Xml2Doc.Core)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Cli?label=Xml2Doc.Cli)](https://www.nuget.org/packages/Xml2Doc.Cli)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.MSBuild?label=Xml2Doc.MSBuild)](https://www.nuget.org/packages/Xml2Doc.MSBuild) | [![GitHub issues](https://img.shields.io/github/issues/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/issues) | [![Merge Test Workflow](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml/badge.svg)](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml) | [![GitHub license](https://img.shields.io/github/license/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/blob/master/LICENSE) | [![Discord Server](https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5493894cf60b300587_full_logo_white_RGB.svg)](https://discord.com/channels/1044305359021555793/1044305781627035811) |
-
 # Xml2Doc
 
 Xml2Doc aims to make **developer documentation** for .NET projects easier to maintain, more readable, and always up-to-date — without relying on brittle third-party tools.
@@ -36,11 +35,78 @@ Xml2Doc includes:
 * Configurable code block language (default: `csharp`).
 * Filename modes:
   * `verbatim` — preserves full .NET type names (with backticks for generics).
-  * `clean` — removes arity/backticks for prettier names.
-* Namespace trimming for cleaner doc paths.
-* JSON-based config file support for CLI users (`--config xml2doc.json`).
+  * `clean` — removes arity/backticks for prettier names; normalizes generic braces and uses safe characters for files.
+* Namespace trimming for cleaner display names and headings via `RootNamespaceToTrim`.
 * Snapshot-tested Markdown output for stability across versions.
 * Fully compatible with **.NET 9.0** SDK and modern MSBuild hosts.
+* New in this version:
+  * 🔗 Predictable link behavior for per-type vs single-file outputs (see below).
+  * 🪝 Stable, explicit HTML anchors for every member; in single-file, types also get heading-based anchors.
+  * 🧠 Token‑aware aliasing (won’t corrupt identifiers like `StringComparer`).
+  * 🧩 Depth‑aware generic formatting in labels and signatures (nested generics render correctly).
+  * ✍️ Paragraph‑preserving normalization (keeps paragraph breaks and code fences; trims excess inline spaces).
+
+---
+
+## 🔗 Link behavior and anchors
+
+Xml2Doc generates links and anchors tailored to the output mode.
+
+* Per-type output (`RenderToDirectory`)
+  * Types: links go to per-type files produced by the selected filename mode.
+  * Members: links go to anchors within the per-type file.
+  * Examples (with `file-names: clean`):
+    * Type `T:MyApp.Foo\`1` → `[Foo<T1>](MyApp.Foo.md)`
+    * Method `M:MyApp.Foo\`1.Bar(System.String)` → `[Bar(string)](MyApp.Foo.md#myapp.foo.bar(string))`
+
+* Single-file output (`RenderToSingleFile` / `RenderToString`)
+  * Types: links go to the in-document heading slug for the rendered type heading.
+  * Members: links go to explicit in-document member anchors.
+  * Examples:
+    * Type heading “Foo<T1>” → `[Foo<T1>](#foot1)`
+    * Method `M:MyApp.Foo\`1.Bar(System.String)` → `[Bar(string)](#myapp.foo.bar(string))`
+
+Anchors
+
+* Members
+  * Every member section emits an explicit anchor:
+    * `<a id="myapp.foo.bar(string)"></a>`
+  * Computed by:
+    * Applying C# aliases (e.g., `System.Int32` → `int`)
+    * Normalizing XML-doc generic braces `{}` to `[]` for HTML safety
+    * Lowercasing for stability
+  * Example:
+    `M:MyApp.Foo.Baz(System.Collections.Generic.Dictionary{System.String,System.Int32})`
+    → `myapp.foo.baz(dictionary[string,int])`
+
+* Types (single-file only)
+  * Each type section also emits an anchor derived from the visible heading text:
+    * Heading “Foo<T1>” → slug `foot1` (GitHub-like rules: lowercase, spaces → `-`, drop non `[a-z0-9-]`)
+  * Type links in single-file mode use this slug.
+
+---
+
+## ⚙️ Renderer options
+
+* File name mode (`--file-names`, MSBuild: `Xml2Doc_FileNameMode`)
+  * `verbatim`
+    * Keeps the original doc ID detail in file names (including arity like `` `1 ``).
+    * Example: `T:MyApp.Foo\`1` → `MyApp.Foo\`1.md`
+  * `clean`
+    * Strips generic arity and normalizes generic braces.
+    * Replaces `< >` with `[ ]` to avoid filesystem issues.
+    * Example: `T:MyApp.Foo\`1` → `MyApp.Foo.md`
+
+* Root namespace trimming (`--root-namespace`, MSBuild: `Xml2Doc_RootNamespaceToTrim`)
+  * Trims a configured root namespace from display names (headings, index entries, labels).
+  * Does not affect file names.
+  * Example:
+    * `RootNamespaceToTrim = "MyApp"`
+    * `T:MyApp.Core.Widget\`2` → heading “Widget<T1,T2>”; index shows “Widget<T1,T2>”
+    * File (clean mode): `MyApp.Core.Widget.md`
+
+* Code block language (`--code-language`, MSBuild: `Xml2Doc_CodeBlockLanguage`)
+  * Sets the language for fenced code blocks (default: `csharp`).
 
 ---
 
@@ -168,6 +234,12 @@ Example configuration:
 
 The project uses **xUnit** + **Shouldly** with snapshot-based tests.
 Each test validates Markdown output for both per-type and single-file modes to ensure that future refactors preserve formatting and structure.
+
+New coverage in this version:
+
+* Token‑aware aliasing (avoids corrupting identifiers like `StringComparer`).
+* Depth‑aware nested generics in headers and labels.
+* Paragraph‑preserving normalization and code fence protection.
 
 Run all tests:
 
