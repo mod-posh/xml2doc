@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.3.0) - 2025-10-26
+
+This release focuses on correctness and predictability: stable links/anchors across modes, depth‑aware generic formatting, and paragraph‑preserving normalization. It also expands tests and documentation accordingly.
+
+### Added
+
+* Token‑aware aliasing for framework types so identifiers like `StringComparer` remain intact while true tokens (e.g., `System.String`) are aliased to C# keywords.
+* Depth‑aware generic argument splitting in labels and headers. Nested generics like `Dictionary<string, List<Dictionary<string, int>>>` now render correctly in member headers and `<see/>` labels.
+* Explicit member anchors are emitted consistently; in single‑file mode, types also have heading‑based anchors for reliable in‑document navigation.
+* New sample type `Xml2Doc.Sample.AliasingPlayground` to validate token‑aware aliasing and signature rendering.
+* New tests:
+  * `AliasingTests` to ensure identifiers containing aliasable substrings are not corrupted.
+  * `NormalizationTests` to verify paragraph preservation, intra‑line trimming, and code fence protection.
+  * `NestedGenericsTests` to validate depth‑aware formatting in headers and labels.
+
+### Changed
+
+* XML → Markdown normalization:
+  * Preserves paragraph breaks (blank lines) and code fences verbatim.
+  * Collapses soft line wraps within a paragraph to a single space.
+  * Trims excess spaces/tabs within lines and removes stray spaces before punctuation in prose.
+* `ShortTypeDisplay` now recognizes constructed generic types and delegates to a depth‑aware formatter, applying aliases and trimming namespaces for compact display.
+* Clarified link behavior:
+  * Per‑type output links to files produced by `FileNameMode` and anchors within them.
+  * Single‑file output links to heading slugs for types and explicit anchors for members.
+
+### Fixed
+
+* Nested generic `<see/>` labels no longer degrade into malformed text (e.g., eliminated artifacts like `Int32}}}`); labels now correctly apply aliases and trim namespaces.
+* Prevented accidental alias replacement inside larger identifiers (e.g., `StringComparer` no longer becomes `stringComparer`).
+* Stabilized Markdown output by trimming leading indentation in prose and composing paragraphs predictably, reducing snapshot churn.
+
+### Docs
+
+* README and `Xml2Doc.Core` README updated to document:
+  * Per‑type vs single‑file link behavior.
+  * Anchor strategy for types (single‑file) and members (all modes).
+  * `FileNameMode` and `RootNamespaceToTrim` with concrete examples.
+* API docs expanded for `MarkdownRenderer` (linking strategy, anchors, and renderer options).
+
+### Internal
+
+* `ApplyAliases` refactored to token‑aware regexes for both fully‑qualified (`System.String`) and short names (`String`).
+* Consolidated generic formatting via `ShortenSignatureType` and used in more display paths.
+* Snapshot seeds updated to include the new `AliasingPlayground` page and refreshed index; tests aligned with normalization behavior.
+
+---
+
 ## [1.2.1](https://github.com/mod-posh/Xml2Doc/releases/tag/v1.2.1) - 2025-10-24
 
 This release is a focused bugfix to clean up how nested generic types and parentheses render in Markdown, along with some related test and snapshot fixes. No new features — just making the existing behavior finally *correct*.
