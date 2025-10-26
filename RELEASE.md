@@ -9,4 +9,3 @@ Internal links to methods are still not working, we need to update the renderer 
 ## ENHANCEMENT
 
 * issue-32: Create tests to catch this issue
-
