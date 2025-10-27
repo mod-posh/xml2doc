@@ -86,9 +86,9 @@ jobs:
           fi
 
       - name: Run markdownlint-cli2-action
-        uses: DavidAnson/markdownlint-cli2-action@v16
+        uses: DavidAnson/markdownlint-cli2-action@v20
         with:
-          globs: '**/*.md'
+          globs: 'Docs/*.md'
           fix: true
 
       - name: Commit Documentation Changes
