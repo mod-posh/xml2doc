@@ -32,13 +32,20 @@ namespace Xml2Doc.Core.Linking
             var kind = isCref ? cref[0] : '?';
             var label = _labelFromCref(cref);
 
+            // Derive the id portion (strip the leading "X:" if present) so anchors do not contain the kind prefix.
+            // Many callers (e.g., renderer emission) call IdToAnchor with the plain id (no "M:"/"T:"), so the resolver
+            // must pass an id compatible with that logic.
+            string idPortion = cref;
+            if (isCref)
+                idPortion = cref.Substring(2); // drop "X:"
+
             string href;
             if (ctx.SingleFile)
             {
                 // Single-file: types → heading slug; members → explicit member anchor.
                 href = (kind == 'T')
                     ? "#" + _headingSlug(label)
-                    : "#" + _idToAnchor(cref);
+                    : "#" + _idToAnchor(idPortion);
             }
             else
             {
@@ -49,7 +56,7 @@ namespace Xml2Doc.Core.Linking
                 else
                 {
                     var typeId = ContainingTypeId(cref);
-                    href = $"{PrefixBase(ctx.BasePath, _typeFileName(typeId))}#{_idToAnchor(cref)}";
+                    href = $"{PrefixBase(ctx.BasePath, _typeFileName(typeId))}#{_idToAnchor(idPortion)}";
                 }
             }
 

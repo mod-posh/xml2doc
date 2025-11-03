@@ -550,7 +550,10 @@ private static string ApplyAliases(string s)
             {
                 var ch = s[i];
                 if (ch == '<') depth++;
-                else if (ch == '>') depth--;
+                else if (ch == '>')
+                {
+                    depth--;
+                }
                 else if (ch == ',' && depth == 0)
                 {
                     yield return s.Substring(start, i - start).Trim();
@@ -564,33 +567,29 @@ private static string ApplyAliases(string s)
     // === Links & filenames ===
 
     // 1) String-returning convenience overload (keeps call sites like `var s = CrefToMarkdown(...)` working)
-    private string CrefToMarkdown(string cref, bool displayFallback = false)
+    // Accept nullable cref values (calls may pass a null when attribute is absent).
+    private string CrefToMarkdown(string? cref)
     {
         var sb = new System.Text.StringBuilder();
-        CrefToMarkdown(sb, cref, displayFallback);
+        CrefToMarkdown(sb, cref);
         return sb.ToString();
     }
 
-    // 2) Writer overload (keeps call sites like `CrefToMarkdown(sb, cref, displayFallback: true)` working)
-    private void CrefToMarkdown(System.Text.StringBuilder sb, string cref, bool displayFallback = false)
+    // 2) Writer overload (keeps call sites like `CrefToMarkdown(sb, cref)` working)
+    // The resolver is authoritative for label + href; we always render a markdown link here.
+    private void CrefToMarkdown(System.Text.StringBuilder sb, string? cref)
     {
-        // Treat non-cref inputs as plain text when displayFallback is requested
-        bool looksLikeCref = !string.IsNullOrWhiteSpace(cref) && cref.Length > 1 && cref[1] == ':';
+        // Normalize null/whitespace to empty string for the resolver.
+        var safeCref = string.IsNullOrWhiteSpace(cref) ? string.Empty : cref!;
 
         var link = _linkResolver.Resolve(
-            cref,
+            safeCref,
             new LinkContext(
                 CurrentTypeId: null,          // not required by the default resolver
                 SingleFile: _singleFileMode,
                 BasePath: null));        // set if you later support a base path
 
-        if (displayFallback && !looksLikeCref)
-        {
-            // Just write the label (no hyperlink)
-            sb.Append(link.Label);
-            return;
-        }
-
+        // Render as a markdown link; resolver produces sensible label/href for non-cref inputs too.
         sb.Append('[').Append(link.Label).Append("](").Append(link.Href).Append(')');
     }
 
@@ -654,7 +653,7 @@ private static string ApplyAliases(string s)
     {
         var cref = (string?)sa.Attribute("cref");
         if (!string.IsNullOrWhiteSpace(cref))
-            return CrefToMarkdown(cref, displayFallback: ShortLabelFromCref(cref));
+            return CrefToMarkdown(cref);
         var href = (string?)sa.Attribute("href");
         if (!string.IsNullOrWhiteSpace(href))
             return $"[{sa.Value}]({href})";
@@ -676,6 +675,7 @@ private static string ApplyAliases(string s)
         // logic used by your per-type emission here. The fallback keeps the full name:
         return id + ".md";
     }
+
     /// <summary>
     /// Produces a short label from a <c>cref</c> for display purposes (e.g., replaces arity and aliases BCL types).
     /// </summary>
@@ -885,7 +885,8 @@ private static string ApplyAliases(string s)
                     var cref = (string?)e.Attribute("cref");
                     if (!string.IsNullOrWhiteSpace(cref))
                     {
-                        text.Append(CrefToMarkdown(cref, displayFallback: ShortLabelFromCref(cref)));
+                        // Use the resolver to produce the correct markdown link/label.
+                        text.Append(CrefToMarkdown(cref));
                     }
                     else
                     {
@@ -1081,7 +1082,7 @@ private static string ApplyAliases(string s)
             {
                 var cref = (string?)e.Attribute("cref");
                 var desc = NormalizeXmlToMarkdown(e);
-                var link = CrefToMarkdown(cref, displayFallback: cref is null ? null : ShortLabelFromCref(cref));
+                var link = CrefToMarkdown(cref);
                 sb.AppendLine($"- {link} — {desc}");
             }
         }
