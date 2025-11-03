@@ -550,10 +550,7 @@ private static string ApplyAliases(string s)
             {
                 var ch = s[i];
                 if (ch == '<') depth++;
-                else if (ch == '>')
-                {
-                    depth--;
-                }
+                else if (ch == '>') depth--;
                 else if (ch == ',' && depth == 0)
                 {
                     yield return s.Substring(start, i - start).Trim();
@@ -566,8 +563,11 @@ private static string ApplyAliases(string s)
 
     // === Links & filenames ===
 
-    // 1) String-returning convenience overload (keeps call sites like `var s = CrefToMarkdown(...)` working)
-    // Accept nullable cref values (calls may pass a null when attribute is absent).
+    /// <summary>
+    /// Converts a cref into a Markdown link string.
+    /// </summary>
+    /// <param name="cref">The cref value (e.g., <c>T:Ns.Type</c>, <c>M:Ns.Type.Method(Type)</c>) or <see langword="null"/>.</param>
+    /// <returns>Markdown link text (e.g., <c>[Type](Type.md)</c>).</returns>
     private string CrefToMarkdown(string? cref)
     {
         var sb = new System.Text.StringBuilder();
@@ -575,8 +575,11 @@ private static string ApplyAliases(string s)
         return sb.ToString();
     }
 
-    // 2) Writer overload (keeps call sites like `CrefToMarkdown(sb, cref)` working)
-    // The resolver is authoritative for label + href; we always render a markdown link here.
+    /// <summary>
+    /// Appends a Markdown link for the provided cref to a <see cref="StringBuilder"/>.
+    /// </summary>
+    /// <param name="sb">Destination builder.</param>
+    /// <param name="cref">The cref value or <see langword="null"/> (treated as empty).</param>
     private void CrefToMarkdown(System.Text.StringBuilder sb, string? cref)
     {
         // Normalize null/whitespace to empty string for the resolver.
@@ -585,11 +588,10 @@ private static string ApplyAliases(string s)
         var link = _linkResolver.Resolve(
             safeCref,
             new LinkContext(
-                CurrentTypeId: null,          // not required by the default resolver
+                CurrentTypeId: null,
                 SingleFile: _singleFileMode,
-                BasePath: null));        // set if you later support a base path
+                BasePath: null));
 
-        // Render as a markdown link; resolver produces sensible label/href for non-cref inputs too.
         sb.Append('[').Append(link.Label).Append("](").Append(link.Href).Append(')');
     }
 
@@ -846,7 +848,7 @@ private static string ApplyAliases(string s)
     /// <returns>The normalized Markdown text, or an empty string if <paramref name="element"/> is <see langword="null"/>.</returns>
     /// <remarks>
     /// Supported:
-    /// - <c>&lt;see cref="..." /&gt;</c> and <c>&lt;see href="..."&gt;text&lt;/see&gt;</c> (converted to links via <see cref="CrefToMarkdown(string?, string?)"/>).
+    /// - <c>&lt;see cref="..." /&gt;</c> and <c>&lt;see href="..."&gt;text&lt;/see&gt;</c> (converted to links via <see cref="CrefToMarkdown(string?)"/>).
     /// - <c>&lt;paramref name="..." /&gt;</c> (rendered as inline code).
     /// - <c>&lt;para&gt;</c> (emits paragraph breaks).
     /// - <c>&lt;c&gt;</c> and <c>&lt;code&gt;</c> (inline code or fenced blocks; language from <see cref="RendererOptions.CodeBlockLanguage"/>).
