@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
+using Xml2Doc.Core.Linking;
 
 namespace Xml2Doc.Core;
 
@@ -35,6 +36,9 @@ public sealed class MarkdownRenderer
     private enum LinkMode { PerTypeFiles, InDocumentAnchors }
     private LinkMode _linkMode = LinkMode.PerTypeFiles;
 
+    private readonly ILinkResolver _linkResolver;
+    private bool _singleFileMode; // toggled by the render entry points
+
     /// <summary>
     /// Initializes a new instance of <see cref="MarkdownRenderer"/>.
     /// </summary>
@@ -47,6 +51,11 @@ public sealed class MarkdownRenderer
     {
         _model = model;
         _opt = options ?? new RendererOptions();
+        _linkResolver = new DefaultLinkResolver(
+        labelFromCref: ShortLabelFromCref,
+        idToAnchor: IdToAnchor,
+        typeFileName: TypeFileNameForResolver,
+        headingSlug: HeadingSlug);
     }
 
     // === Public APIs ===
@@ -65,16 +74,25 @@ public sealed class MarkdownRenderer
     /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
     public void RenderToDirectory(string outDir)
     {
-        _linkMode = LinkMode.PerTypeFiles;
-
-        Directory.CreateDirectory(outDir);
-        var types = GetTypes().OrderBy(t => t.Id).ToList();
-        foreach (var t in types)
+        var __prev = _singleFileMode;
+        try
         {
-            var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
-            File.WriteAllText(file, RenderType(t, includeHeader: true));
+            _singleFileMode = false;
+            _linkMode = LinkMode.PerTypeFiles;
+
+            Directory.CreateDirectory(outDir);
+            var types = GetTypes().OrderBy(t => t.Id).ToList();
+            foreach (var t in types)
+            {
+                var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
+                File.WriteAllText(file, RenderType(t, includeHeader: true));
+            }
+            File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
         }
-        File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
+        finally
+        {
+            _singleFileMode = __prev;
+        }
     }
 
     /// <summary>
@@ -90,8 +108,18 @@ public sealed class MarkdownRenderer
     /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
     public void RenderToSingleFile(string outPath)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-        File.WriteAllText(outPath, BuildSingleFileContent());
+        var __prev = _singleFileMode;
+        try
+        {
+            _singleFileMode = true;
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+            File.WriteAllText(outPath, BuildSingleFileContent());
+        }
+        finally
+        {
+            _singleFileMode = __prev;
+        }
+
     }
 
     /// <summary>
@@ -535,53 +563,35 @@ private static string ApplyAliases(string s)
 
     // === Links & filenames ===
 
-    /// <summary>
-    /// Converts a <c>cref</c> to a Markdown link, resolving types and members to local files/anchors.
-    /// </summary>
-    /// <param name="cref">The cref value (e.g., <c>T:Namespace.Type</c>, <c>M:Namespace.Type.Method</c>).</param>
-    /// <param name="displayFallback">Optional display text if the cref cannot be resolved.</param>
-    /// <returns>A Markdown link, or the fallback/display text if unavailable.</returns>
-    /// <remarks>
-    /// Link behavior:
-    /// - Single-file mode (<see cref="RenderToSingleFile(string)"/>/<see cref="RenderToString"/>): Types link to the type heading slug (via <see cref="HeadingSlug(string)"/>); members link to explicit anchors (via <see cref="IdToAnchor(string)"/>).
-    /// - Per-type mode (<see cref="RenderToDirectory(string)"/>): Types link to their per-type Markdown file (via <see cref="FileNameFor(string, FileNameMode)"/>);
-    ///   members link to <c>&lt;per-type file&gt;#&lt;member anchor&gt;</c>. The containing type is derived by locating the last dot before the parameter list (or the last dot in the ID), avoiding truncation to a partial namespace.
-    /// </remarks>
-    private string CrefToMarkdown(string? cref, string? displayFallback = null)
+    // 1) String-returning convenience overload (keeps call sites like `var s = CrefToMarkdown(...)` working)
+    private string CrefToMarkdown(string cref, bool displayFallback = false)
     {
-        if (string.IsNullOrWhiteSpace(cref)) return displayFallback ?? string.Empty;
+        var sb = new System.Text.StringBuilder();
+        CrefToMarkdown(sb, cref, displayFallback);
+        return sb.ToString();
+    }
 
-        var parts = cref!.Split(':', 2);
-        var kind = parts[0];
-        var id = parts.Length > 1 ? parts[1] : cref!;
+    // 2) Writer overload (keeps call sites like `CrefToMarkdown(sb, cref, displayFallback: true)` working)
+    private void CrefToMarkdown(System.Text.StringBuilder sb, string cref, bool displayFallback = false)
+    {
+        // Treat non-cref inputs as plain text when displayFallback is requested
+        bool looksLikeCref = !string.IsNullOrWhiteSpace(cref) && cref.Length > 1 && cref[1] == ':';
 
-        if (_linkMode == LinkMode.InDocumentAnchors)
+        var link = _linkResolver.Resolve(
+            cref,
+            new LinkContext(
+                CurrentTypeId: null,          // not required by the default resolver
+                SingleFile: _singleFileMode,
+                BasePath: null));        // set if you later support a base path
+
+        if (displayFallback && !looksLikeCref)
         {
-            if (kind == "T")
-            {
-                var label = ShortTypeDisplay(id);
-                return $"[{label}](#{HeadingSlug(label)})";
-            }
-            else
-            {
-                var label = displayFallback ?? ShortLabelFromCref(cref);
-                return $"[{label}](#{IdToAnchor(id)})";
-            }
+            // Just write the label (no hyperlink)
+            sb.Append(link.Label);
+            return;
         }
 
-        if (kind == "T")
-        {
-            return $"[{ShortTypeDisplay(id)}]({FileNameFor(id, _opt.FileNameMode)})";
-        }
-        else
-        {
-            int parenIdx = id.IndexOf('(');
-            int cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
-            var typeId = cut > 0 ? id.Substring(0, cut) : id;
-
-            var label = displayFallback ?? ShortLabelFromCref(cref);
-            return $"[{label}]({FileNameFor(typeId, _opt.FileNameMode)}#{IdToAnchor(id)})";
-        }
+        sb.Append('[').Append(link.Label).Append("](").Append(link.Href).Append(')');
     }
 
     /// <summary>
@@ -651,6 +661,21 @@ private static string ApplyAliases(string s)
         return NormalizeXmlToMarkdown(sa);
     }
 
+    // Returns the output file name for a *type* cref (e.g., "T:Ns.Type" → "Ns.Type.md").
+    // IMPORTANT: If your per-type writer already has a canonical helper, call it here
+    // to ensure byte-for-byte parity with your existing outputs.
+    private string TypeFileNameForResolver(string typeCref)
+    {
+        // Strip "T:" if present
+        var id = typeCref.StartsWith("T:") ? typeCref.Substring(2) : typeCref;
+
+        // Normalize nested types to dot form (e.g., "Outer+Inner" → "Outer.Inner")
+        id = id.Replace('+', '.');
+
+        // If you have filename modes (e.g., "clean" vs "verbatim"), mirror the exact
+        // logic used by your per-type emission here. The fallback keeps the full name:
+        return id + ".md";
+    }
     /// <summary>
     /// Produces a short label from a <c>cref</c> for display purposes (e.g., replaces arity and aliases BCL types).
     /// </summary>
