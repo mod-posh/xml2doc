@@ -1,4 +1,8 @@
 ﻿using System;
+#if NETSTANDARD2_0
+using Xml2Doc.Core.Compat;
+#endif
+
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -414,20 +418,19 @@ public sealed class MarkdownRenderer
             var normalized = typeId.Replace('{', '<').Replace('}', '>');
             var display = ShortenSignatureType(normalized);
 
-            if (!string.IsNullOrEmpty(_opt.RootNamespaceToTrim) &&
-                display.StartsWith(_opt.RootNamespaceToTrim + ".", StringComparison.Ordinal))
+            if (_opt.RootNamespaceToTrim is string root && root.Length > 0 &&
+                display.StartsWith(root + ".", StringComparison.Ordinal))
             {
-                display = display.Substring(_opt.RootNamespaceToTrim.Length + 1);
+                display = display.Substring(root.Length + 1);
             }
-
             return display;
         }
 
         var id = typeId;
-        if (!string.IsNullOrEmpty(_opt.RootNamespaceToTrim) &&
-            id.StartsWith(_opt.RootNamespaceToTrim + ".", StringComparison.Ordinal))
+        if (_opt.RootNamespaceToTrim is string root2 && root2.Length > 0 &&
+            id.StartsWith(root2 + ".", StringComparison.Ordinal))
         {
-            id = id.Substring(_opt.RootNamespaceToTrim.Length + 1);
+            id = id.Substring(root2.Length + 1);
         }
 
         var lastDot = id.LastIndexOf('.');
@@ -685,7 +688,11 @@ private static string ApplyAliases(string s)
     /// <returns>A simplified display name.</returns>
     private string ShortenTypeName(string cref)
     {
+#if NETSTANDARD2_0
+        var id = (cref.IndexOf(':') >= 0) ? cref.Split(new[] { ':' }, 2)[1] : cref;
+#else
         var id = cref.Contains(':') ? cref.Split(':', 2)[1] : cref;
+#endif        
         var last = id.Split('.').LastOrDefault() ?? id;
         // generic arity -> <T1,...>
         last = Regex.Replace(last, @"`(\d+)", m =>
@@ -718,7 +725,11 @@ private static string ApplyAliases(string s)
             return string.Empty;
 
         // Split "K:Namespace.Type.Member(...)" into (K, rest)
-        var parts = cref.Split(':', 2);
+#if NETSTANDARD2_0
+        var parts = cref.Split(new[] { ':' }, 2);
+#else
+       var parts = cref.Split(':', 2);
+#endif
         var kind = parts.Length == 2 ? parts[0] : "";
         var id = parts.Length == 2 ? parts[1] : cref;
 
@@ -735,7 +746,11 @@ private static string ApplyAliases(string s)
             var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
             var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Method(Type,Type)"
             var paren = nameAndParams.IndexOf('(');
+#if NETSTANDARD2_0
+            var methodName = paren >= 0 ? nameAndParams.Substring(0, paren) : nameAndParams;
+#else
             var methodName = paren >= 0 ? nameAndParams[..paren] : nameAndParams;
+#endif
 
             // Pretty generics in method name: ``2 -> <T1,T2>, ``1 -> <T1>
             methodName = Regex.Replace(methodName, @"``(\d+)", m2 =>
@@ -799,15 +814,21 @@ private static string ApplyAliases(string s)
                     var gt = p.LastIndexOf('>');
                     if (lt >= 0 && gt > lt)
                     {
+#if NETSTANDARD2_0
+                        var head = p.Substring(0, lt + 1);
+                        var inner = p.Substring(lt + 1, gt - lt - 1);
+                        var tail = p.Substring(gt);
+#else
                         var head = p[..(lt + 1)];
                         var inner = p.Substring(lt + 1, gt - lt - 1);
+                        var tail = p[gt..];
+#endif
                         var trimmedArgs = SplitTopLevelGenericArgs(inner)
                             .Select(x => x.Contains('<')
                                 ? Regex.Replace(x, @"(?<![A-Za-z0-9_])([A-Za-z0-9_.]+)(?=\s*<)", m => m.Groups[1].Value.Split('.').Last())
                                 : x.Split('.').Last()
                             );
                         var newInner = string.Join(", ", trimmedArgs);
-                        var tail = p[gt..];
                         p = head + newInner + tail;
                     }
                 }
@@ -829,8 +850,13 @@ private static string ApplyAliases(string s)
         }
 
         // Properties/Fields/Events: show simple member identifier (after last dot)
-        if (id.Contains('.'))
-            return id[(id.LastIndexOf('.') + 1)..];
+#if NETSTANDARD2_0
+        if (id.Contains("."))
+            return id.Substring(id.LastIndexOf('.') + 1);
+#else
+if (id.Contains('.'))
+        return id[(id.LastIndexOf('.') + 1)..];
+#endif
 
         return id;
     }
@@ -971,8 +997,13 @@ private static string ApplyAliases(string s)
 
             if (ls.StartsWith("```"))
             {
+#if NETSTANDARD2_0
+                if (sbOut.Length > 0 && sbOut[sbOut.Length - 1] != '\n')
+                    sbOut.Append('\n');
+#else
                 if (sbOut.Length > 0 && sbOut[^1] != '\n')
                     sbOut.Append('\n');
+#endif
 
                 sbOut.Append(line).Append('\n');
                 inFence = !inFence;
@@ -995,8 +1026,13 @@ private static string ApplyAliases(string s)
             }
             else
             {
-                if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
+#if NETSTANDARD2_0
+                if (!prevWasBlank && sbOut.Length > 0 && sbOut[sbOut.Length - 1] != '\n')
                     sbOut.Append(' ');
+#else
+               if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
+                   sbOut.Append(' ');
+#endif
                 sbOut.Append(line);
                 prevWasBlank = false;
             }

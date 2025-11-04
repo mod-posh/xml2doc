@@ -14,11 +14,10 @@ namespace Xml2Doc.Core
             var cref = inherit?.Attribute("cref")?.Value;
             if (!string.IsNullOrWhiteSpace(cref))
             {
-                var key = cref;
+                var key = cref!;
                 if (model.Members.TryGetValue(key, out var target))
                     return target.Element;
             }
-
             // Case 2: find matching member on base type or interfaces
             // Member.Id is like: Namespace.Type.Method(System.String)
             var id = member.Id;
@@ -34,7 +33,7 @@ namespace Xml2Doc.Core
             var parts = typeId.Split('.');
             for (int cut = parts.Length - 1; cut >= 1; cut--)
             {
-                var candidateTypeId = string.Join('.', parts.Take(cut));
+                var candidateTypeId = string.Join(".", parts.Take(cut));
                 var candidateKey = $"M:{candidateTypeId}.{simple}";
                 if (model.Members.TryGetValue(candidateKey, out var target))
                     return target.Element;

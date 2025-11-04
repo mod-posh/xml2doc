@@ -69,20 +69,33 @@ namespace Xml2Doc.Core.Linking
         /// <summary>Extracts "T:Ns.Type" from a member cref like "M:Ns.Type.Method(...)"</summary>
         private static string ContainingTypeId(string cref)
         {
-            // Strip "X:" prefix if present
-            var span = cref.AsSpan();
-            if (span.Length >= 2 && span[1] == ':')
-                span = span.Slice(2);
+#if NETSTANDARD2_0
+            // No spans on ns2.0 — use string ops
+            string id = cref;
+            if (id.Length >= 2 && id[1] == ':')
+                id = id.Substring(2); // drop "X:"
 
-            // Methods: cut at '('; Others: whole head
-            var paren = span.IndexOf('(');
-            var head = paren >= 0 ? span.Slice(0, paren) : span;
+            int paren = id.IndexOf('(');
+            var head = paren >= 0 ? id.Substring(0, paren) : id;
 
-            // Last '.' separates the type from the member
-            var lastDot = head.LastIndexOf('.');
-            var typeName = lastDot >= 0 ? head.Slice(0, lastDot) : head;
+            int lastDot = head.LastIndexOf('.');
+            var typeName = lastDot >= 0 ? head.Substring(0, lastDot) : head;
 
-            return "T:" + typeName.ToString();
+            return "T:" + typeName;
+#else
+    // Fast path with spans on modern TFMs
+    var span = cref.AsSpan();
+    if (span.Length >= 2 && span[1] == ':')
+        span = span.Slice(2);
+
+    var paren = span.IndexOf('(');
+    var head = paren >= 0 ? span.Slice(0, paren) : span;
+
+    var lastDot = head.LastIndexOf('.');
+    var typeName = lastDot >= 0 ? head.Slice(0, lastDot) : head;
+
+    return "T:" + typeName.ToString();
+#endif
         }
     }
 }

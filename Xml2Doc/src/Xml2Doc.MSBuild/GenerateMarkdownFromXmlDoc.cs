@@ -94,7 +94,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     Log.LogError("SingleFile=true requires OutputFile to be set.");
                     return false;
                 }
-                renderer.RenderToSingleFile(OutputFile);
+                var outFile = OutputFile!; // proven non-null above
+                renderer.RenderToSingleFile(outFile);
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc wrote single-file Markdown to {OutputFile}");
             }
             else
@@ -104,7 +105,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     Log.LogError("SingleFile=false requires OutputDirectory to be set.");
                     return false;
                 }
-                renderer.RenderToDirectory(OutputDirectory);
+                var outDir = OutputDirectory!; // proven non-null above
+                renderer.RenderToDirectory(outDir);
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc wrote Markdown files to {OutputDirectory}");
             }
 

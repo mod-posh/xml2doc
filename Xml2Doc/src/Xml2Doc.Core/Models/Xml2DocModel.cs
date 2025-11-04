@@ -37,7 +37,7 @@ namespace Xml2Doc.Core.Models
                 var name = (string?)m.Attribute("name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
-                model.Members[name] = new XMember(name, m);
+                model.Members[name!] = new XMember(name!, m);
             }
 
             return model;
