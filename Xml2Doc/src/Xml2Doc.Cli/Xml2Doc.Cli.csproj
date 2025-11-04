@@ -17,7 +17,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
+    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj">
+      <SetTargetFramework>$(TargetFramework)</SetTargetFramework>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

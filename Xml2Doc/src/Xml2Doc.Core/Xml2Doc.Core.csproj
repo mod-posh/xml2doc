@@ -11,19 +11,20 @@
     <PackageTags>xml-doc;markdown;documentation;dotnet;mod-posh;xml2doc;generator;library</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
+  
+  <PropertyGroup>
+    <OutputPath>bin\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+  </PropertyGroup>
+  
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <!-- netstandard2.0 can compile with nullable if we force C# 8+ -->
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>10.0</LangVersion>
   </PropertyGroup>
   
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <!-- Only if you use records or newer language features -->
-    <Compile Include="IsExternalInit.cs" Condition="!Exists('IsExternalInit.cs')" />
   </ItemGroup>
 
 </Project>

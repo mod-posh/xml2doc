@@ -19,9 +19,9 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
     <!-- Build defaults -->
-    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>AnyCPU</PlatformTarget>
 
     <!-- Central TFM sets -->
     <Xml2Doc_LibTFMs>netstandard2.0;net8.0;net9.0</Xml2Doc_LibTFMs>
@@ -29,8 +29,22 @@
     <Xml2Doc_TaskTFMs>net472;net8.0</Xml2Doc_TaskTFMs>
   </PropertyGroup>
 
+  <!-- Apply TFMs per project; no global TargetFramework(s) -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Xml2Doc.Core' and '$(TargetFrameworks)' == ''">
+    <TargetFrameworks>$(Xml2Doc_LibTFMs)</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Xml2Doc.Cli' and '$(TargetFrameworks)' == ''">
+    <TargetFrameworks>$(Xml2Doc_CliTFMs)</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Xml2Doc.MSBuild' and '$(TargetFrameworks)' == ''">
+    <TargetFrameworks>$(Xml2Doc_TaskTFMs)</TargetFrameworks>
+  </PropertyGroup>
+
   <!-- SourceLink for all projects -->
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
+
 </Project>
