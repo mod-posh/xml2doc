@@ -22,6 +22,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Central TFM sets -->
+    <Xml2Doc_LibTFMs>netstandard2.0;net8.0;net9.0</Xml2Doc_LibTFMs>
+    <Xml2Doc_CliTFMs>net8.0;net9.0</Xml2Doc_CliTFMs>
+    <Xml2Doc_TaskTFMs>net472;net8.0</Xml2Doc_TaskTFMs>
   </PropertyGroup>
 
   <!-- SourceLink for all projects -->
