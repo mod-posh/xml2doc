@@ -1,17 +1,37 @@
-dotnet build .\Xml2Doc\tests\Xml2Doc.Sample -c Release
+param(
+ [string] $Configuration = "Release",
+ [string] $CliTFM = "net8.0",   # CLI runs on net8.0
+ [string] $SampleTFM = "net9.0"    # Sample builds on net9.0
+)
 
-$xml = Resolve-Path .\Xml2Doc\tests\Xml2Doc.Sample\bin\Release\net9.0\Xml2Doc.Sample.xml
-$out = Join-Path $env:TEMP ("xml2doc-" + [Guid]::NewGuid())
+$ErrorActionPreference = "Stop"
+
+# 1) Build the sample assembly that will produce XML doc
+dotnet build "Xml2Doc\tests\Xml2Doc.Sample\Xml2Doc.Sample.csproj" -c $Configuration -v minimal
+
+# 2) Locate the XML doc produced by the sample
+$xml = "Xml2Doc\tests\Xml2Doc.Sample\bin\$Configuration\$SampleTFM\Xml2Doc.Sample.xml"
+if (!(Test-Path $xml)) { throw "XML doc not found at $xml" }
+
+# 3) Create a temp output folder
+$out = Join-Path $env:TEMP ("xml2doc-" + [guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $out | Out-Null
-write-host $out
 
-dotnet run --project .\Xml2Doc\src\Xml2Doc.Cli -- --xml $xml --out $out --file-names clean --rootns Xml2Doc.Sample --lang csharp
+# 4) Run the CLI to render docs to a directory
+.\Xml2Doc\src\Xml2Doc.Cli\bin\Release\net9.0\Xml2Doc.Cli.exe `
+ --xml $xml `
+ --out $out
 
-New-Item -ItemType Directory -Force -Path .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames | Out-Null
-Copy-Item (Join-Path $out index.md)                                  .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\index.verified.md -Force
-Copy-Item (Join-Path $out Xml2Doc.Sample.GenericPlayground.md)       .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.GenericPlayground.verified.md -Force
-Copy-Item (Join-Path $out Xml2Doc.Sample.Mathx.md)                   .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.Mathx.verified.md -Force
-Copy-Item (Join-Path $out Xml2Doc.Sample.XItem.md)                   .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.XItem.verified.md -Force
-Copy-Item (Join-Path $out Xml2Doc.Sample.AliasingPlayground.md)      .\Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames\Xml2Doc.Sample.AliasingPlayground.verified.md -Force
+# 5) Copy a stable subset to snapshots
+$dest = "Xml2Doc\tests\Xml2Doc.Tests\__snapshots__"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+Copy-Item (Join-Path $out "index.md")                                 -Destination (Join-Path $dest "index.md") -Force
+Copy-Item (Join-Path $out "Xml2Doc.Sample.GenericPlayground.md")      -Destination (Join-Path $dest "Xml2Doc.Sample.GenericPlayground.md") -Force
+Copy-Item (Join-Path $out "Xml2Doc.Sample.Mathx.md")                  -Destination (Join-Path $dest "Xml2Doc.Sample.Mathx.md") -Force
+Copy-Item (Join-Path $out "Xml2Doc.Sample.XItem.md")                  -Destination (Join-Path $dest "Xml2Doc.Sample.XItem.md") -Force
+Copy-Item (Join-Path $out "Xml2Doc.Sample.AliasingPlayground.md")     -Destination (Join-Path $dest "Xml2Doc.Sample.AliasingPlayground.md") -Force
+
+Write-Host "Snapshots updated from $xml into $dest"
 
 remove-item $out -recurse -force
