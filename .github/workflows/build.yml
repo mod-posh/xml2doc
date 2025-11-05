@@ -33,7 +33,13 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
       - name: Build
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore -p:ContinuousIntegrationBuild=true
+        run: >
+          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
+          --configuration Release
+          --no-restore
+          /m:1
+          -p:ContinuousIntegrationBuild=true
+          -p:UseSharedCompilation=false
       - name: Package
         run: >
           dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
