@@ -33,8 +33,6 @@ jobs:
 
       - name: Clean
         run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
-      - name: Restore dependencies
-        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
 
       - name: Build and Package
         run: >
