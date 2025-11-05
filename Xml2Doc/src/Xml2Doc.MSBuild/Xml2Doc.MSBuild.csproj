@@ -6,7 +6,7 @@
     <!-- Pack as build assets (no lib assembly referenced by consumers) -->
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <BuildOutputTargetFolder>tools/$(TargetFramework)</BuildOutputTargetFolder>
 
     <!-- Symbols: produce .snupkg and allow pdbs in main nupkg as well -->

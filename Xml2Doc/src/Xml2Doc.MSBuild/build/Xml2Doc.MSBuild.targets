@@ -4,6 +4,17 @@
     <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(DocumentationFile)'!='' and Exists('$(DocumentationFile)')">true</_Xml2Doc_CanRun>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <_Xml2DocTaskDll>$(MSBuildThisFileDirectory)..\tools\net8.0\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
+    <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">
+      $(MSBuildThisFileDirectory)..\tools\net472\Xml2Doc.MSBuild.dll
+    </_Xml2DocTaskDll>
+  </PropertyGroup>
+  
+  <UsingTask
+      TaskName="GenerateMarkdownFromXmlDoc"
+      AssemblyFile="$(_Xml2DocTaskDll)" />
+  
   <!-- Write a stable "fingerprint" file representing options that affect output -->
   <Target Name="Xml2Doc_WriteFingerprint"
           Condition="'$(_Xml2Doc_CanRun)'=='true'">
