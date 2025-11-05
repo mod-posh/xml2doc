@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>$(Xml2Doc_TaskTFMs)</TargetFrameworks>
     <!-- Pack as build assets (no lib assembly referenced by consumers) -->
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <IncludeBuildOutput>true</IncludeBuildOutput>
 
     <Description>
