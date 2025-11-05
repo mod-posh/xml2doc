@@ -13,7 +13,9 @@
 
     <!-- Let SDK place compiled outputs into lib/<tfm>/ so they appear in the nupkg -->
     <IncludeBuildOutput>true</IncludeBuildOutput>
-
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    
     <!-- NuGet metadata -->
     <PackageId>Xml2Doc.MSBuild</PackageId>
     <Authors>mod-posh</Authors>
@@ -66,4 +68,21 @@
           PackagePath="build\$(PackageId).props"
           Condition="Exists('build\Xml2Doc.MSBuild.props')" />
   </ItemGroup>
+
+  <Target Name="_PackTaskDeps" AfterTargets="Build">
+    <ItemGroup>
+      <!-- Take everything we built next to the task -->
+      <_TaskFiles Include="$(TargetDir)*.dll;$(TargetDir)*.pdb;$(TargetDir)*.xml" />
+
+      <!-- But exclude MSBuild toolset binaries; let MSBuild provide those -->
+      <_TaskFiles Remove="$(TargetDir)Microsoft.Build.*.dll" />
+      <_TaskFiles Remove="$(TargetDir)Microsoft.NET.StringTools.dll" />
+      <_TaskFiles Remove="$(TargetDir)Microsoft.IO.Redist.dll" />
+
+      <!-- Map them into the lib/<tfm>/ area in the package -->
+      <TfmSpecificPackageFile Include="@(_TaskFiles)">
+        <PackagePath>lib\$(TargetFramework)\%(Filename)%(Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 </Project>

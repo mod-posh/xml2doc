@@ -12,11 +12,26 @@
     <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net472\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
   </PropertyGroup>
 
+  <!-- For MSBuild on .NET (dotnet build), prefer net8.0; otherwise .NET Framework -->
+  <PropertyGroup>
+    <_Xml2Doc_TaskTfm Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</_Xml2Doc_TaskTfm>
+    <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)' == ''">net472</_Xml2Doc_TaskTfm>
+    <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+  </PropertyGroup>
+
+  <UsingTask
+    TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
+    AssemblyFile="$(_Xml2Doc_TaskPath)" />
+
   <!-- Optional: warn if DLL still not found -->
   <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2DocTaskDll)')">
     <Warning Text="Xml2Doc task assembly not found at $(_Xml2DocTaskDll). Package layout mismatch?" />
   </Target>
 
+  <Target Name="_Xml2Doc_LogChosenTask" BeforeTargets="Build" Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
+    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType))" Importance="Low" />
+  </Target>
+  
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2DocTaskDll)" />
 
   <PropertyGroup>
