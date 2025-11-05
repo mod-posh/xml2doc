@@ -42,7 +42,7 @@ jobs:
           -p:UseSharedCompilation=false
       - name: Package
         run: >
-          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/Xml2Doc.Core.csproj
+          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
           --configuration Release
           --output ./publish
           --no-build
@@ -50,21 +50,9 @@ jobs:
           -p:VersionPrefix=${{ env.VERSION_PREFIX }}
           -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
 
-          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj
-          --configuration Release
-          --output ./publish
-          --no-build
-          -p:ContinuousIntegrationBuild=true
-          -p:VersionPrefix=${{ env.VERSION_PREFIX }}
-          -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
-
-          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj
-          --configuration Release
-          --output ./publish
-          --no-build
-          -p:ContinuousIntegrationBuild=true
-          -p:VersionPrefix=${{ env.VERSION_PREFIX }}
-          -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
+          Get-ChildItem -Path ./publish | ForEach-Object {
+            Write-Host "Packaged: $($_.FullName)"
+          }
 
       - name: Push to NuGet
-        run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: #dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
