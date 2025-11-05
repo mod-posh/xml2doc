@@ -25,30 +25,28 @@ jobs:
         shell: pwsh
         run: |
           $sha7 = "${env:GITHUB_SHA}".Substring(0,7)
-          echo "VERSION_PREFIX=${{ steps.get_version.outputs.version }}" >> $env:GITHUB_ENV
-          echo "VERSION_SUFFIX=preview.${env:GITHUB_RUN_NUMBER}-g$sha7" >> $env:GITHUB_ENV
+          $prefix = "${{ steps.get_version.outputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($prefix)) { $prefix = $env:VERSION }
+          if ([string]::IsNullOrWhiteSpace($prefix)) { throw "Could not resolve VersionPrefix" }
+          "VERSION_PREFIX=$prefix"                                  >> $env:GITHUB_ENV
+          "VERSION_SUFFIX=preview.${env:GITHUB_RUN_NUMBER}-g$sha7" >> $env:GITHUB_ENV
 
       - name: Clean
         run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
       - name: Restore dependencies
         run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
-      - name: Build
-        run: >
-          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
-          --configuration Release
-          --no-restore
-          /m:1
-          -p:ContinuousIntegrationBuild=true
-          -p:UseSharedCompilation=false
-      - name: Package
+
+      - name: Build and Package
         run: >
           dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
           --configuration Release
           --output ./publish
-          --no-build
+          /m:1
+          -p:UseSharedCompilation=false
           -p:ContinuousIntegrationBuild=true
-          -p:VersionPrefix=${{ env.VERSION_PREFIX }}
-          -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
+          -p:PackageVersion=${{ env.VERSION_PREFIX }}-${{ env.VERSION_SUFFIX }}
+          -p:RepositoryCommit=${{ github.sha }}
+          -p:RepositoryBranch=${{ github.ref_name }}
 
           Get-ChildItem -Path ./publish | ForEach-Object {
             Write-Host "Packaged: $($_.FullName)"
