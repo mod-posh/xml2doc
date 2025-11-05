@@ -52,8 +52,7 @@ jobs:
 
       - name: Push to NuGet
         run: |
-          Write-Host "PWD: $(Get-Location)"
-          Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE\publish" | ForEach-Object {
-          Write-Host " -> $($_.FullName)"
+          foreach ($package in Get-ChildItem -Path "${{ github.workspace }}\publish") {
+            Write-Host "Pushing package: $($package.FullName)"
+            dotnet nuget push $package.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
           }
-          dotnet nuget push ${{ github.workspace }}/publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
