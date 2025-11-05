@@ -41,10 +41,29 @@ jobs:
           -p:ContinuousIntegrationBuild=true
           -p:UseSharedCompilation=false
       - name: Package
-        run: >
-          dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
+        run: |
+          # Pack Core Library first (since others depend on it)
+          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Core/Xml2Doc.Core.csproj
           --configuration Release
-          --output nupkgs
+          --output ./publish
+          --no-build
+          -p:ContinuousIntegrationBuild=true
+          -p:VersionPrefix=${{ env.VERSION_PREFIX }}
+          -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
+
+          # Pack CLI Tool
+          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj
+          --configuration Release
+          --output ./publish
+          --no-build
+          -p:ContinuousIntegrationBuild=true
+          -p:VersionPrefix=${{ env.VERSION_PREFIX }}
+          -p:VersionSuffix=${{ env.VERSION_SUFFIX }}
+
+          # Pack MSBuild Package
+          dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj
+          --configuration Release
+          --output ./publish
           --no-build
           -p:ContinuousIntegrationBuild=true
           -p:VersionPrefix=${{ env.VERSION_PREFIX }}
