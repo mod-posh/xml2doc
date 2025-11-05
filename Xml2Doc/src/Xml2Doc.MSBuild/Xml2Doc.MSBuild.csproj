@@ -2,75 +2,99 @@
 
   <PropertyGroup>
     <TargetFrameworks>$(Xml2Doc_TaskTFMs)</TargetFrameworks>
-    
-    <!-- Pack as build assets (no lib assembly referenced by consumers) -->
+
+    <!-- We control packaging to avoid cross-targeting probing -->
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <BuildOutputTargetFolder>tools/$(TargetFramework)</BuildOutputTargetFolder>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 
-    <!-- Symbols: produce .snupkg and allow pdbs in main nupkg as well -->
+    <!-- Symbols / reproducibility -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
-    <AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>.pdb</AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>
-
-    <!-- Nice-to-have for reproducibility in CI -->
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
 
-    <Description>
-      MSBuild integration for Xml2Doc — automatically generate Markdown documentation when building your project.
-      Supports single-file output, filename modes, and root namespace trimming. Part of the mod-posh Xml2Doc suite.
-    </Description>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageTags>xml-doc;markdown;documentation;msbuild;build;automation;mod-posh;xml2doc</PackageTags>
+    <!-- Hook our per-TFM pack target -->
+    <TargetsForTfmSpecificBuildOutput>
+      $(TargetsForTfmSpecificBuildOutput);_PackTaskAndDeps
+    </TargetsForTfmSpecificBuildOutput>
+
+    <!-- Optional: docs + basic NuGet metadata -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>MSBuild tasks for Xml2Doc – generate Markdown from XML doc comments.</Description>
+    <PackageTags>xml;docs;markdown;msbuild;dotnet;nuget</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>mod-posh</Authors>
+    <RepositoryUrl>https://github.com/mod-posh/xml2doc</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
+  <!-- Ensure nullable etc. compile under net472 -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
     <LangVersion>10.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build"                Version="17.9.5" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Build.Framework"      Version="17.9.5" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" PrivateAssets="all" />
+    <!-- MSBuild task APIs -->
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.11.*" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.11.*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- net472 needs System.Text.Json -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" PrivateAssets="all" />
   </ItemGroup>
   
-  <!-- Ensure the task carries its dependency (Xml2Doc.Core) beside it -->
+  <!-- MSBuild integration files shipped with the package -->
   <ItemGroup>
-    <!-- The task DLL for this TFM -->
-    <None Include="$(OutputPath)$(AssemblyName).dll"
-          Pack="true" PackagePath="tools/$(TargetFramework)/" />
-    <!-- The matching Core DLL that this task references (will be netstandard2.0 under net472, and net8.0 under net8.0) -->
-    <None Include="$(OutputPath)Xml2Doc.Core.dll"
-          Pack="true" PackagePath="tools/$(TargetFramework)/" />
-    <None Include="$(OutputPath)Xml2Doc.Core.xml"
-          Pack="true" PackagePath="tools/$(TargetFramework)/"
-          Condition="Exists('$(OutputPath)Xml2Doc.Core.xml')" />
-  </ItemGroup>  
-  
-  <!-- Task builds for net472 -> force Core to netstandard2.0 -->
+    <None Include="build/Xml2Doc.MSBuild.props"   Pack="true" PackagePath="build/" />
+    <None Include="build/Xml2Doc.MSBuild.targets" Pack="true" PackagePath="build/" />
+    <None Include="README.md"                      Pack="true" PackagePath="/"   Condition="Exists('README.md')" />
+  </ItemGroup>
+
+  <!-- Per-TFM project references to get a compatible Xml2Doc.Core -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <!-- net472 task references netstandard2.0 of Core -->
     <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj"
                       AdditionalProperties="TargetFramework=netstandard2.0"
                       PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- Task builds for net8.0 -> force Core to net8.0 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <!-- net8.0 task references net8.0 of Core -->
     <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj"
                       AdditionalProperties="TargetFramework=net8.0"
                       PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- ship props/targets as build assets -->
-  <ItemGroup>
-    <!-- Update filenames/paths if yours differ -->
-    <None Include="build\Xml2Doc.MSBuild.props" Pack="true" PackagePath="build/Xml2Doc.MSBuild.props" />
-    <None Include="build\Xml2Doc.MSBuild.targets" Pack="true" PackagePath="build/Xml2Doc.MSBuild.targets" />
-    <None Include="README.md" Pack="true" PackagePath="" />
-  </ItemGroup>
+  <!-- Package the task + its local dependencies into tools/<tfm>/ -->
+  <Target Name="_PackTaskAndDeps">
+    <!-- 1) Always include the task assembly artifacts from our TargetDir -->
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath)"                                 PackagePath="tools/$(TargetFramework)/" />
+      <TfmSpecificPackageFile Include="$(TargetDir)$(AssemblyName).pdb" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" PackagePath="tools/$(TargetFramework)/" />
+      <TfmSpecificPackageFile Include="$(TargetDir)$(AssemblyName).xml" Condition="Exists('$(TargetDir)$(AssemblyName).xml')" PackagePath="tools/$(TargetFramework)/" />
+    </ItemGroup>
+
+    <!-- 2) Include the Xml2Doc.Core dependency files copied locally for this TFM -->
+    <ItemGroup>
+      <!-- @(ReferenceCopyLocalPaths) contains resolved local copies -->
+      <_CoreDep Include="@(ReferenceCopyLocalPaths)"
+                Condition="'%(Filename)%(Extension)' == 'Xml2Doc.Core.dll'" />
+      <!-- infer matching .pdb and .xml next to the dll -->
+      <_CoreDepPdb Include="$([System.IO.Path]::ChangeExtension('%(_CoreDep.Identity)', '.pdb'))"
+                   Condition="Exists('$([System.IO.Path]::ChangeExtension('%(_CoreDep.Identity)', '.pdb'))')" />
+      <_CoreDepXml Include="$([System.IO.Path]::ChangeExtension('%(_CoreDep.Identity)', '.xml'))"
+                   Condition="Exists('$([System.IO.Path]::ChangeExtension('%(_CoreDep.Identity)', '.xml'))')" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_CoreDep)"    PackagePath="tools/$(TargetFramework)/" />
+      <TfmSpecificPackageFile Include="@(_CoreDepPdb)" PackagePath="tools/$(TargetFramework)/" />
+      <TfmSpecificPackageFile Include="@(_CoreDepXml)" PackagePath="tools/$(TargetFramework)/" />
+    </ItemGroup>
+  </Target>
 
 </Project>
