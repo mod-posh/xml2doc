@@ -1,30 +1,42 @@
 ﻿<Project>
-  <!-- Defaults mirror 1.3.1 behavior -->
+  <!-- Defaults mirror 1.3.1 behavior, but now only apply if the consumer hasn't overridden them -->
   <PropertyGroup>
-    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
+    <!-- 1) Make this overridable. If you prefer opt-in, set default to 'false'. -->
+    <Xml2Doc_Enabled Condition="'$(Xml2Doc_Enabled)'==''">true</Xml2Doc_Enabled>
 
     <!-- Output mode: default is per-type (false) -->
-    <Xml2Doc_SingleFile>false</Xml2Doc_SingleFile>
+    <Xml2Doc_SingleFile Condition="'$(Xml2Doc_SingleFile)'==''">false</Xml2Doc_SingleFile>
 
     <!-- Per-type output default -->
-    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
+    <Xml2Doc_OutputDir Condition="'$(Xml2Doc_OutputDir)'==''">$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
 
     <!-- Single-file output default -->
-    <Xml2Doc_OutputFile>$(MSBuildProjectDirectory)\docs\api.md</Xml2Doc_OutputFile>
+    <Xml2Doc_OutputFile Condition="'$(Xml2Doc_OutputFile)'==''">$(MSBuildProjectDirectory)\docs\api.md</Xml2Doc_OutputFile>
 
     <!-- Rendering knobs -->
-    <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
-    <!-- verbatim|clean -->
-    <Xml2Doc_RootNamespaceToTrim></Xml2Doc_RootNamespaceToTrim>
-    <Xml2Doc_CodeBlockLanguage>csharp</Xml2Doc_CodeBlockLanguage>
+    <Xml2Doc_FileNameMode Condition="'$(Xml2Doc_FileNameMode)'==''">clean</Xml2Doc_FileNameMode>
 
-    <!-- Report + incremental -->
-    <Xml2Doc_ReportPath>$(IntermediateOutputPath)xml2doc-report.json</Xml2Doc_ReportPath>
-    <Xml2Doc_OutputStamp>$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
-    <Xml2Doc_FingerprintFile>$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
+    <!-- verbatim|clean -->
+    <Xml2Doc_RootNamespaceToTrim Condition="'$(Xml2Doc_RootNamespaceToTrim)'==''"></Xml2Doc_RootNamespaceToTrim>
+
+    <!-- <Xml2Doc_CodeBlockLanguage>csharp</Xml2Doc_CodeBlockLanguage> -->
+    <Xml2Doc_CodeBlockLanguage Condition="'$(Xml2Doc_CodeBlockLanguage)'==''">csharp</Xml2Doc_CodeBlockLanguage>
+
+    <!-- 2) Put report next to the docs by default so parent directory creation is obvious,
+           and ensure it's NEVER empty (this was the cause of the "Path cannot be empty" warning). -->
+    <Xml2Doc_ReportPath Condition="'$(Xml2Doc_ReportPath)'==''">$(Xml2Doc_OutputDir)\xml2doc-report.json</Xml2Doc_ReportPath>
+
+    <!-- Up-to-date tracking -->
+    <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)'==''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
+
+    <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)'==''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
 
     <!-- Optional behavior switches -->
-    <Xml2Doc_DryRun>false</Xml2Doc_DryRun>
-    <Xml2Doc_Diff>false</Xml2Doc_Diff>
+    <Xml2Doc_DryRun Condition="'$(Xml2Doc_DryRun)'==''">false</Xml2Doc_DryRun>
+
+    <Xml2Doc_Diff Condition="'$(Xml2Doc_Diff)'==''">false</Xml2Doc_Diff>
+
+    <!-- 3) Optional: flip to 'true' to log which task TFM/assembly was chosen (helps when debugging). -->
+    <Xml2Doc_LogChosenTask Condition="'$(Xml2Doc_LogChosenTask)'==''">false</Xml2Doc_LogChosenTask>
   </PropertyGroup>
 </Project>

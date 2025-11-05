@@ -19,6 +19,8 @@
     <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
   </PropertyGroup>
 
+  <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="!Exists('$(Xml2Doc_OutputDir)')" />
+  
   <UsingTask
     TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
     AssemblyFile="$(_Xml2Doc_TaskPath)" />
@@ -54,26 +56,35 @@
     <Message Importance="Low" Text="Xml2Doc: xml='$(DocumentationFile)' single=$(Xml2Doc_SingleFile) outDir='$(Xml2Doc_OutputDir)' outFile='$(Xml2Doc_OutputFile)'" />
 
     <GenerateMarkdownFromXmlDoc
-        Xml="$(DocumentationFile)"
         XmlPath="$(DocumentationFile)"
         SingleFile="$(Xml2Doc_SingleFile)"
         OutputFile="$(Xml2Doc_OutputFile)"
-        OutputDir="$(Xml2Doc_OutputDir)"
+        OutputDirectory="$(Xml2Doc_OutputDir)"
         FileNameMode="$(Xml2Doc_FileNameMode)"
         RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)"
         CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
         ReportPath="$(Xml2Doc_ReportPath)"
         DryRun="$(Xml2Doc_DryRun)"
-        Diff= "$(Xml2Doc_Diff)">
+        Diff="$(Xml2Doc_Diff)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="ReportPathOut" PropertyName="Xml2Doc_ReportPathOut" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
 
+    <!-- Join item list into a property to avoid MSB4012 -->
+    <PropertyGroup>
+      <_Xml2Doc_GeneratedJoined>@(Xml2Doc_GeneratedFiles,';')</_Xml2Doc_GeneratedJoined>
+      <!-- Prefer the actual output property, fall back to configured path, then 'n/a' -->
+      <_Xml2Doc_ReportDisplay Condition="'$(Xml2Doc_ReportPathOut)'!=''">$(Xml2Doc_ReportPathOut)</_Xml2Doc_ReportDisplay>
+      <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'=='' and '$(Xml2Doc_ReportPath)'!=''">$(Xml2Doc_ReportPath)</_Xml2Doc_ReportDisplay>
+      <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'==''">n/a</_Xml2Doc_ReportDisplay>
+    </PropertyGroup>
+
     <WriteLinesToFile File="$(Xml2Doc_OutputStamp)"
-                      Lines="generated: @(Xml2Doc_GeneratedFiles,';') | report: $(Xml2Doc_ReportPathOut) | time: $([System.DateTime]::Now.ToString('o'))"
+                      Lines="generated: $(_Xml2Doc_GeneratedJoined) | report: $(_Xml2Doc_ReportDisplay) | time: $([System.DateTime]::Now.ToString('o'))"
                       Overwrite="true"
                       Encoding="UTF-8" />
+
 
     <ItemGroup>
       <FileWrites Include="@(Xml2Doc_GeneratedFiles)" />
