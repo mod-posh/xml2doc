@@ -55,6 +55,7 @@
 
     <GenerateMarkdownFromXmlDoc
         Xml="$(DocumentationFile)"
+        XmlPath="$(DocumentationFile)"
         SingleFile="$(Xml2Doc_SingleFile)"
         OutputFile="$(Xml2Doc_OutputFile)"
         OutputDir="$(Xml2Doc_OutputDir)"
