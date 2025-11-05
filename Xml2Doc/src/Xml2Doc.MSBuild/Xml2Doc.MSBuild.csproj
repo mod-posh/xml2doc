@@ -2,9 +2,22 @@
 
   <PropertyGroup>
     <TargetFrameworks>$(Xml2Doc_TaskTFMs)</TargetFrameworks>
+    
     <!-- Pack as build assets (no lib assembly referenced by consumers) -->
     <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeBuildOutput>true</IncludeBuildOutput>
+    <BuildOutputTargetFolder>tools/$(TargetFramework)</BuildOutputTargetFolder>
+
+    <!-- Symbols: produce .snupkg and allow pdbs in main nupkg as well -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>.pdb</AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>
+
+    <!-- Nice-to-have for reproducibility in CI -->
+    <DebugType>portable</DebugType>
+    <Deterministic>true</Deterministic>
 
     <Description>
       MSBuild integration for Xml2Doc — automatically generate Markdown documentation when building your project.
