@@ -1,34 +1,35 @@
 ﻿<Project>
-  <!-- Only participate if enabled and there is a doc file -->
+  <PropertyGroup>
+    <!-- Decide preferred TFM based on MSBuild runtime -->
+    <_Xml2DocPreferredTfm>net8.0</_Xml2DocPreferredTfm>
+    <_Xml2DocPreferredTfm Condition="'$(MSBuildRuntimeType)'=='Full'">net472</_Xml2DocPreferredTfm>
+
+    <!-- Base resolution: prefer runtime-appropriate TFM under lib/ -->
+    <_Xml2DocTaskDll>$(MSBuildThisFileDirectory)..\lib\$(_Xml2DocPreferredTfm)\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
+
+    <!-- Fallbacks if preferred not found -->
+    <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net8.0\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
+    <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net472\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
+  </PropertyGroup>
+
+  <!-- Optional: warn if DLL still not found -->
+  <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2DocTaskDll)')">
+    <Warning Text="Xml2Doc task assembly not found at $(_Xml2DocTaskDll). Package layout mismatch?" />
+  </Target>
+
+  <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2DocTaskDll)" />
+
   <PropertyGroup>
     <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(DocumentationFile)'!='' and Exists('$(DocumentationFile)')">true</_Xml2Doc_CanRun>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <_Xml2DocTaskDll>$(MSBuildThisFileDirectory)..\tools\net8.0\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
-    <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">
-      $(MSBuildThisFileDirectory)..\tools\net472\Xml2Doc.MSBuild.dll
-    </_Xml2DocTaskDll>
-  </PropertyGroup>
-  
-  <UsingTask
-      TaskName="GenerateMarkdownFromXmlDoc"
-      AssemblyFile="$(_Xml2DocTaskDll)" />
-  
-  <!-- Write a stable "fingerprint" file representing options that affect output -->
-  <Target Name="Xml2Doc_WriteFingerprint"
-          Condition="'$(_Xml2Doc_CanRun)'=='true'">
+  <Target Name="Xml2Doc_WriteFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'">
     <PropertyGroup>
       <_Xml2Doc_Fingerprint>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)</_Xml2Doc_Fingerprint>
     </PropertyGroup>
-    <WriteLinesToFile
-        File="$(Xml2Doc_FingerprintFile)"
-        Lines="$(_Xml2Doc_Fingerprint)"
-        Overwrite="true"
-        Encoding="UTF-8" />
+    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)" Lines="$(_Xml2Doc_Fingerprint)" Overwrite="true" Encoding="UTF-8" />
   </Target>
 
-  <!-- Generate docs after successful compilation -->
   <Target Name="Xml2Doc_Generate"
           AfterTargets="CoreCompile"
           DependsOnTargets="Xml2Doc_WriteFingerprint"
@@ -47,20 +48,17 @@
         CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
         ReportPath="$(Xml2Doc_ReportPath)"
         DryRun="$(Xml2Doc_DryRun)"
-        Diff="$(Xml2Doc_Diff)">
+        Diff= "$(Xml2Doc_Diff)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="ReportPathOut" PropertyName="Xml2Doc_ReportPathOut" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
 
-    <!-- Touch the stamp to satisfy incremental Outputs -->
-    <WriteLinesToFile
-        File="$(Xml2Doc_OutputStamp)"
-        Lines="generated: @(Xml2Doc_GeneratedFiles,';') | report: $(Xml2Doc_ReportPathOut) | time: $([System.DateTime]::Now.ToString('o'))"
-        Overwrite="true"
-        Encoding="UTF-8" />
+    <WriteLinesToFile File="$(Xml2Doc_OutputStamp)"
+                      Lines="generated: @(Xml2Doc_GeneratedFiles,';') | report: $(Xml2Doc_ReportPathOut) | time: $([System.DateTime]::Now.ToString('o'))"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
 
-    <!-- Surface generated files for other targets/logging -->
     <ItemGroup>
       <FileWrites Include="@(Xml2Doc_GeneratedFiles)" />
     </ItemGroup>
