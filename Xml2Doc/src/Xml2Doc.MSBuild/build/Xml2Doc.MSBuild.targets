@@ -52,11 +52,48 @@
     <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(DocumentationFile)'!='' and Exists('$(DocumentationFile)')">true</_Xml2Doc_CanRun>
   </PropertyGroup>
 
-  <Target Name="Xml2Doc_WriteFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'">
+  <!-- NEW: compute SHA256 of $(DocumentationFile) + combine with options,
+            and only update fingerprint file if content actually changes. -->
+  <Target Name="Xml2Doc_ComputeFingerprint"
+          Condition="'$(_Xml2Doc_CanRun)'=='true'">
+    <!-- 1) Hash the XML doc -->
+    <GetFileHash Files="$(DocumentationFile)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_Xml2Doc_HashItem" />
+    </GetFileHash>
+
+    <!-- 2) Build the normalized options fingerprint -->
     <PropertyGroup>
-      <_Xml2Doc_Fingerprint>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)</_Xml2Doc_Fingerprint>
+      <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)</_Xml2Doc_Options>
+      <_Xml2Doc_Hash>$(_Xml2Doc_Hash)</_Xml2Doc_Hash>
+      <!-- will be set below from item metadata -->
     </PropertyGroup>
-    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)" Lines="$(_Xml2Doc_Fingerprint)" Overwrite="true" Encoding="UTF-8" />
+
+    <!-- Pull Hash metadata out of the item (there is exactly one file) -->
+    <ItemGroup>
+      <_Xml2Doc_HashValue Include="@(_Xml2Doc_HashItem->'%(Hash)')" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_Xml2Doc_Hash>@(_Xml2Doc_HashValue)</_Xml2Doc_Hash>
+      <_Xml2Doc_Fingerprint>$(_Xml2Doc_Hash)|$(_Xml2Doc_Options)</_Xml2Doc_Fingerprint>
+    </PropertyGroup>
+
+    <!-- 3) Read existing fingerprint (if any) and only write when different -->
+    <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)" Condition="Exists('$(Xml2Doc_FingerprintFile)')">
+      <Output TaskParameter="Lines" ItemName="_Xml2Doc_ExistingFingerprint" />
+    </ReadLinesFromFile>
+
+    <PropertyGroup>
+      <_Xml2Doc_Existing>@(_Xml2Doc_ExistingFingerprint)</_Xml2Doc_Existing>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+        File="$(Xml2Doc_FingerprintFile)"
+        Lines="$(_Xml2Doc_Fingerprint)"
+        Overwrite="true"
+        Encoding="UTF-8"
+        Condition="'$(_Xml2Doc_Existing)' != '$(_Xml2Doc_Fingerprint)'" />
+
+    <Message Importance="Low" Text="Xml2Doc: fingerprint $(_Xml2Doc_Fingerprint)" />
   </Target>
 
   <Target Name="Xml2Doc_Generate"
