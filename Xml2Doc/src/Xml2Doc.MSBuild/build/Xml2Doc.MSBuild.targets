@@ -136,7 +136,9 @@
         CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
         ReportPath="$(Xml2Doc_ReportPath)"
         DryRun="$(Xml2Doc_DryRun)"
-        Diff="$(Xml2Doc_Diff)">
+        Diff="$(Xml2Doc_Diff)"
+        Fingerprint="$(_Xml2Doc_Fingerprint)"
+        XmlSha256="$(_Xml2Doc_Hash)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="ReportPathOut" PropertyName="Xml2Doc_ReportPathOut" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
