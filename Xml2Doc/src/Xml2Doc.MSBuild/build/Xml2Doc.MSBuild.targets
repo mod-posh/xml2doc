@@ -68,11 +68,26 @@
 
     <Message Importance="Low" Text="Xml2Doc: xml='$(DocumentationFile)' single=$(Xml2Doc_SingleFile) outDir='$(Xml2Doc_OutputDir)' outFile='$(Xml2Doc_OutputFile)'" />
 
+    <!-- Precompute the single-file directory to avoid nested property functions in Condition -->
+    <PropertyGroup>
+      <!-- OLD inline usage (commented below) called Path.GetDirectoryName inside the Condition and caused MSB4092 -->
+      <_Xml2Doc_OutputFileDir>$([System.IO.Path]::GetDirectoryName($(Xml2Doc_OutputFile)))</_Xml2Doc_OutputFileDir>
+    </PropertyGroup>
+
     <!-- NEW: Create destination directories INSIDE the target (valid location) -->
     <MakeDir Directories="$(Xml2Doc_OutputDir)"
              Condition="'$(Xml2Doc_SingleFile)'!='true' and !Exists('$(Xml2Doc_OutputDir)')" />
+
+    <!-- OLD (kept for reference; was triggering MSB4092 due to nested quotes/functions)
     <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))"
              Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(Xml2Doc_OutputFile)'!='' and !Exists('$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))')" />
+    -->
+
+    <!-- NEW: use the precomputed directory property to keep Condition simple -->
+    <MakeDir Directories="$(_Xml2Doc_OutputFileDir)"
+             Condition="'$(Xml2Doc_SingleFile)'=='true'
+                        and '$(_Xml2Doc_OutputFileDir)'!=''
+                        and !Exists('$(_Xml2Doc_OutputFileDir)')" />
 
     <GenerateMarkdownFromXmlDoc
         XmlPath="$(DocumentationFile)"
