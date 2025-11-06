@@ -1,40 +1,52 @@
 ﻿<Project>
+  <!-- Decide preferred TFM based on MSBuild runtime -->
   <PropertyGroup>
-    <!-- Decide preferred TFM based on MSBuild runtime -->
+    <!-- ORIGINAL: keep for reference but superseded by the _TaskTfm/_TaskPath block below -->
+    <!--
     <_Xml2DocPreferredTfm>net8.0</_Xml2DocPreferredTfm>
     <_Xml2DocPreferredTfm Condition="'$(MSBuildRuntimeType)'=='Full'">net472</_Xml2DocPreferredTfm>
 
-    <!-- Base resolution: prefer runtime-appropriate TFM under lib/ -->
     <_Xml2DocTaskDll>$(MSBuildThisFileDirectory)..\lib\$(_Xml2DocPreferredTfm)\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
-
-    <!-- Fallbacks if preferred not found -->
     <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net8.0\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
     <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net472\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll>
-  </PropertyGroup>
+    -->
 
-  <!-- For MSBuild on .NET (dotnet build), prefer net8.0; otherwise .NET Framework -->
-  <PropertyGroup>
+    <!-- NEW (single source of truth): pick task TFM by MSBuild runtime and compute path -->
     <_Xml2Doc_TaskTfm Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</_Xml2Doc_TaskTfm>
     <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)' == ''">net472</_Xml2Doc_TaskTfm>
     <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
   </PropertyGroup>
 
+  <!-- ORIGINAL (INVALID LOCATION): MakeDir cannot be at project root -->
+  <!--
   <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="!Exists('$(Xml2Doc_OutputDir)')" />
-  
+  -->
+
+  <!-- Load the task from the resolved path -->
   <UsingTask
     TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
     AssemblyFile="$(_Xml2Doc_TaskPath)" />
 
-  <!-- Optional: warn if DLL still not found -->
+  <!-- ORIGINAL: verify target checked old variable; switch to _Xml2Doc_TaskPath -->
+  <!--
   <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2DocTaskDll)')">
     <Warning Text="Xml2Doc task assembly not found at $(_Xml2DocTaskDll). Package layout mismatch?" />
+  </Target>
+  -->
+  <Target Name="Xml2Doc_VerifyTaskAssembly"
+          BeforeTargets="Xml2Doc_Generate"
+          Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+    <Warning Text="Xml2Doc task assembly not found at $(_Xml2Doc_TaskPath). Package layout mismatch?" />
   </Target>
 
   <Target Name="_Xml2Doc_LogChosenTask" BeforeTargets="Build" Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
     <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType))" Importance="Low" />
   </Target>
-  
+
+  <!-- ORIGINAL (SECOND UsingTask): remove to avoid double registration / path disagreement -->
+  <!--
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2DocTaskDll)" />
+  -->
 
   <PropertyGroup>
     <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(DocumentationFile)'!='' and Exists('$(DocumentationFile)')">true</_Xml2Doc_CanRun>
@@ -53,7 +65,14 @@
           Condition="'$(_Xml2Doc_CanRun)'=='true'"
           Inputs="$(DocumentationFile);$(Xml2Doc_FingerprintFile)"
           Outputs="$(Xml2Doc_OutputStamp)">
+
     <Message Importance="Low" Text="Xml2Doc: xml='$(DocumentationFile)' single=$(Xml2Doc_SingleFile) outDir='$(Xml2Doc_OutputDir)' outFile='$(Xml2Doc_OutputFile)'" />
+
+    <!-- NEW: Create destination directories INSIDE the target (valid location) -->
+    <MakeDir Directories="$(Xml2Doc_OutputDir)"
+             Condition="'$(Xml2Doc_SingleFile)'!='true' and !Exists('$(Xml2Doc_OutputDir)')" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))"
+             Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(Xml2Doc_OutputFile)'!='' and !Exists('$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))')" />
 
     <GenerateMarkdownFromXmlDoc
         XmlPath="$(DocumentationFile)"
@@ -71,10 +90,9 @@
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
 
-    <!-- Join item list into a property to avoid MSB4012 -->
+    <!-- Join item list into a property to avoid MSB4012 when writing the stamp -->
     <PropertyGroup>
       <_Xml2Doc_GeneratedJoined>@(Xml2Doc_GeneratedFiles,';')</_Xml2Doc_GeneratedJoined>
-      <!-- Prefer the actual output property, fall back to configured path, then 'n/a' -->
       <_Xml2Doc_ReportDisplay Condition="'$(Xml2Doc_ReportPathOut)'!=''">$(Xml2Doc_ReportPathOut)</_Xml2Doc_ReportDisplay>
       <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'=='' and '$(Xml2Doc_ReportPath)'!=''">$(Xml2Doc_ReportPath)</_Xml2Doc_ReportDisplay>
       <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'==''">n/a</_Xml2Doc_ReportDisplay>
@@ -84,7 +102,6 @@
                       Lines="generated: $(_Xml2Doc_GeneratedJoined) | report: $(_Xml2Doc_ReportDisplay) | time: $([System.DateTime]::Now.ToString('o'))"
                       Overwrite="true"
                       Encoding="UTF-8" />
-
 
     <ItemGroup>
       <FileWrites Include="@(Xml2Doc_GeneratedFiles)" />
