@@ -36,6 +36,8 @@
 
     <Xml2Doc_Diff Condition="'$(Xml2Doc_Diff)'==''">false</Xml2Doc_Diff>
 
+    <Xml2Doc_ReportIncludeTimestamp Condition="'$(Xml2Doc_ReportIncludeTimestamp)'==''">false</Xml2Doc_ReportIncludeTimestamp>
+
     <!-- 3) Optional: flip to 'true' to log which task TFM/assembly was chosen (helps when debugging). -->
     <Xml2Doc_LogChosenTask Condition="'$(Xml2Doc_LogChosenTask)'==''">false</Xml2Doc_LogChosenTask>
   </PropertyGroup>
