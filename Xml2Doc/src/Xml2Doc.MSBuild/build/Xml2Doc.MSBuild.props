@@ -18,7 +18,8 @@
 
     <!-- verbatim|clean -->
     <Xml2Doc_RootNamespaceToTrim Condition="'$(Xml2Doc_RootNamespaceToTrim)'==''"></Xml2Doc_RootNamespaceToTrim>
-
+    <Xml2Doc_TrimRootNamespaceInFileNames Condition="'$(Xml2Doc_TrimRootNamespaceInFileNames)'==''">false</Xml2Doc_TrimRootNamespaceInFileNames>
+    
     <!-- <Xml2Doc_CodeBlockLanguage>csharp</Xml2Doc_CodeBlockLanguage> -->
     <Xml2Doc_CodeBlockLanguage Condition="'$(Xml2Doc_CodeBlockLanguage)'==''">csharp</Xml2Doc_CodeBlockLanguage>
 
