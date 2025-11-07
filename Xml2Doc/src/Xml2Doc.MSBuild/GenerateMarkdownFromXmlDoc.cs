@@ -12,37 +12,33 @@ using Xml2Doc.Core;
 namespace Xml2Doc.MSBuild;
 
 /// <summary>
-/// MSBuild task that converts a compiler-generated XML documentation file into Markdown using Xml2Doc.
+/// MSBuild task that converts a compiler‑generated XML documentation file into Markdown using Xml2Doc.
 /// </summary>
 /// <remarks>
-/// Modes:
+/// Two output modes:
 /// <list type="bullet">
-/// <item><description>Per-type: <see cref="SingleFile"/> = <see langword="false"/> → one file per type + <c>index.md</c> written to <see cref="OutputDirectory"/>.</description></item>
-/// <item><description>Single file: <see cref="SingleFile"/> = <see langword="true"/> → one consolidated file (index + all types) written to <see cref="OutputFile"/>.</description></item>
+/// <item><description><strong>Per‑type</strong> (<see cref="SingleFile"/> = <see langword="false"/>): one <c>.md</c> file per documented type plus an <c>index.md</c> in <see cref="OutputDirectory"/>.</description></item>
+/// <item><description><strong>Single file</strong> (<see cref="SingleFile"/> = <see langword="true"/>): one consolidated Markdown file (index + all types) at <see cref="OutputFile"/>.</description></item>
 /// </list>
-/// Filename style is controlled by <see cref="FileNameMode"/> (maps to <see cref="Core.FileNameMode.Verbatim"/> or <see cref="Core.FileNameMode.CleanGenerics"/>).
-/// Display trimming and fenced code block language are set via <see cref="RootNamespaceToTrim"/> and <see cref="CodeBlockLanguage"/>.
+/// File naming style is controlled by <see cref="FileNameMode"/> (maps to <see cref="Core.FileNameMode.Verbatim"/> / <see cref="Core.FileNameMode.CleanGenerics"/>).
+/// Display trimming and fenced code block language via <see cref="RootNamespaceToTrim"/>, <see cref="TrimRootNamespaceInFileNames"/>, and <see cref="CodeBlockLanguage"/>.
 /// <para>
-/// Incremental hints:
-/// A SHA-256 of the XML doc (<see cref="XmlSha256"/>) plus significant options are hashed into <see cref="Fingerprint"/> (auto-computed if missing).
-/// This can be used by external targets to detect changes without re-rendering.
+/// Incremental hints: the task can auto‑compute <see cref="XmlSha256"/> (SHA‑256 of the XML doc) and a derived <see cref="Fingerprint"/> combining significant inputs (mode, output path, namespace trim, language). These values can be used by external targets for change detection.
 /// </para>
 /// <para>
-/// If the XML file is absent the task logs a low-importance message and returns success (no work performed).
-/// Dry runs (<see cref="DryRun"/>) compute outputs without writing files (a report is still emitted if requested).
+/// If the XML file is missing the task logs a low‑importance message and returns success (no work). Dry runs (<see cref="DryRun"/>) simulate generation without writing Markdown; reports are still emitted if requested.
 /// </para>
-/// Reporting:
-/// Set <see cref="ReportPath"/> to emit a JSON file containing inputs, options, outputs, fingerprint, and optionally a timestamp (enable via <see cref="IncludeTimestampInReport"/>).
-/// Null/unused fields are omitted.
+/// Reporting: set <see cref="ReportPath"/> to write a JSON report (omits nulls) including inputs, options, outputs, fingerprint, and optionally a timestamp if <see cref="IncludeTimestampInReport"/> is true.
 /// </remarks>
 /// <example>
-/// Per-type:
+/// Per‑type:
 /// <code><![CDATA[
 /// <GenerateMarkdownFromXmlDoc
 ///     XmlPath="$(TargetDir)MyLib.xml"
 ///     OutputDirectory="$(ProjectDir)docs"
 ///     FileNameMode="clean"
-///     RootNamespaceToTrim="MyCompany.MyProduct" />
+///     RootNamespaceToTrim="MyCompany.MyProduct"
+///     TrimRootNamespaceInFileNames="true" />
 /// ]]></code>
 /// Single file:
 /// <code><![CDATA[
@@ -66,112 +62,111 @@ namespace Xml2Doc.MSBuild;
 public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 {
     /// <summary>
-    /// Path to the XML documentation file (typically <c>$(TargetDir)$(AssemblyName).xml</c>).
-    /// If blank or the file does not exist the task skips quietly.
+    /// Path to the XML documentation file (usually <c>$(TargetDir)$(AssemblyName).xml</c>).
+    /// Skips quietly if blank or not found.
     /// </summary>
     [Required] public string XmlPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Directory where per-type Markdown files are written (ignored when <see cref="SingleFile"/> is <see langword="true"/>).
-    /// Required in per-type mode.
+    /// Directory for per‑type Markdown output (ignored in single‑file mode). Required when <see cref="SingleFile"/> is <see langword="false"/>.
     /// </summary>
     public string? OutputDirectory { get; set; }
 
     /// <summary>
-    /// When <see langword="true"/>, produce a single consolidated Markdown file instead of per-type files.
-    /// Requires <see cref="OutputFile"/>.
+    /// Enables single consolidated file output (index + all types). Requires <see cref="OutputFile"/>.
     /// </summary>
     public bool SingleFile { get; set; }
 
     /// <summary>
-    /// Output Markdown file path used in single-file mode. Ignored when <see cref="SingleFile"/> is <see langword="false"/>.
+    /// Output path for the consolidated Markdown file (used only when <see cref="SingleFile"/> is <see langword="true"/>).
     /// </summary>
     public string? OutputFile { get; set; }
 
     /// <summary>
-    /// Filename mode: <c>verbatim</c> (default) preserves generic arity tokens; <c>clean</c> strips them and normalizes braces.
+    /// File naming mode: <c>verbatim</c> preserves generic arity; <c>clean</c> strips arity tokens and normalizes generic braces.
     /// </summary>
     public string FileNameMode { get; set; } = "verbatim";
 
     /// <summary>
-    /// Optional namespace prefix trimmed from displayed type names (e.g., <c>MyCompany.MyProduct</c>). Improves readability of headings and links.
+    /// Optional namespace prefix trimmed from displayed type names (e.g. <c>MyCompany.MyProduct</c>).
     /// </summary>
     public string? RootNamespaceToTrim { get; set; }
 
     /// <summary>
-    /// Language identifier for fenced code blocks (defaults to <c>csharp</c>).
+    /// When true, also trims <see cref="RootNamespaceToTrim"/> from generated file names (not just headings). Ignored if <see cref="RootNamespaceToTrim"/> is null.
+    /// </summary>
+    public bool TrimRootNamespaceInFileNames { get; set; }
+
+    /// <summary>
+    /// Language identifier used for fenced code blocks in output (default <c>csharp</c>).
     /// </summary>
     public string CodeBlockLanguage { get; set; } = "csharp";
 
     /// <summary>
-    /// Optional path to a JSON report describing the execution (inputs, options, outputs, fingerprint, hashes). Written even on dry run.
+    /// Optional JSON report file path. Report is written even in dry‑run mode.
     /// </summary>
     public string? ReportPath { get; set; }
 
     /// <summary>
-    /// Dry-run mode: compute and log intended outputs without writing Markdown files. A report is still written if requested.
+    /// Simulates generation: logs intended actions without writing Markdown. Reports still produced if <see cref="ReportPath"/> set.
     /// </summary>
     public bool DryRun { get; set; }
 
     /// <summary>
-    /// Reserved for future diff or change analysis logic (currently unused; always ignored).
+    /// Reserved for future diff/change analysis (currently no effect).
     /// </summary>
     public bool Diff { get; set; }
 
     /// <summary>
-    /// Collection of generated Markdown files. In single-file mode contains one item; empty on dry run or skip.
+    /// Generated Markdown files. Single‑file mode yields one item. Empty when dry‑run or skipped.
     /// </summary>
     [Output] public ITaskItem[] GeneratedFiles { get; private set; } = Array.Empty<ITaskItem>();
 
     /// <summary>
-    /// Full path to the JSON report if successfully written; otherwise <see langword="null"/>.
+    /// Full path to the JSON report if written; otherwise null.
     /// </summary>
     [Output] public string? ReportPathOut { get; private set; }
 
     /// <summary>
-    /// Indicates whether any Markdown content was physically written (false if dry run or skipped).
+    /// Indicates whether any Markdown files were physically written (false for dry‑run or skip).
     /// </summary>
     [Output] public bool DidWork { get; private set; }
 
     /// <summary>
-    /// Optional externally supplied fingerprint representing significant inputs. If absent a value is auto-computed after rendering.
-    /// Used for incremental detection by calling targets.
+    /// Optional externally supplied fingerprint of significant inputs. Auto‑computed if absent (see <see cref="Fingerprint"/> remarks).
     /// </summary>
     public string? Fingerprint { get; set; }
 
     /// <summary>
-    /// SHA-256 hash of the XML documentation file (hex lowercase). Auto-computed if not supplied.
-    /// Included in the report and used when generating <see cref="Fingerprint"/>.
+    /// SHA‑256 hash (hex lowercase) of the XML doc file. Auto‑computed if not provided.
+    /// Used in fingerprint generation and included in the JSON report.
     /// </summary>
     public string? XmlSha256 { get; set; }
 
     /// <summary>
-    /// When <see langword="true"/>, include a timestamp field in the JSON report; otherwise omit it for stable/deterministic output.
+    /// Adds a timestamp to the JSON report when true; omit for deterministic reports.
     /// </summary>
     public bool IncludeTimestampInReport { get; set; }
 
     /// <summary>
-    /// Executes the task: validates required paths, loads the documentation model, renders Markdown (single or per-type),
-    /// generates a fingerprint / hash as needed, and optionally emits a JSON report.
+    /// Executes the task: validates configuration, loads model, renders Markdown, computes optional hash/fingerprint, and writes a JSON report.
     /// </summary>
-    /// <returns>
-    /// <see langword="true"/> on success (including a no-op skip); <see langword="false"/> on validation failure or an exception.
-    /// </returns>
+    /// <returns>True on success (including skip); false on validation failure or exception.</returns>
     /// <remarks>
-    /// Sequence:
+    /// Steps:
     /// <list type="number">
-    /// <item><description>Early skip if <see cref="XmlPath"/> missing or file not found.</description></item>
-    /// <item><description>Normalize paths; compute <see cref="XmlSha256"/> if absent.</description></item>
-    /// <item><description>Create <see cref="RendererOptions"/> from task parameters.</description></item>
-    /// <item><description>Render single-file or per-type output (unless dry run).</description></item>
-    /// <item><description>Collect <see cref="GeneratedFiles"/> and set <see cref="DidWork"/> when writes occur.</description></item>
-    /// <item><description>Derive <see cref="Fingerprint"/> if not supplied (hash of XML SHA, mode, output path, namespace trim, language).</description></item>
-    /// <item><description>Emit JSON report (omitting nulls) when <see cref="ReportPath"/> provided.</description></item>
+    /// <item><description>Skip early if <see cref="XmlPath"/> missing or file not found.</description></item>
+    /// <item><description>Normalize paths; compute <see cref="XmlSha256"/> if necessary.</description></item>
+    /// <item><description>Create <see cref="RendererOptions"/> (including <see cref="TrimRootNamespaceInFileNames"/>).</description></item>
+    /// <item><description>Render single or per‑type output (unless <see cref="DryRun"/>).</description></item>
+    /// <item><description>Populate <see cref="GeneratedFiles"/> and set <see cref="DidWork"/>.</description></item>
+    /// <item><description>Compute <see cref="Fingerprint"/> if not supplied (hash of XML SHA, mode, normalized output path, root namespace, language).</description></item>
+    /// <item><description>Emit JSON report if <see cref="ReportPath"/> provided (null fields omitted; timestamp optional).</description></item>
     /// </list>
-    /// Any exception is caught, logged with stack trace, and results in a failing return value.
+    /// Exceptions are caught, logged (stack trace), and cause a false return.
     /// </remarks>
-    /// <exception cref="IOException">I/O failure while reading or writing output/report files.</exception>
-    /// <exception cref="UnauthorizedAccessException">Insufficient permissions for file or directory operations.</exception>
+    /// <exception cref="IOException">File I/O error while reading XML or writing outputs/report.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient permissions for output/report paths.</exception>
     public override bool Execute()
     {
         try
@@ -202,7 +197,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             var options = new RendererOptions(
                 FileNameMode: fnMode,
                 RootNamespaceToTrim: string.IsNullOrWhiteSpace(RootNamespaceToTrim) ? null : RootNamespaceToTrim,
-                CodeBlockLanguage: string.IsNullOrWhiteSpace(CodeBlockLanguage) ? "csharp" : CodeBlockLanguage
+                CodeBlockLanguage: string.IsNullOrWhiteSpace(CodeBlockLanguage) ? "csharp" : CodeBlockLanguage,
+                TrimRootNamespaceInFileNames: TrimRootNamespaceInFileNames
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -327,12 +323,10 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     }
 
     /// <summary>
-    /// Computes a SHA-256 hash (hex lowercase) of a file's contents.
+    /// Computes a SHA‑256 hash (hex lowercase) of the file contents.
     /// </summary>
-    /// <param name="path">Absolute or relative file path.</param>
-    /// <returns>Hex lowercase SHA-256 string.</returns>
-    /// <exception cref="IOException">File read failure.</exception>
-    /// <exception cref="UnauthorizedAccessException">Access denied to the file.</exception>
+    /// <param name="path">File path.</param>
+    /// <returns>Hex lowercase SHA‑256 string.</returns>
     private static string ComputeFileSha256(string path)
     {
         using var sha = SHA256.Create();
@@ -346,13 +340,6 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <summary>
     /// Computes a deterministic fingerprint of significant inputs (XML hash, mode, normalized output path, filename mode, root namespace, language).
     /// </summary>
-    /// <param name="xmlSha256">SHA-256 of the XML doc file.</param>
-    /// <param name="singleFile">Whether single-file mode is active.</param>
-    /// <param name="outputPath">Normalized output path (file or directory).</param>
-    /// <param name="fileNameMode">Effective filename mode string.</param>
-    /// <param name="rootNs">Root namespace trimmed (may be empty).</param>
-    /// <param name="lang">Code block language identifier.</param>
-    /// <returns>Hex lowercase SHA-256 fingerprint string.</returns>
     private static string ComputeFingerprint(string xmlSha256, bool singleFile, string outputPath, string fileNameMode, string rootNs, string lang)
     {
         using var sha = SHA256.Create();
@@ -373,10 +360,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     }
 
     /// <summary>
-    /// Normalizes a path for hashing: returns full path with trailing separators trimmed; returns empty string on failure or blank input.
+    /// Normalizes a path for hashing (full path, trimmed trailing separators). Returns empty string for blank or on failure.
     /// </summary>
-    /// <param name="p">Path to normalize.</param>
-    /// <returns>Normalized path or empty string.</returns>
     private static string NormalizePathForHash(string p)
     {
         try
@@ -391,40 +376,28 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     }
 
     /// <summary>
-    /// JSON report root model. Null properties omitted based on serializer options.
+    /// JSON report root model (internal). Null properties omitted during serialization.
     /// </summary>
     private sealed class ReportModel
     {
-        /// <summary>Full path to the XML doc file.</summary>
         public string xml { get; set; } = "";
-        /// <summary>True when single-file mode was used.</summary>
         public bool single { get; set; }
-        /// <summary>Output file path (single-file mode only).</summary>
         public string? outputFile { get; set; }
-        /// <summary>Output directory (per-type mode only).</summary>
         public string? outputDir { get; set; }
-        /// <summary>Generated Markdown file paths.</summary>
         public string[] files { get; set; } = Array.Empty<string>();
-        /// <summary>Rendering option snapshot.</summary>
         public ReportOptions options { get; set; } = new();
-        /// <summary>Computed or supplied fingerprint.</summary>
         public string? fingerprint { get; set; }
-        /// <summary>SHA-256 hash of the XML doc file.</summary>
         public string? xmlSha256 { get; set; }
-        /// <summary>Timestamp included only when <see cref="IncludeTimestampInReport"/> is true.</summary>
         public DateTimeOffset? timestamp { get; set; }
     }
 
     /// <summary>
-    /// Nested options section of the JSON report.
+    /// Snapshot of rendering options in the JSON report (internal).
     /// </summary>
     private sealed class ReportOptions
     {
-        /// <summary>Effective filename mode string.</summary>
         public string fileNameMode { get; set; } = "Verbatim";
-        /// <summary>Root namespace trimmed (if any).</summary>
         public string? rootNs { get; set; }
-        /// <summary>Code block language identifier.</summary>
         public string? lang { get; set; }
     }
 }

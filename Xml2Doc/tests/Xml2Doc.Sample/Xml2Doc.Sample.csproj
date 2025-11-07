@@ -5,4 +5,44 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- Register the MSBuild task from the task project's build output -->
+  <PropertyGroup>
+    <!-- Use the .NET host MSBuild is running on: Core -> net8.0, else net472 -->
+    <_Xml2Doc_TaskTfm Condition="'$(MSBuildRuntimeType)'=='Core'">net8.0</_Xml2Doc_TaskTfm>
+    <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)'==''">net472</_Xml2Doc_TaskTfm>
+    <_Xml2Doc_TaskDll>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\src\Xml2Doc.MSBuild\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll'))</_Xml2Doc_TaskDll>
+
+    <!-- Put the stamp under obj\<Config>\<TFM>\ to match tests’ expectation -->
+    <Xml2Doc_OutputStamp>$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
+  </PropertyGroup>
+
+  <UsingTask
+    TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
+    AssemblyFile="$(_Xml2Doc_TaskDll)" />
+
+  <Target Name="GenerateApiDocs" AfterTargets="CoreCompile">
+    <!-- Make sure the output folder exists -->
+    <MakeDir Directories="$(ProjectDir)docs" Condition="!Exists('$(ProjectDir)docs')" />
+
+    <!-- Call the task (fully-qualified name avoids any ambiguity) -->
+    <Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc
+      XmlPath="$(DocumentationFile)"
+      SingleFile="false"
+      OutputDirectory="$(ProjectDir)docs"
+      FileNameMode="clean"
+      CodeBlockLanguage="csharp"
+      ReportPath="$(ProjectDir)docs\xml2doc-report.json" />
+
+    <!-- Write a simple stamp so the incremental test can find it -->
+    <WriteLinesToFile
+      File="$(Xml2Doc_OutputStamp)"
+      Lines="generated: $(ProjectDir)docs | time: $([System.DateTime]::Now.ToString('o'))"
+      Overwrite="true"
+      Encoding="UTF-8" />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj" />
+  </ItemGroup>
 </Project>
