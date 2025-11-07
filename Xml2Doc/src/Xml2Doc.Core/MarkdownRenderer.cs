@@ -88,7 +88,8 @@ public sealed class MarkdownRenderer
             var types = GetTypes().OrderBy(t => t.Id).ToList();
             foreach (var t in types)
             {
-                var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
+                //var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
+                var file = Path.Combine(outDir, FileNameForPerType(t.Id));
                 File.WriteAllText(file, RenderType(t, includeHeader: true));
             }
             File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
@@ -198,7 +199,7 @@ public sealed class MarkdownRenderer
             var shortName = ShortTypeDisplay(t.Id);
             var link = useAnchors
                 ? $"#{HeadingSlug(shortName)}"
-                : FileNameFor(t.Id, _opt.FileNameMode);
+                : FileNameForPerType(t.Id);
             sb.AppendLine($"- [{shortName}]({link})");
         }
         return sb.ToString();
@@ -623,6 +624,32 @@ private static string ApplyAliases(string s)
         return name + ".md";
     }
 
+    // NEW: per-type filename builder that honors FileNameMode AND optional root-ns trim
+    private string FileNameForPerType(string typeId)
+    {
+        // start with the raw id
+        var name = typeId;
+
+        // apply the existing mode first (verbatim/clean)
+        if (_opt.FileNameMode == FileNameMode.CleanGenerics)
+        {
+            name = Regex.Replace(name, @"`\d+", "");
+            name = name.Replace('{', '<').Replace('}', '>');
+        }
+
+        // NEW: optionally trim root namespace in FILE NAMES
+        if (_opt.TrimRootNamespaceInFileNames && !string.IsNullOrWhiteSpace(_opt.RootNamespaceToTrim))
+        {
+            var prefix = _opt.RootNamespaceToTrim + ".";
+            if (name.StartsWith(prefix, StringComparison.Ordinal))
+                name = name.Substring(prefix.Length);
+        }
+
+        // normalize to FS-friendly brackets, then add the extension
+        name = name.Replace('<', '[').Replace('>', ']');
+        return name + ".md";
+    }
+
     /// <summary>
     /// Converts a documentation ID into a Markdown anchor.
     /// </summary>
@@ -678,7 +705,8 @@ private static string ApplyAliases(string s)
 
         // If you have filename modes (e.g., "clean" vs "verbatim"), mirror the exact
         // logic used by your per-type emission here. The fallback keeps the full name:
-        return id + ".md";
+        //return id + ".md";
+        return FileNameForPerType(id);
     }
 
     /// <summary>
