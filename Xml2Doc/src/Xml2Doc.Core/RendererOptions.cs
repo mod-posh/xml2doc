@@ -105,6 +105,7 @@ namespace Xml2Doc.Core
         string? ExternalDocs = null,
         bool EmitToc = false,
         bool EmitNamespaceIndex = false,
+        bool BasenameOnly = false,
         int? ParallelDegree = null
     );
 }

@@ -70,6 +70,7 @@ namespace Xml2Doc.Cli
             bool toc = false;
             bool namespaceIndex = false;
             int? parallel = null;
+            bool? basenameOnly = false;
             string? configPath = null;
 
             // 1) parse CLI
@@ -98,6 +99,7 @@ namespace Xml2Doc.Cli
                     case "--external-docs" when i + 1 < args.Length: externalDocs = args[++i]; break;
                     case "--toc": toc = true; break;
                     case "--namespace-index": namespaceIndex = true; break;
+                    case "--basename-only": basenameOnly = true; break;
                     case "--parallel" when i + 1 < args.Length:
                         if (int.TryParse(args[++i], out var p)) parallel = p;
                         break;
@@ -140,6 +142,7 @@ namespace Xml2Doc.Cli
                 if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg!.ExternalDocs!;
                 if (cfg?.Toc is bool tc) toc = tc || toc;
                 if (cfg?.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
+                if (cfg?.BasenameOnly is bool bo) basenameOnly = basenameOnly ?? bo;
                 if (cfg?.Parallel is int pi && parallel is null) parallel = pi;
                 if (cfg?.Diff is bool df) diff = df || diff;
             }
@@ -168,6 +171,7 @@ namespace Xml2Doc.Cli
                     ExternalDocs: externalDocs,
                     EmitToc: toc,
                     EmitNamespaceIndex: namespaceIndex,
+                    BasenameOnly: basenameOnly ?? false,
                     ParallelDegree: parallel
                 );
 
@@ -292,6 +296,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--external-docs <url|mapfile>]");
             Console.WriteLine("                   [--toc]");
             Console.WriteLine("                   [--namespace-index]");
+            Console.WriteLine("                   [--basename-only]");
             Console.WriteLine("                   [--parallel <N>]");
             Console.WriteLine("                   [--config <file>]");
             Console.WriteLine();

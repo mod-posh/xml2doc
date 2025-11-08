@@ -75,5 +75,7 @@ namespace Xml2Doc.Cli
 
         /// <summary>Max parallelism (<=0 or null uses default heuristic). Maps to <c>--parallel</c>.</summary>
         public int? Parallel { get; set; }
+
+        public bool BasenameOnly { get; init; }
     }
 }

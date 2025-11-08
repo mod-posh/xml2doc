@@ -36,7 +36,10 @@
     <Xml2Doc_DryRun Condition="'$(Xml2Doc_DryRun)'==''">false</Xml2Doc_DryRun>
 
     <Xml2Doc_Diff Condition="'$(Xml2Doc_Diff)'==''">false</Xml2Doc_Diff>
-
+    <Xml2Doc_Toc>false</Xml2Doc_Toc>
+    <Xml2Doc_NamespaceIndex>false</Xml2Doc_NamespaceIndex>
+    <Xml2Doc_BasenameOnly>false</Xml2Doc_BasenameOnly>
+    
     <Xml2Doc_ReportIncludeTimestamp Condition="'$(Xml2Doc_ReportIncludeTimestamp)'==''">false</Xml2Doc_ReportIncludeTimestamp>
 
     <!-- 3) Optional: flip to 'true' to log which task TFM/assembly was chosen (helps when debugging). -->

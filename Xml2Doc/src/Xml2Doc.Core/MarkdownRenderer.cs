@@ -125,7 +125,7 @@ public sealed class MarkdownRenderer
                     foreach (var t in kv.Value.OrderBy(t => t.Id, StringComparer.Ordinal))
                     {
                         var shortName = ShortTypeDisplay(t.Id);
-                        var perTypeFile = FileNameFor(t.Id, _opt.FileNameMode);
+                        var perTypeFile = FileNameForPerType(t.Id);
                         sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
                     }
                     File.WriteAllText(nsFile, sbNs.ToString());
@@ -458,6 +458,23 @@ public sealed class MarkdownRenderer
         return simple;
     }
 
+    // Produces the correct per-type filename, honoring FileNameMode and TrimRootNamespaceInFileNames
+    private string PerTypeFileName(string typeId)
+    {
+        var name = FileNameFor(typeId, _opt.FileNameMode); // e.g., "Xml2Doc.Sample.AliasingPlayground.md"
+
+        if (_opt.TrimRootNamespaceInFileNames && !string.IsNullOrWhiteSpace(_opt.RootNamespaceToTrim))
+        {
+            var root = _opt.RootNamespaceToTrim!;
+            var stem = System.IO.Path.GetFileNameWithoutExtension(name);
+
+            if (stem.StartsWith(root + ".", StringComparison.Ordinal))
+                name = stem.Substring(root.Length + 1) + ".md"; // e.g., "AliasingPlayground.md"
+        }
+
+        return name;
+    }
+
     /// <summary>
     /// Built‑in mappings from fully‑qualified BCL types to C# aliases.
     /// </summary>
@@ -654,6 +671,12 @@ public sealed class MarkdownRenderer
             var prefix = _opt.RootNamespaceToTrim + ".";
             if (name.StartsWith(prefix, StringComparison.Ordinal))
                 name = name.Substring(prefix.Length);
+        }
+
+        if (_opt.BasenameOnly)
+        {
+            var lastDot = name.LastIndexOf('.');
+            if (lastDot >= 0) name = name.Substring(lastDot + 1);
         }
 
         name = name.Replace('<', '[').Replace('>', ']');
