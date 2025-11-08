@@ -286,9 +286,9 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--diff]");
             Console.WriteLine("                   [--anchor-algorithm <default | github | kramdown | gfm>]");
             Console.WriteLine("                   [--template <file>]");
-            Console.WriteLine("                   [--front-matter<file>]");
+            Console.WriteLine("                   [--front-matter <file>]");
             Console.WriteLine("                   [--auto-link]");
-            Console.WriteLine("                   [--alias-map<file>]");
+            Console.WriteLine("                   [--alias-map <file>]");
             Console.WriteLine("                   [--external-docs <url | mapfile>]");
             Console.WriteLine("                   [--toc]");
             Console.WriteLine("                   [--namespace-index]");
