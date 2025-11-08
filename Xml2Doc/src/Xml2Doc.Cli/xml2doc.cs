@@ -243,6 +243,7 @@ namespace Xml2Doc.Cli
                             externalDocs,
                             toc,
                             namespaceIndex,
+                            basenameOnly = options.BasenameOnly,
                             parallel
                         },
                         dryRun = dryRun,
