@@ -1,64 +1,80 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Xml2Doc.Cli
 {
     /// <summary>
-    /// Represents command-line configuration for the Xml2Doc tool.
+    /// Command‑line configuration options for the Xml2Doc CLI.
     /// </summary>
     /// <remarks>
-    /// Properties are nullable to distinguish between unspecified values and explicit settings.
-    /// Typical mappings:
-    /// - <see cref="Xml"/> ↔ <c>--xml</c>
-    /// - <see cref="Out"/> ↔ <c>--out</c>
-    /// - <see cref="Single"/> ↔ <c>--single</c>
-    /// - <see cref="FileNames"/> ↔ <c>--file-names</c>
-    /// - <see cref="RootNamespace"/> (optional future CLI) ↔ trims display names
-    /// - <see cref="CodeLanguage"/> (optional future CLI) ↔ fenced code block language
+    /// All properties are nullable so callers can distinguish between:
+    /// <list type="bullet">
+    ///   <item><description><c>null</c>: option not provided on the command line (use defaults).</description></item>
+    ///   <item><description>Non‑null: explicit user intent (even if empty for paths).</description></item>
+    /// </list>
+    /// Mapped flags:
+    /// <c>--xml</c>, <c>--out</c>, <c>--single</c>, <c>--file-names</c>, <c>--rootns</c>, <c>--lang</c>,
+    /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>.
     /// </remarks>
     public sealed class CliConfig
     {
         /// <summary>
-        /// Path to the compiler-generated XML documentation file.
+        /// Path to the input XML documentation file (e.g. compiler output). Maps to <c>--xml</c>.
         /// </summary>
-        /// <remarks>Maps to the <c>--xml</c> option.</remarks>
         public string? Xml { get; set; }
 
         /// <summary>
-        /// Output location: a directory for per-type files, or a file path when single-file mode is enabled.
+        /// Output directory or single-file target directory depending on mode. Maps to <c>--out</c>.
         /// </summary>
-        /// <remarks>Maps to the <c>--out</c> option.</remarks>
         public string? Out { get; set; }
 
         /// <summary>
-        /// When <see langword="true"/>, emit a single Markdown file; when <see langword="false"/>, emit per-type files.
+        /// When <see langword="true"/>, generate a single consolidated Markdown file; otherwise per-type files. Maps to <c>--single</c>.
         /// </summary>
-        /// <remarks>
-        /// <see langword="null"/> indicates the option was not specified on the command line.
-        /// Maps to the <c>--single</c> option.
-        /// </remarks>
         public bool? Single { get; set; }
 
         /// <summary>
-        /// Filename generation mode for Markdown outputs.
+        /// Filename mode: expected values <c>verbatim</c> or <c>clean</c>. Maps to <c>--file-names</c>.
         /// </summary>
-        /// <remarks>
-        /// Accepted values: <c>verbatim</c> (default) or <c>clean</c>.
-        /// Maps to the <c>--file-names</c> option and corresponds to <see cref="Core.FileNameMode"/>.
-        /// </remarks>
-        public string? FileNames { get; set; } // "verbatim" | "clean"
+        public string? FileNames { get; set; }           // "verbatim" | "clean"
 
         /// <summary>
-        /// Optional root namespace prefix to trim from displayed type names (e.g., <c>MyCompany.MyProduct</c>).
+        /// Namespace prefix trimmed from displayed type names (e.g. <c>MyCompany.MyProduct</c>). Maps to <c>--rootns</c>.
         /// </summary>
-        public string? RootNamespace { get; set; } // e.g., "MyCompany.MyProduct"
+        public string? RootNamespace { get; set; }       // e.g., "MyCompany.MyProduct"
 
         /// <summary>
-        /// Language identifier used for fenced code blocks in generated Markdown (e.g., <c>csharp</c>).
+        /// Language identifier for fenced code blocks (default typically <c>csharp</c>). Maps to <c>--lang</c>.
         /// </summary>
-        public string? CodeLanguage { get; set; } // e.g., "csharp"
+        public string? CodeLanguage { get; set; }        // e.g., "csharp"
+
+        /// <summary>
+        /// When <see langword="true"/>, also trims the root namespace from generated file names. Maps to <c>--trim-rootns-filenames</c>.
+        /// </summary>
+        public bool? TrimRootNamespaceInFileNames { get; set; }
+
+        /// <summary>
+        /// Path to a JSON execution report capturing options, outputs, and fingerprints. Maps to <c>--report</c>.
+        /// </summary>
+        public string? Report { get; set; }              // path to JSON report
+
+        /// <summary>
+        /// Dry-run: compute planned outputs without writing Markdown. Maps to <c>--dry-run</c>.
+        /// </summary>
+        public bool? DryRun { get; set; }
+
+        /// <summary>
+        /// Reserved for future diff/changes analysis; currently no effect. Maps to <c>--diff</c>.
+        /// </summary>
+        public bool? Diff { get; set; }
+        // add to CliConfig
+        public string? AnchorAlgorithm { get; set; }   // "default"|"github"|"kramdown"|"gfm"
+        public string? Template { get; set; }          // path to template file
+        public string? FrontMatter { get; set; }       // path to YAML/JSON front-matter
+        public bool? AutoLink { get; set; }
+        public string? AliasMap { get; set; }          // path to JSON alias map
+        public string? ExternalDocs { get; set; }      // base URL or path to map
+        public bool? Toc { get; set; }
+        public bool? NamespaceIndex { get; set; }
+        public int? Parallel { get; set; }             // 0/1 disables; >1 enables
     }
 }

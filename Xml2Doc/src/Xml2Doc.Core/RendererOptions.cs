@@ -54,6 +54,15 @@ namespace Xml2Doc.Core
         FileNameMode FileNameMode = FileNameMode.Verbatim,
         string? RootNamespaceToTrim = null,
         string CodeBlockLanguage = "csharp",
-        bool TrimRootNamespaceInFileNames = false
+        bool TrimRootNamespaceInFileNames = false,
+        string AnchorAlgorithm = "default",
+        string? TemplatePath = null,
+        string? FrontMatterPath = null,
+        bool AutoLink = false,
+        string? AliasMapPath = null,
+        string? ExternalDocs = null,
+        bool EmitToc = false,
+        bool EmitNamespaceIndex = false,
+        int? ParallelDegree = null
     );
 }
