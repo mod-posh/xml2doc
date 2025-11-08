@@ -2,7 +2,6 @@
 #if NETSTANDARD2_0
 using Xml2Doc.Core.Compat;
 #endif
-
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -12,21 +11,24 @@ using Xml2Doc.Core.Linking;
 namespace Xml2Doc.Core;
 
 /// <summary>
-/// Renders a parsed XML documentation model to Markdown files.
+/// Renders a parsed XML documentation model to Markdown.
 /// </summary>
 /// <remarks>
-/// - Use <see cref="RenderToDirectory(string)"/> to emit one file per type plus an index.
-/// - Use <see cref="RenderToSingleFile(string)"/> to generate a single consolidated Markdown file.
-/// - Overloaded methods are grouped under a single header with each overload listed as a bullet.
-/// - <c>&lt;inheritdoc&gt;</c> is resolved and merged via <see cref="InheritDocResolver"/> before rendering.
-/// - Each member section emits a stable HTML anchor (via <see cref="IdToAnchor(string)"/>) so cref links resolve reliably.
-/// - In single-file output, each type section also emits an anchor derived from the visible heading text (via <see cref="HeadingSlug(string)"/>).
-/// - Token-aware aliasing prevents accidental replacements inside longer identifiers (e.g., keeps <c>StringComparer</c> intact).
-/// - Depth-aware generic formatting: nested generics (e.g., <c>Dictionary&lt;string, List&lt;int&gt;&gt;</c>) are preserved and displayed compactly.
-/// - Paragraph-preserving normalization: preserves paragraph breaks and fenced code blocks, collapses soft line wraps, and trims stray spaces before punctuation.
-/// <para>
-/// Rendering is influenced by <see cref="RendererOptions"/> (filename style, code block language, and optional root namespace trimming).
-/// </para>
+/// Features:
+/// <list type="bullet">
+///   <item><description>Per‑type output (<see cref="RenderToDirectory(string)"/>) or single consolidated file (<see cref="RenderToSingleFile(string)"/>).</description></item>
+///   <item><description>Overload grouping: method overloads share one heading; each overload signature rendered as a bullet.</description></item>
+///   <item><description><c>&lt;inheritdoc&gt;</c> support via <see cref="InheritDocResolver"/> (inherited content merged before output).</description></item>
+///   <item><description>Stable anchors for members (<see cref="IdToAnchor(string)"/>) and type headings (<see cref="HeadingSlug(string)"/> in single‑file mode).</description></item>
+///   <item><description>Depth‑aware generic formatting (nested generics displayed compactly).</description></item>
+///   <item><description>Token‑aware aliasing (BCL types mapped to C# keywords without corrupting longer identifiers).</description></item>
+///   <item><description>Paragraph‑preserving normalization (retains blank lines and fenced code blocks, collapses soft wraps, trims stray spaces).</description></item>
+///   <item><description>Optional root namespace trimming (headings and, when enabled, file names) via <see cref="RendererOptions.RootNamespaceToTrim"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>.</description></item>
+///   <item><description>Configurable filename style (<see cref="RendererOptions.FileNameMode"/>).</description></item>
+///   <item><description>Optional per‑type member TOC (<see cref="RendererOptions.EmitToc"/>) inserted below each type heading (per‑type mode only).</description></item>
+///   <item><description>Optional namespace index emission (<see cref="RendererOptions.EmitNamespaceIndex"/>) producing a <c>namespaces.md</c> overview plus individual namespace pages.</description></item>
+/// </list>
+/// Link resolution automatically adapts between per‑file and single‑file strategies (<see cref="LinkMode"/>).
 /// </remarks>
 /// <seealso cref="RendererOptions"/>
 /// <seealso cref="FileNameMode"/>
@@ -36,46 +38,51 @@ public sealed class MarkdownRenderer
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
 
-    // Link strategy for generated CREF links
+    /// <summary>
+    /// Internal link target selection mode for cref resolution.
+    /// </summary>
     private enum LinkMode { PerTypeFiles, InDocumentAnchors }
     private LinkMode _linkMode = LinkMode.PerTypeFiles;
 
     private readonly ILinkResolver _linkResolver;
-    private bool _singleFileMode; // toggled by the render entry points
+    private bool _singleFileMode;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="MarkdownRenderer"/>.
+    /// Creates a renderer for a parsed XML documentation model.
     /// </summary>
-    /// <param name="model">The XML documentation model to render.</param>
+    /// <param name="model">Loaded XML documentation model.</param>
     /// <param name="options">
-    /// Optional rendering options. If <see langword="null"/>, defaults are used
-    /// (e.g., <see cref="FileNameMode.Verbatim"/>, language <c>csharp</c>).
+    /// Optional rendering options (defaults applied when <see langword="null"/>).
     /// </param>
     public MarkdownRenderer(Models.Xml2Doc model, RendererOptions? options = null)
     {
         _model = model;
         _opt = options ?? new RendererOptions();
         _linkResolver = new DefaultLinkResolver(
-        labelFromCref: ShortLabelFromCref,
-        idToAnchor: IdToAnchor,
-        typeFileName: TypeFileNameForResolver,
-        headingSlug: HeadingSlug);
+            labelFromCref: ShortLabelFromCref,
+            idToAnchor: IdToAnchor,
+            typeFileName: TypeFileNameForResolver,
+            headingSlug: HeadingSlug);
     }
 
     // === Public APIs ===
 
     /// <summary>
-    /// Renders all types to individual Markdown files in the specified directory and writes an <c>index.md</c>.
+    /// Emits one Markdown file per documented type plus an <c>index.md</c> table of contents. Optionally emits namespace pages and a namespace index.
     /// </summary>
-    /// <param name="outDir">The output directory. It is created if it does not exist.</param>
+    /// <param name="outDir">Destination directory (created if absent).</param>
     /// <remarks>
-    /// Existing files with the same names are overwritten. Filenames are produced according to <see cref="RendererOptions.FileNameMode"/>.
-    /// Links inside a page:
-    /// - Type links point to per-type files (e.g., <c>MyApp.Foo.md</c>).
-    /// - Member links point to anchors within the per-type file (e.g., <c>MyApp.Foo.md#myapp.foo.bar(string)</c>).
+    /// Per‑type links resolve to sibling files; member links resolve to in‑file anchors.
+    /// File naming honors <see cref="RendererOptions.FileNameMode"/> and optional root namespace trimming in file names
+    /// (<see cref="RendererOptions.TrimRootNamespaceInFileNames"/>).
+    /// When <see cref="RendererOptions.EmitNamespaceIndex"/> is <see langword="true"/>, writes:
+    /// <list type="bullet">
+    ///   <item><description><c>namespaces.md</c> — overview.</description></item>
+    ///   <item><description><c>namespaces/&lt;namespace&gt;.md</c> — per‑namespace type lists.</description></item>
+    /// </list>
     /// </remarks>
-    /// <exception cref="IOException">An I/O error occurs while writing files.</exception>
-    /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
+    /// <exception cref="IOException">I/O failure while writing output files.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient permissions.</exception>
     public void RenderToDirectory(string outDir)
     {
         var __prev = _singleFileMode;
@@ -88,11 +95,51 @@ public sealed class MarkdownRenderer
             var types = GetTypes().OrderBy(t => t.Id).ToList();
             foreach (var t in types)
             {
-                //var file = Path.Combine(outDir, FileNameFor(t.Id, _opt.FileNameMode));
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
                 File.WriteAllText(file, RenderType(t, includeHeader: true));
             }
             File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
+
+            if (_opt.EmitNamespaceIndex)
+            {
+                var nsMap = new Dictionary<string, List<XMember>>(StringComparer.Ordinal);
+                foreach (var t in types)
+                {
+                    var id = t.Id;
+                    var lastDot = id.LastIndexOf('.');
+                    var ns = lastDot > 0 ? id.Substring(0, lastDot) : "(global)";
+                    (nsMap.TryGetValue(ns, out var list) ? list : nsMap[ns] = new List<XMember>()).Add(t);
+                }
+
+                var nsDir = Path.Combine(outDir, "namespaces");
+                Directory.CreateDirectory(nsDir);
+
+                foreach (var kv in nsMap.OrderBy(k => k.Key, StringComparer.Ordinal))
+                {
+                    var ns = kv.Key;
+                    var fileSafe = ns == "(global)" ? "_global_" : ns.Replace('<', '[').Replace('>', ']').Replace('+', '.').Replace('/', '.').Replace('\\', '.');
+                    var nsFile = Path.Combine(nsDir, $"{fileSafe}.md");
+
+                    var sbNs = new StringBuilder();
+                    sbNs.AppendLine($"# {ns}");
+                    foreach (var t in kv.Value.OrderBy(t => t.Id, StringComparer.Ordinal))
+                    {
+                        var shortName = ShortTypeDisplay(t.Id);
+                        var perTypeFile = FileNameFor(t.Id, _opt.FileNameMode);
+                        sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
+                    }
+                    File.WriteAllText(nsFile, sbNs.ToString());
+                }
+
+                var nsIndex = new StringBuilder();
+                nsIndex.AppendLine("# Namespaces");
+                foreach (var ns in nsMap.Keys.OrderBy(s => s, StringComparer.Ordinal))
+                {
+                    var fileSafe = ns == "(global)" ? "_global_" : ns.Replace('<', '[').Replace('>', ']').Replace('+', '.').Replace('/', '.').Replace('\\', '.');
+                    nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
+                }
+                File.WriteAllText(Path.Combine(outDir, "namespaces.md"), nsIndex.ToString());
+            }
         }
         finally
         {
@@ -101,16 +148,14 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Renders all types to a single Markdown file that includes an index followed by each type section.
+    /// Emits a single Markdown file (index + all types and members).
     /// </summary>
-    /// <param name="outPath">The output file path. The containing directory is created if necessary.</param>
+    /// <param name="outPath">Output file path (directory created if missing).</param>
     /// <remarks>
-    /// Links inside the file:
-    /// - Type links point to heading slugs (e.g., heading “<c>Foo&lt;T1&gt;</c>” → <c>#foot1</c>).
-    /// - Member links point to explicit anchors emitted before each member section (see <see cref="IdToAnchor(string)"/>).
+    /// Type links target in‑document heading slugs; member links target explicit anchors generated from documentation IDs.
     /// </remarks>
-    /// <exception cref="IOException">An I/O error occurs while writing the file.</exception>
-    /// <exception cref="UnauthorizedAccessException">Caller does not have the required permission.</exception>
+    /// <exception cref="IOException">I/O failure while writing the file.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient permissions.</exception>
     public void RenderToSingleFile(string outPath)
     {
         var __prev = _singleFileMode;
@@ -124,14 +169,16 @@ public sealed class MarkdownRenderer
         {
             _singleFileMode = __prev;
         }
-
     }
 
     /// <summary>
-    /// Returns the single-file markdown content as a string (same as <see cref="RenderToSingleFile(string)"/> but without writing to disk).
+    /// Returns the consolidated single‑file content (index + all types) without writing to disk.
     /// </summary>
     public string RenderToString() => BuildSingleFileContent();
 
+    /// <summary>
+    /// Builds single‑file content switching link mode temporarily to in‑document anchors.
+    /// </summary>
     private string BuildSingleFileContent()
     {
         var prev = _linkMode;
@@ -171,25 +218,16 @@ public sealed class MarkdownRenderer
     // === Core rendering ===
 
     /// <summary>
-    /// Gets all documented types (<c>T:</c> members) from the model.
+    /// Enumerates all documented types (<c>T:</c> members).
     /// </summary>
-    /// <returns>An enumeration of members whose kind is <c>"T"</c> (types).</returns>
     private IEnumerable<XMember> GetTypes() =>
         _model.Members.Values.Where(m => m.Kind == "T");
 
     /// <summary>
-    /// Builds the table of contents for the provided types.
+    /// Builds a type index pointing either to per‑type files or in‑document anchors.
     /// </summary>
-    /// <param name="types">The set of types to include in the index.</param>
-    /// <param name="useAnchors">
-    /// When <see langword="true"/>, emits in-document anchor links (for single-file mode). When <see langword="false"/>, links to per-type files.
-    /// </param>
-    /// <returns>Markdown content for the index page.</returns>
-    /// <remarks>
-    /// Uses <see cref="ShortTypeDisplay(string)"/> for display.
-    /// - When <paramref name="useAnchors"/> is <see langword="false"/>, links target per-type files produced by <see cref="FileNameFor(string, FileNameMode)"/>.
-    /// - When <paramref name="useAnchors"/> is <see langword="true"/>, links target heading slugs derived from the visible type heading.
-    /// </remarks>
+    /// <param name="types">Types to include.</param>
+    /// <param name="useAnchors"><c>true</c> for single‑file mode, otherwise per‑file links.</param>
     private string RenderIndex(IEnumerable<XMember> types, bool useAnchors = false)
     {
         var sb = new StringBuilder();
@@ -206,18 +244,11 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Renders a single type section including summary, remarks, examples, see-also, and its members.
+    /// Renders a type page/section (summary, remarks, examples, see‑also, optional member TOC, then members grouped by overload).
     /// </summary>
-    /// <param name="type">The type (<c>T:</c> entry) to render.</param>
-    /// <param name="includeHeader">When <see langword="true"/>, includes the type heading; otherwise only renders the body.</param>
-    /// <returns>Markdown content for the specified type.</returns>
-    /// <remarks>
-    /// Members are grouped by simple name; method overloads are listed together under one heading.
-    /// </remarks>
     private string RenderType(XMember type, bool includeHeader = true)
     {
         var sb = new StringBuilder();
-
         var typeDisplay = ShortTypeDisplay(type.Id);
 
         if (includeHeader)
@@ -226,7 +257,6 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        // <summary>
         var summary = NormalizeXmlToMarkdown(type.Element.Element("summary"));
         if (!string.IsNullOrWhiteSpace(summary))
         {
@@ -234,7 +264,6 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        // <remarks>
         var remarks = NormalizeXmlToMarkdown(type.Element.Element("remarks"));
         if (!string.IsNullOrWhiteSpace(remarks))
         {
@@ -244,7 +273,6 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        // <example>
         foreach (var ex in type.Element.Elements("example"))
         {
             var exText = NormalizeXmlToMarkdown(ex, preferCodeBlocks: true);
@@ -257,7 +285,6 @@ public sealed class MarkdownRenderer
             }
         }
 
-        // <seealso>
         var seeAlsos = type.Element.Elements("seealso").ToList();
         if (seeAlsos.Count > 0)
         {
@@ -271,29 +298,30 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        // members
         var members = _model.Members.Values
             .Where(m => m.Kind is "M" or "P" or "F" or "E")
             .Where(m => m.Id.StartsWith(type.Id + ".", StringComparison.Ordinal))
             .OrderBy(m => m.Id)
             .ToList();
 
-        // Group by the simple member name (dot before '('), not the last dot in the whole ID.
+        if (includeHeader && _opt.EmitToc && members.Count > 0 && !_singleFileMode)
+        {
+            sb.AppendLine(BuildMemberToc(members));
+        }
+
         static string GroupKey(XMember mm)
         {
-            var id = mm.Id; // e.g., "M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)"
+            var id = mm.Id;
             var parenIdx = id.IndexOf('(');
             var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
-            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Add(System.Int32, ...)"
+            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id;
 
-            // pretty generic method arity: ``2 -> <T1,T2>
             nameAndParams = Regex.Replace(nameAndParams, @"``(\d+)", m =>
             {
                 var n = int.Parse(m.Groups[1].Value);
                 return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
             });
 
-            // strip known framework aliases in the signature preview
             nameAndParams = ApplyAliases(nameAndParams);
             if (nameAndParams.StartsWith("System.", StringComparison.Ordinal))
                 nameAndParams = nameAndParams.Substring("System.".Length);
@@ -301,16 +329,12 @@ public sealed class MarkdownRenderer
             return nameAndParams;
         }
 
-        var groups = members
-                    .GroupBy(GroupKey)
-                    .OrderBy(g => g.Key)
-                    .ToList();
+        var groups = members.GroupBy(GroupKey).OrderBy(g => g.Key).ToList();
 
         foreach (var g in groups)
         {
             if (g.First().Kind == "M" && g.Count() > 1)
             {
-                // one header, list each overload as a bullet
                 sb.AppendLine($"## Method: {g.Key}");
                 foreach (var mem in g)
                     RenderMember(mem, sb, asOverload: true);
@@ -318,7 +342,6 @@ public sealed class MarkdownRenderer
             }
             else
             {
-                // single member as a full section
                 RenderMember(g.First(), sb, asOverload: false);
             }
         }
@@ -329,8 +352,7 @@ public sealed class MarkdownRenderer
     // === Display helpers ===
 
     /// <summary>
-    /// Builds a slug from a heading text compatible with common Markdown engines (e.g., GitHub).
-    /// Lowercases, trims, replaces spaces with dashes, and removes non [a-z0-9-].
+    /// Creates a GitHub‑style slug: lowercase, trimmed, spaces → dashes, strip non <c>[a-z0-9-]</c>.
     /// </summary>
     private static string HeadingSlug(string heading)
     {
@@ -341,19 +363,11 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Builds a concise header for a member (e.g., <c>Method: Foo(int, string)</c>), simplifying type names and generics.
+    /// Builds a concise member header (Kind + simplified signature) for headings and overload entries.
     /// </summary>
-    /// <param name="m">The member to summarize.</param>
-    /// <returns>A short header containing the member kind and simplified signature.</returns>
-    /// <remarks>
-    /// - Brace-aware parameter splitting (XML-doc generics use <c>{}</c>).
-    /// - Formats method generic arity (e.g., <c>``2</c> → <c>&lt;T1,T2&gt;</c>).
-    /// - Applies aliases and namespace trimming inside signatures.
-    /// </remarks>
     private string MemberHeader(XMember m)
     {
         var id = m.Id;
-
         var parenIdx = id.IndexOf('(');
         var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
         var namePart = cut >= 0 ? id.Substring(cut + 1) : id;
@@ -395,9 +409,8 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Converts a documentation kind letter to a readable word.
+    /// Maps XML documentation kind letter (e.g. <c>M</c>) to a readable word (e.g. <c>Method</c>).
     /// </summary>
-    /// <param name="kind">The kind prefix (e.g., <c>M</c>, <c>P</c>, <c>F</c>, <c>E</c>, <c>T</c>).</param>
     private static string KindToWord(string kind) => kind switch
     {
         "M" => "Method",
@@ -409,8 +422,7 @@ public sealed class MarkdownRenderer
     };
 
     /// <summary>
-    /// Produces a short display name for a type ID, optionally trimming a root namespace and formatting generic arity as <c>&lt;T1,T2&gt;</c>.
-    /// Handles constructed generics (XML-doc <c>{}</c>) by delegating to <see cref="ShortenSignatureType(string)"/> for depth-aware formatting.
+    /// Produces a short display name for a type ID (generic arity → placeholders, optional root namespace trimming).
     /// </summary>
     private string ShortTypeDisplay(string typeId)
     {
@@ -447,7 +459,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Built-in mappings for fully-qualified BCL types and their C# aliases.
+    /// Built‑in mappings from fully‑qualified BCL types to C# aliases.
     /// </summary>
     private static readonly (string Full, string Alias)[] Aliases = new[]
     {
@@ -459,47 +471,35 @@ public sealed class MarkdownRenderer
         ("System.Double","double"), ("System.Single","float")
     };
 
-// Token-aware patterns for fully-qualified names (e.g., System.String) and short names (e.g., String).
-// We require identifier boundaries so we don't replace substrings inside larger identifiers.
-private static readonly (Regex Pattern, string Alias)[] AliasFullTokenPatterns =
-    Aliases
-        .Select(a => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(a.Full)}(?![A-Za-z0-9_])"), a.Alias))
-        .ToArray();
+    // Token‑aware full and short patterns (avoid partial replacements inside larger identifiers).
+    private static readonly (Regex Pattern, string Alias)[] AliasFullTokenPatterns =
+        Aliases.Select(a => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(a.Full)}(?![A-Za-z0-9_])"), a.Alias)).ToArray();
 
-private static readonly (Regex Pattern, string Alias)[] AliasShortTokenPatterns =
-    Aliases
-        .GroupBy(a => a.Full.Split('.').Last(), a => a.Alias) // short name -> alias
-        .Select(g => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(g.Key)}(?![A-Za-z0-9_])"), Alias: g.First()))
-        .ToArray();
-
-/// <summary>
-/// Replaces fully-qualified type names and common framework type names with their C# aliases,
-/// using token-aware regex so we don't corrupt longer identifiers (e.g., <c>StringComparer</c>).
-/// </summary>
-private static string ApplyAliases(string s)
-{
-    if (string.IsNullOrEmpty(s)) return s;
-
-    foreach (var (pattern, alias) in AliasFullTokenPatterns)
-        s = pattern.Replace(s, alias);
-
-    foreach (var (pattern, alias) in AliasShortTokenPatterns)
-        s = pattern.Replace(s, alias);
-
-    return s;
-}
+    private static readonly (Regex Pattern, string Alias)[] AliasShortTokenPatterns =
+        Aliases
+            .GroupBy(a => a.Full.Split('.').Last(), a => a.Alias)
+            .Select(g => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(g.Key)}(?![A-Za-z0-9_])"), Alias: g.First()))
+            .ToArray();
 
     /// <summary>
-    /// Shortens a fully-qualified type used in a signature to a compact display form,
-    /// preserving the outer generic type name and formatting generic arguments recursively.
-    /// Handles XML-doc generics (<c>{}</c>) → (<c>&lt;&gt;</c>), BCL aliases, and generic placeholders (<c>``0</c>/<c>`0</c> → <c>T1</c>).
+    /// Applies alias substitutions to framework type tokens without touching longer identifiers.
+    /// </summary>
+    private static string ApplyAliases(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        foreach (var (pattern, alias) in AliasFullTokenPatterns) s = pattern.Replace(s, alias);
+        foreach (var (pattern, alias) in AliasShortTokenPatterns) s = pattern.Replace(s, alias);
+        return s;
+    }
+
+    /// <summary>
+    /// Shortens a fully‑qualified type for signature display (aliases + recursive generic argument formatting).
     /// </summary>
     private static string ShortenSignatureType(string full)
     {
         if (string.IsNullOrWhiteSpace(full)) return string.Empty;
 
         var s = full.Trim().Replace('{', '<').Replace('}', '>');
-
         s = Regex.Replace(s, @"``(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
         s = Regex.Replace(s, @"`(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
 
@@ -513,10 +513,7 @@ private static string ApplyAliases(string s)
         }
 
         var gt = FindMatchingAngle(s, lt);
-        if (gt < 0)
-        {
-            return s;
-        }
+        if (gt < 0) return s;
 
         var head = s.Substring(0, lt);
         var inner = s.Substring(lt + 1, gt - lt - 1);
@@ -565,30 +562,53 @@ private static string ApplyAliases(string s)
         }
     }
 
+    /// <summary>
+    /// Builds a member table of contents (overload groups collapsed to first anchor).
+    /// </summary>
+    private string BuildMemberToc(IEnumerable<XMember> members)
+    {
+        var sb = new StringBuilder();
+        var groups = members
+            .GroupBy(m =>
+            {
+                var id = m.Id;
+                var parenIdx = id.IndexOf('(');
+                var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
+                var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id;
+                return nameAndParams;
+            })
+            .OrderBy(g => g.Key);
+
+        sb.AppendLine("**Table of contents**");
+        foreach (var g in groups)
+        {
+            var first = g.First();
+            var label = MemberHeader(first);
+            var anchor = IdToAnchor(first.Id);
+            sb.AppendLine($"- [{label}](#{anchor})");
+        }
+        sb.AppendLine();
+        return sb.ToString();
+    }
+
     // === Links & filenames ===
 
     /// <summary>
-    /// Converts a cref into a Markdown link string.
+    /// Returns a Markdown link for a cref value (type or member).
     /// </summary>
-    /// <param name="cref">The cref value (e.g., <c>T:Ns.Type</c>, <c>M:Ns.Type.Method(Type)</c>) or <see langword="null"/>.</param>
-    /// <returns>Markdown link text (e.g., <c>[Type](Type.md)</c>).</returns>
     private string CrefToMarkdown(string? cref)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         CrefToMarkdown(sb, cref);
         return sb.ToString();
     }
 
     /// <summary>
-    /// Appends a Markdown link for the provided cref to a <see cref="StringBuilder"/>.
+    /// Appends a Markdown link for a cref to a <see cref="StringBuilder"/> using the configured resolver.
     /// </summary>
-    /// <param name="sb">Destination builder.</param>
-    /// <param name="cref">The cref value or <see langword="null"/> (treated as empty).</param>
-    private void CrefToMarkdown(System.Text.StringBuilder sb, string? cref)
+    private void CrefToMarkdown(StringBuilder sb, string? cref)
     {
-        // Normalize null/whitespace to empty string for the resolver.
         var safeCref = string.IsNullOrWhiteSpace(cref) ? string.Empty : cref!;
-
         var link = _linkResolver.Resolve(
             safeCref,
             new LinkContext(
@@ -600,15 +620,8 @@ private static string ApplyAliases(string s)
     }
 
     /// <summary>
-    /// Generates a Markdown file name for a type ID based on the chosen <see cref="FileNameMode"/>.
+    /// Basic filename builder (mode only; no root namespace trimming).
     /// </summary>
-    /// <param name="typeId">The type ID (portion after the kind prefix).</param>
-    /// <param name="mode">The file name generation mode.</param>
-    /// <returns>A file-system-friendly name ending with <c>.md</c>.</returns>
-    /// <remarks>
-    /// In <see cref="FileNameMode.CleanGenerics"/> the generic arity (e.g., <c>`1</c>) is removed and generic braces are normalized.
-    /// Angle brackets are replaced with square brackets to avoid filesystem issues.
-    /// </remarks>
     private static string FileNameFor(string typeId, FileNameMode mode)
     {
         var name = typeId;
@@ -620,24 +633,22 @@ private static string ApplyAliases(string s)
         }
 
         name = name.Replace('<', '[').Replace('>', ']');
-
         return name + ".md";
     }
 
-    // NEW: per-type filename builder that honors FileNameMode AND optional root-ns trim
+    /// <summary>
+    /// Per‑type filename generator applying mode + optional root namespace trimming and bracket normalization.
+    /// </summary>
     private string FileNameForPerType(string typeId)
     {
-        // start with the raw id
         var name = typeId;
 
-        // apply the existing mode first (verbatim/clean)
         if (_opt.FileNameMode == FileNameMode.CleanGenerics)
         {
             name = Regex.Replace(name, @"`\d+", "");
             name = name.Replace('{', '<').Replace('}', '>');
         }
 
-        // NEW: optionally trim root namespace in FILE NAMES
         if (_opt.TrimRootNamespaceInFileNames && !string.IsNullOrWhiteSpace(_opt.RootNamespaceToTrim))
         {
             var prefix = _opt.RootNamespaceToTrim + ".";
@@ -645,42 +656,22 @@ private static string ApplyAliases(string s)
                 name = name.Substring(prefix.Length);
         }
 
-        // normalize to FS-friendly brackets, then add the extension
         name = name.Replace('<', '[').Replace('>', ']');
         return name + ".md";
     }
 
     /// <summary>
-    /// Converts a documentation ID into a Markdown anchor.
+    /// Converts a documentation ID to a stable anchor (lowercase; generic braces → square brackets; aliases applied).
     /// </summary>
-    /// <param name="id">The documentation ID (portion after the kind prefix).</param>
-    /// <returns>Anchor text (lowercased) that can be referenced in links.</returns>
-    /// <remarks>
-    /// - Applies C# aliases to framework types (e.g., <c>System.Int32</c> → <c>int</c>).
-    /// - Normalizes XML-doc generic braces <c>{}</c> to square brackets <c>[]</c> for HTML safety.
-    /// - Preserves the full signature including the closing parenthesis.
-    /// - Lowercases the entire string for stability.
-    /// Example:
-    /// <code>
-    /// M:Temp.Nested.Transform``1(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Int32}})
-    /// → temp.nested.transform``1(system.collections.generic.list[system.collections.generic.dictionary[string,int]])
-    /// </code>
-    /// </remarks>
     private static string IdToAnchor(string id) =>
-    ApplyAliases(id)
-        .Replace('{', '[')
-        .Replace('}', ']')
-        .ToLowerInvariant();
+        ApplyAliases(id)
+            .Replace('{', '[')
+            .Replace('}', ']')
+            .ToLowerInvariant();
 
     /// <summary>
-    /// Converts a <c>&lt;seealso&gt;</c> element into Markdown.
+    /// Converts a <c>&lt;seealso&gt;</c> element to Markdown (cref/href/text fallback).
     /// </summary>
-    /// <param name="sa">The <c>seealso</c> element.</param>
-    /// <returns>A Markdown link or normalized text.</returns>
-    /// <remarks>
-    /// Supports <c>cref</c> to local API links and <c>href</c> for external URLs. If neither attribute is present,
-    /// falls back to the element content via <see cref="NormalizeXmlToMarkdown(XElement?, bool)"/>.
-    /// </remarks>
     private string SeeAlsoToMarkdown(XElement sa)
     {
         var cref = (string?)sa.Attribute("cref");
@@ -692,37 +683,27 @@ private static string ApplyAliases(string s)
         return NormalizeXmlToMarkdown(sa);
     }
 
-    // Returns the output file name for a *type* cref (e.g., "T:Ns.Type" → "Ns.Type.md").
-    // IMPORTANT: If your per-type writer already has a canonical helper, call it here
-    // to ensure byte-for-byte parity with your existing outputs.
+    /// <summary>
+    /// Produces the per‑type output filename for a cref (normalizes nested type separators and applies renderer rules).
+    /// </summary>
     private string TypeFileNameForResolver(string typeCref)
     {
-        // Strip "T:" if present
         var id = typeCref.StartsWith("T:") ? typeCref.Substring(2) : typeCref;
-
-        // Normalize nested types to dot form (e.g., "Outer+Inner" → "Outer.Inner")
         id = id.Replace('+', '.');
-
-        // If you have filename modes (e.g., "clean" vs "verbatim"), mirror the exact
-        // logic used by your per-type emission here. The fallback keeps the full name:
-        //return id + ".md";
         return FileNameForPerType(id);
     }
 
     /// <summary>
-    /// Produces a short label from a <c>cref</c> for display purposes (e.g., replaces arity and aliases BCL types).
+    /// Shortens a type cref for display (arity → placeholders, braces normalized, aliases applied).
     /// </summary>
-    /// <param name="cref">The cref value, e.g., <c>T:Namespace.Type`2</c> or <c>M:Namespace.Type.Method(System.String)</c>.</param>
-    /// <returns>A simplified display name.</returns>
     private string ShortenTypeName(string cref)
     {
 #if NETSTANDARD2_0
         var id = (cref.IndexOf(':') >= 0) ? cref.Split(new[] { ':' }, 2)[1] : cref;
 #else
         var id = cref.Contains(':') ? cref.Split(':', 2)[1] : cref;
-#endif        
+#endif
         var last = id.Split('.').LastOrDefault() ?? id;
-        // generic arity -> <T1,...>
         last = Regex.Replace(last, @"`(\d+)", m =>
         {
             var n = int.Parse(m.Groups[1].Value);
@@ -734,53 +715,35 @@ private static string ApplyAliases(string s)
     }
 
     /// <summary>
-    /// Creates a short, human-friendly label from a cref string.
+    /// Generates a short label from a cref (type name or method name + simplified parameter list).
     /// </summary>
-    /// <param name="cref">
-    /// A cref such as <c>T:Namespace.Type</c> or <c>M:Namespace.Type.Method(Type,Type)</c>.
-    /// </param>
-    /// <returns>
-    /// For types, the short type display (with generic arity formatted). For methods, the method name with
-    /// simplified parameter types. For other kinds, the simple member identifier.
-    /// </returns>
-    /// <remarks>
-    /// - Converts XML-doc generic braces <c>{}</c> to <c>&lt;&gt;</c>, applies C# aliases, and trims namespaces inside generic arguments.
-   /// - Maps method generic arity tokens (e.g., <c>``1</c>) to <c>&lt;T1&gt;</c> in the method name, so labels like <c>Transform&lt;T1&gt;(...)</c> render correctly.
-    /// </remarks>
     private string ShortLabelFromCref(string cref)
     {
         if (string.IsNullOrWhiteSpace(cref))
             return string.Empty;
 
-        // Split "K:Namespace.Type.Member(...)" into (K, rest)
 #if NETSTANDARD2_0
         var parts = cref.Split(new[] { ':' }, 2);
 #else
-       var parts = cref.Split(':', 2);
+        var parts = cref.Split(':', 2);
 #endif
         var kind = parts.Length == 2 ? parts[0] : "";
         var id = parts.Length == 2 ? parts[1] : cref;
 
         if (kind == "T")
-        {
-            // Type
             return ShortTypeDisplay(id);
-        }
 
         if (kind == "M")
         {
-            // Method: Namespace.Type.Method(Type,Type)
             var parenIdx = id.IndexOf('(');
             var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
-            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id; // "Method(Type,Type)"
+            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id;
             var paren = nameAndParams.IndexOf('(');
 #if NETSTANDARD2_0
             var methodName = paren >= 0 ? nameAndParams.Substring(0, paren) : nameAndParams;
 #else
             var methodName = paren >= 0 ? nameAndParams[..paren] : nameAndParams;
 #endif
-
-            // Pretty generics in method name: ``2 -> <T1,T2>, ``1 -> <T1>
             methodName = Regex.Replace(methodName, @"``(\d+)", m2 =>
             {
                 var n = int.Parse(m2.Groups[1].Value);
@@ -788,12 +751,11 @@ private static string ApplyAliases(string s)
             });
 
             var paramList = (paren >= 0 && nameAndParams.EndsWith(")"))
-                ? nameAndParams.Substring(paren + 1, nameAndParams.Length - paren - 2) // inside (...)
+                ? nameAndParams.Substring(paren + 1, nameAndParams.Length - paren - 2)
                 : string.Empty;
 
             static IEnumerable<string> SplitParams(string s)
             {
-                // Handles nested generic braces in XML-doc form: IEnumerable{List{T}}
                 var depth = 0; var start = 0;
                 for (int i = 0; i < s.Length; i++)
                 {
@@ -809,7 +771,6 @@ private static string ApplyAliases(string s)
                 if (s.Length > 0) yield return s.Substring(start).Trim();
             }
 
-            // Depth-aware split for generic arguments within angle brackets
             static IEnumerable<string> SplitTopLevelGenericArgs(string s)
             {
                 var depth = 0; var start = 0;
@@ -830,12 +791,9 @@ private static string ApplyAliases(string s)
             string FormatParam(string p)
             {
                 p = p.Trim();
-
-                // XML-doc generics use {} – convert first, then alias/shorten
                 p = p.Replace('{', '<').Replace('}', '>');
                 p = ApplyAliases(p);
 
-                // Optionally trim namespaces inside generic args using depth-aware splitting
                 if (p.Contains('<') && p.Contains('>'))
                 {
                     var lt = p.IndexOf('<');
@@ -853,7 +811,7 @@ private static string ApplyAliases(string s)
 #endif
                         var trimmedArgs = SplitTopLevelGenericArgs(inner)
                             .Select(x => x.Contains('<')
-                                ? Regex.Replace(x, @"(?<![A-Za-z0-9_])([A-Za-z0-9_.]+)(?=\s*<)", m => m.Groups[1].Value.Split('.').Last())
+                                ? Regex.Replace(x, @"(?<![A-Za-z0-9_])([A-ZaZ0-9_.]+)(?=\s*<)", m => m.Groups[1].Value.Split('.').Last())
                                 : x.Split('.').Last()
                             );
                         var newInner = string.Join(", ", trimmedArgs);
@@ -861,10 +819,8 @@ private static string ApplyAliases(string s)
                     }
                 }
 
-                // For non-generic names, just drop namespace noise
                 if (!p.Contains('<'))
                     p = p.Split('.').Last();
-
                 return p;
             }
 
@@ -877,43 +833,21 @@ private static string ApplyAliases(string s)
                 : $"{methodName}({formattedParams})";
         }
 
-        // Properties/Fields/Events: show simple member identifier (after last dot)
 #if NETSTANDARD2_0
         if (id.Contains("."))
             return id.Substring(id.LastIndexOf('.') + 1);
 #else
-if (id.Contains('.'))
-        return id[(id.LastIndexOf('.') + 1)..];
+        if (id.Contains('.'))
+            return id[(id.LastIndexOf('.') + 1)..];
 #endif
-
         return id;
     }
-
 
     // === XML → Markdown normalization ===
 
     /// <summary>
-    /// Normalizes XML documentation nodes to Markdown.
+    /// Normalizes an XML documentation element (summary, remarks, example, param, see, code) to Markdown with paragraph preservation.
     /// </summary>
-    /// <param name="element">The XML element to normalize (e.g., <c>summary</c>, <c>remarks</c>, <c>returns</c>, <c>param</c>, <c>example</c>).</param>
-    /// <param name="preferCodeBlocks">
-    /// If <see langword="true"/>, prefers fenced code blocks for code samples (e.g., within <c>example</c> or <c>code</c> elements).
-    /// </param>
-    /// <returns>The normalized Markdown text, or an empty string if <paramref name="element"/> is <see langword="null"/>.</returns>
-    /// <remarks>
-    /// Supported:
-    /// - <c>&lt;see cref="..." /&gt;</c> and <c>&lt;see href="..."&gt;text&lt;/see&gt;</c> (converted to links via <see cref="CrefToMarkdown(string?)"/>).
-    /// - <c>&lt;paramref name="..." /&gt;</c> (rendered as inline code).
-    /// - <c>&lt;para&gt;</c> (emits paragraph breaks).
-    /// - <c>&lt;c&gt;</c> and <c>&lt;code&gt;</c> (inline code or fenced blocks; language from <see cref="RendererOptions.CodeBlockLanguage"/>).
-    /// - <c>&lt;example&gt;</c> (detects code and renders as fenced blocks when possible).
-    /// Newline handling:
-    /// - Preserves blank lines as paragraph breaks.
-    /// - Collapses soft line breaks within a paragraph to a single space.
-    /// - Trims leading whitespace on prose lines and collapses repeated spaces/tabs to a single space.
-    /// - Keeps fenced code blocks verbatim.
-    /// - Fixes stray spaces before punctuation (e.g., <c>"word ."</c> → <c>"word."</c>).
-    /// </remarks>
     private string NormalizeXmlToMarkdown(XElement? element, bool preferCodeBlocks = false)
     {
         if (element is null) return string.Empty;
@@ -936,33 +870,25 @@ if (id.Contains('.'))
                 case XText t:
                     text.Append(t.Value);
                     break;
-
                 case XElement e when e.Name.LocalName == "see":
                     var cref = (string?)e.Attribute("cref");
                     if (!string.IsNullOrWhiteSpace(cref))
-                    {
-                        // Use the resolver to produce the correct markdown link/label.
                         text.Append(CrefToMarkdown(cref));
-                    }
                     else
                     {
                         var href = (string?)e.Attribute("href");
-                        if (!string.IsNullOrWhiteSpace(href))
-                            text.Append($"[{e.Value}]({href})");
-                        else
-                            text.Append(e.Value);
+                        text.Append(!string.IsNullOrWhiteSpace(href)
+                            ? $"[{e.Value}]({href})"
+                            : e.Value);
                     }
                     break;
-
                 case XElement e when e.Name.LocalName == "paramref":
                     var name = (string?)e.Attribute("name") ?? "";
                     text.Append($"`{name}`");
                     break;
-
                 case XElement e when e.Name.LocalName == "para":
                     text.AppendLine().AppendLine(NormalizeXmlToMarkdown(e)).AppendLine();
                     break;
-
                 case XElement e when e.Name.LocalName is "c" or "code":
                     var code = e.Value;
                     if (preferCodeBlocks || code.Contains('\n'))
@@ -970,7 +896,6 @@ if (id.Contains('.'))
                     else
                         text.Append($"`{code}`");
                     break;
-
                 default:
                     if (node is XElement xe)
                         text.Append(xe.Value);
@@ -980,14 +905,12 @@ if (id.Contains('.'))
 
         var raw = text.ToString().Replace("\r\n", "\n").Replace("\r", "\n");
         var lines = raw.Split('\n');
-
         var cleaned = new string[lines.Length];
         var inFence = false;
 
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
-
             var ls = line.TrimStart();
             if (ls.StartsWith("```"))
             {
@@ -995,7 +918,6 @@ if (id.Contains('.'))
                 inFence = !inFence;
                 continue;
             }
-
             if (inFence)
             {
                 cleaned[i] = line;
@@ -1003,14 +925,12 @@ if (id.Contains('.'))
             }
 
             var collapsed = Regex.Replace(line.Trim(), "[ \t]+", " ");
-
             collapsed = collapsed.Replace(" .", ".")
                                  .Replace(" ,", ",")
                                  .Replace(" ;", ";")
                                  .Replace(" :", ":")
                                  .Replace(" )", ")")
                                  .Replace(" ]", "]");
-
             cleaned[i] = collapsed;
         }
 
@@ -1032,7 +952,6 @@ if (id.Contains('.'))
                 if (sbOut.Length > 0 && sbOut[^1] != '\n')
                     sbOut.Append('\n');
 #endif
-
                 sbOut.Append(line).Append('\n');
                 inFence = !inFence;
                 prevWasBlank = true;
@@ -1058,34 +977,22 @@ if (id.Contains('.'))
                 if (!prevWasBlank && sbOut.Length > 0 && sbOut[sbOut.Length - 1] != '\n')
                     sbOut.Append(' ');
 #else
-               if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
-                   sbOut.Append(' ');
+                if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
+                    sbOut.Append(' ');
 #endif
                 sbOut.Append(line);
                 prevWasBlank = false;
             }
         }
 
-        var result = sbOut.ToString().Trim('\n');
-        return result;
+        return sbOut.ToString().Trim('\n');
     }
 
     /// <summary>
-    /// Renders a single member section or overload list item, including summary, parameters, returns, exceptions, examples, and see-also.
+    /// Renders a member (or overload bullet) including summary, parameters, returns, exceptions, examples, see‑also links and its stable anchor.
     /// </summary>
-    /// <param name="m">The member to render.</param>
-    /// <param name="sb">The output builder to append Markdown to.</param>
-    /// <param name="asOverload">
-    /// If <see langword="true"/>, renders as a bullet item under an overload group; otherwise renders as a full section with a heading.
-    /// </param>
-    /// <remarks>
-    /// - Emits a stable HTML anchor <c>&lt;a id="..."&gt;&lt;/a&gt;</c> before the heading/bullet using <see cref="IdToAnchor(string)"/>,
-    ///   ensuring all member links resolve predictably.
-    /// - If an <c>&lt;inheritdoc&gt;</c> tag is present, inherited content is resolved via <see cref="InheritDocResolver"/> and merged before rendering.
-    /// </remarks>
     private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
     {
-        // inheritdoc: if present, merge content
         var inherit = m.Element.Element("inheritdoc");
         if (inherit != null)
         {
@@ -1094,27 +1001,17 @@ if (id.Contains('.'))
                 InheritDocResolver.MergeInheritedContent(m.Element, target);
         }
 
-        // Emit a stable anchor for this member so cref links resolve here.
-        // Use the same transformation that CrefToMarkdown uses.
         sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");
 
-        // Heading
         if (asOverload)
-        {
-            // overload list bullet with signature
             sb.AppendLine($"- `{MemberHeader(m)}`");
-        }
         else
-        {
             sb.AppendLine($"## {MemberHeader(m)}");
-        }
 
-        // summary
         var ms = NormalizeXmlToMarkdown(m.Element.Element("summary"));
         if (!string.IsNullOrWhiteSpace(ms))
             sb.AppendLine(ms);
 
-        // params
         var ps = m.Element.Elements("param").ToList();
         if (ps.Count > 0)
         {
@@ -1128,7 +1025,6 @@ if (id.Contains('.'))
             }
         }
 
-        // returns
         var ret = m.Element.Element("returns");
         if (ret != null)
         {
@@ -1138,7 +1034,6 @@ if (id.Contains('.'))
             sb.AppendLine(NormalizeXmlToMarkdown(ret));
         }
 
-        // exceptions
         var exTags = m.Element.Elements("exception").ToList();
         if (exTags.Count > 0)
         {
@@ -1153,7 +1048,6 @@ if (id.Contains('.'))
             }
         }
 
-        // examples
         var examples = m.Element.Elements("example").ToList();
         if (examples.Count > 0)
         {
@@ -1170,7 +1064,6 @@ if (id.Contains('.'))
             }
         }
 
-        // seealso
         var memberSeeAlsos = m.Element.Elements("seealso").ToList();
         if (memberSeeAlsos.Count > 0)
         {

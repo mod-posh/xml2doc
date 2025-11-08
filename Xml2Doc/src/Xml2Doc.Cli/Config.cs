@@ -3,78 +3,77 @@
 namespace Xml2Doc.Cli
 {
     /// <summary>
-    /// Command‑line configuration options for the Xml2Doc CLI.
+    /// Command-line configuration options for the Xml2Doc CLI.
     /// </summary>
     /// <remarks>
-    /// All properties are nullable so callers can distinguish between:
+    /// All properties are nullable so the parser can distinguish:
     /// <list type="bullet">
-    ///   <item><description><c>null</c>: option not provided on the command line (use defaults).</description></item>
-    ///   <item><description>Non‑null: explicit user intent (even if empty for paths).</description></item>
+    ///   <item><description><c>null</c>: not supplied (use defaults).</description></item>
+    ///   <item><description>Non-null: explicit user intent (even if empty for paths).</description></item>
     /// </list>
-    /// Mapped flags:
+    /// Flags mapping:
     /// <c>--xml</c>, <c>--out</c>, <c>--single</c>, <c>--file-names</c>, <c>--rootns</c>, <c>--lang</c>,
-    /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>.
+    /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>,
+    /// <c>--anchor-algorithm</c>, <c>--template</c>, <c>--front-matter</c>, <c>--auto-link</c>,
+    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--parallel</c>.
     /// </remarks>
     public sealed class CliConfig
     {
-        /// <summary>
-        /// Path to the input XML documentation file (e.g. compiler output). Maps to <c>--xml</c>.
-        /// </summary>
+        /// <summary>Path to the input XML documentation file. Maps to <c>--xml</c>.</summary>
         public string? Xml { get; set; }
 
-        /// <summary>
-        /// Output directory or single-file target directory depending on mode. Maps to <c>--out</c>.
-        /// </summary>
+        /// <summary>Output directory (per-type) or single-file path. Maps to <c>--out</c>.</summary>
         public string? Out { get; set; }
 
-        /// <summary>
-        /// When <see langword="true"/>, generate a single consolidated Markdown file; otherwise per-type files. Maps to <c>--single</c>.
-        /// </summary>
+        /// <summary>Single consolidated output when true; otherwise per-type. Maps to <c>--single</c>.</summary>
         public bool? Single { get; set; }
 
-        /// <summary>
-        /// Filename mode: expected values <c>verbatim</c> or <c>clean</c>. Maps to <c>--file-names</c>.
-        /// </summary>
-        public string? FileNames { get; set; }           // "verbatim" | "clean"
+        /// <summary>Filename mode (<c>verbatim</c> | <c>clean</c>). Maps to <c>--file-names</c>.</summary>
+        public string? FileNames { get; set; }
 
-        /// <summary>
-        /// Namespace prefix trimmed from displayed type names (e.g. <c>MyCompany.MyProduct</c>). Maps to <c>--rootns</c>.
-        /// </summary>
-        public string? RootNamespace { get; set; }       // e.g., "MyCompany.MyProduct"
+        /// <summary>Namespace prefix trimmed from displayed type names. Maps to <c>--rootns</c>.</summary>
+        public string? RootNamespace { get; set; }
 
-        /// <summary>
-        /// Language identifier for fenced code blocks (default typically <c>csharp</c>). Maps to <c>--lang</c>.
-        /// </summary>
-        public string? CodeLanguage { get; set; }        // e.g., "csharp"
+        /// <summary>Language identifier for fenced code blocks (e.g. csharp). Maps to <c>--lang</c>.</summary>
+        public string? CodeLanguage { get; set; }
 
-        /// <summary>
-        /// When <see langword="true"/>, also trims the root namespace from generated file names. Maps to <c>--trim-rootns-filenames</c>.
-        /// </summary>
+        /// <summary>Also trim root namespace from file names when true. Maps to <c>--trim-rootns-filenames</c>.</summary>
         public bool? TrimRootNamespaceInFileNames { get; set; }
 
-        /// <summary>
-        /// Path to a JSON execution report capturing options, outputs, and fingerprints. Maps to <c>--report</c>.
-        /// </summary>
-        public string? Report { get; set; }              // path to JSON report
+        /// <summary>Path to JSON execution/report file. Maps to <c>--report</c>.</summary>
+        public string? Report { get; set; }
 
-        /// <summary>
-        /// Dry-run: compute planned outputs without writing Markdown. Maps to <c>--dry-run</c>.
-        /// </summary>
+        /// <summary>Dry run (no writes) when true. Maps to <c>--dry-run</c>.</summary>
         public bool? DryRun { get; set; }
 
-        /// <summary>
-        /// Reserved for future diff/changes analysis; currently no effect. Maps to <c>--diff</c>.
-        /// </summary>
+        /// <summary>Reserved for diff analysis (currently inert). Maps to <c>--diff</c>.</summary>
         public bool? Diff { get; set; }
-        // add to CliConfig
-        public string? AnchorAlgorithm { get; set; }   // "default"|"github"|"kramdown"|"gfm"
-        public string? Template { get; set; }          // path to template file
-        public string? FrontMatter { get; set; }       // path to YAML/JSON front-matter
+
+        /// <summary>Anchor/slug algorithm (<c>default</c>|<c>github</c>|<c>kramdown</c>|<c>gfm</c>). Maps to <c>--anchor-algorithm</c>.</summary>
+        public string? AnchorAlgorithm { get; set; }
+
+        /// <summary>Template file applied around rendered content. Maps to <c>--template</c>.</summary>
+        public string? Template { get; set; }
+
+        /// <summary>Front-matter file (YAML/JSON/TOML) prepended to outputs. Maps to <c>--front-matter</c>.</summary>
+        public string? FrontMatter { get; set; }
+
+        /// <summary>Enable heuristic auto-linking in prose. Maps to <c>--auto-link</c>.</summary>
         public bool? AutoLink { get; set; }
-        public string? AliasMap { get; set; }          // path to JSON alias map
-        public string? ExternalDocs { get; set; }      // base URL or path to map
+
+        /// <summary>Alias map file for additional type/namespace substitutions. Maps to <c>--alias-map</c>.</summary>
+        public string? AliasMap { get; set; }
+
+        /// <summary>External docs base URL or map file for unresolved references. Maps to <c>--external-docs</c>.</summary>
+        public string? ExternalDocs { get; set; }
+
+        /// <summary>Emit table of contents when true. Maps to <c>--toc</c>.</summary>
         public bool? Toc { get; set; }
+
+        /// <summary>Emit namespace index when true. Maps to <c>--namespace-index</c>.</summary>
         public bool? NamespaceIndex { get; set; }
-        public int? Parallel { get; set; }             // 0/1 disables; >1 enables
+
+        /// <summary>Max parallelism (<=0 or null uses default heuristic). Maps to <c>--parallel</c>.</summary>
+        public int? Parallel { get; set; }
     }
 }

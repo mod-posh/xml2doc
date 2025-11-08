@@ -4,42 +4,44 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Xml2Doc.Cli
 {
     /// <summary>
-    /// Command‑line entry point for converting C# XML documentation to Markdown.
+    /// Command‑line entry point for converting C# XML documentation into Markdown using Xml2Doc.
     /// </summary>
     /// <remarks>
-    /// Supports two modes:
+    /// Output modes:
     /// <list type="bullet">
-    ///   <item><description>Per‑type (default): one <c>.md</c> per documented type plus an <c>index.md</c> (specify output directory).</description></item>
-    ///   <item><description>Single file: consolidated index + all types (use <c>--single</c> with an output file path).</description></item>
+    ///   <item><description><b>Per‑type</b> (default): one <c>.md</c> per documented type plus <c>index.md</c> (pass an output directory to <c>--out</c>).</description></item>
+    ///   <item><description><b>Single file</b>: consolidated index + all types (pass a file path to <c>--out</c> with <c>--single</c>).</description></item>
     /// </list>
-    /// Option precedence:
+    /// Option precedence (highest first):
     /// <list type="number">
-    ///   <item><description>Command‑line arguments.</description></item>
-    ///   <item><description>JSON config file (<c>--config</c>) values (only where not overridden).</description></item>
-    ///   <item><description>Internal defaults.</description></item>
+    ///   <item><description>Command‑line arguments</description></item>
+    ///   <item><description>JSON configuration file (<c>--config</c>) values</description></item>
+    ///   <item><description>Built‑in defaults</description></item>
     /// </list>
-    /// Exit codes:
+    /// Extended options:
     /// <list type="bullet">
-    ///   <item><description><c>0</c> – success (including dry run).</description></item>
-    ///   <item><description><c>1</c> – invalid or missing required arguments.</description></item>
-    ///   <item><description><c>2</c> – unhandled runtime error.</description></item>
+    ///   <item><description><c>--file-names</c>: <c>verbatim</c> | <c>clean</c></description></item>
+    ///   <item><description><c>--rootns</c> and <c>--trim-rootns-filenames</c></description></item>
+    ///   <item><description><c>--lang</c> (code fence language)</description></item>
+    ///   <item><description><c>--anchor-algorithm</c>: slug style (<c>default</c>, <c>github</c>, <c>kramdown</c>, <c>gfm</c>)</description></item>
+    ///   <item><description><c>--template</c>, <c>--front-matter</c>: layout customization</description></item>
+    ///   <item><description><c>--auto-link</c>, <c>--alias-map</c>, <c>--external-docs</c></description></item>
+    ///   <item><description><c>--toc</c>, <c>--namespace-index</c>, <c>--parallel &lt;N&gt;</c></description></item>
+    ///   <item><description><c>--report</c> (JSON execution report), <c>--dry-run</c>, <c>--diff</c></description></item>
     /// </list>
-    /// JSON report (when <c>--report</c> is used) contains: input XML path, mode, output file/dir, list of produced (or would produce) files, selected options, dry‑run flag, diff flag, timestamp.
+    /// Exit codes: 0 = success (including dry‑run), 1 = invalid/missing required arguments, 2 = runtime error.
     /// </remarks>
     internal static class Program
     {
         /// <summary>
-        /// Application entry point.
+        /// Application entry point for the Xml2Doc CLI.
         /// </summary>
-        /// <param name="args">
-        /// Command‑line arguments. See <see cref="PrintHelp"/> for supported switches.
-        /// </param>
-        /// <returns>Process exit code (0 success, 1 invalid args, 2 runtime failure).</returns>
+        /// <param name="args">Command‑line arguments. Use <c>--help</c> or <c>-h</c> for usage.</param>
+        /// <returns>0 on success; 1 on argument validation failure; 2 on unhandled exception.</returns>
         public static int Main(string[] args)
         {
             // help
@@ -56,9 +58,9 @@ namespace Xml2Doc.Cli
             string? rootns = null;
             bool trimRootNsInFileNames = false;
             string codeLang = "csharp";
-            string? reportPath = null;         
-            bool dryRun = false;               
-            bool diff = false;                 
+            string? reportPath = null;
+            bool dryRun = false;
+            bool diff = false;
             string anchorAlgorithm = "default";
             string? templatePath = null;
             string? frontMatterPath = null;
@@ -184,7 +186,6 @@ namespace Xml2Doc.Cli
                     else
                     {
                         var outDir = Path.GetFullPath(outArg);
-                        // Compute filenames the same way the renderer does
                         foreach (var t in model.Members.Values.Where(m => m.Kind == "T").OrderBy(t => t.Id))
                         {
                             var fileName = ComputeFileName(t.Id, fileNameMode, options);
@@ -209,7 +210,6 @@ namespace Xml2Doc.Cli
                         var dir = Path.GetFullPath(outArg);
                         Directory.CreateDirectory(dir);
                         renderer.RenderToDirectory(dir);
-                        // Enumerate for the report
                         produced.AddRange(Directory.GetFiles(dir, "*.md", SearchOption.TopDirectoryOnly));
                         Console.WriteLine($"Wrote Markdown files to {dir}");
                     }
@@ -284,12 +284,12 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--report <file>]");
             Console.WriteLine("                   [--dry-run]");
             Console.WriteLine("                   [--diff]");
-            Console.WriteLine("                   [--anchor-algorithm <default | github | kramdown | gfm>]");
+            Console.WriteLine("                   [--anchor-algorithm <default|github|kramdown|gfm>]");
             Console.WriteLine("                   [--template <file>]");
             Console.WriteLine("                   [--front-matter <file>]");
             Console.WriteLine("                   [--auto-link]");
             Console.WriteLine("                   [--alias-map <file>]");
-            Console.WriteLine("                   [--external-docs <url | mapfile>]");
+            Console.WriteLine("                   [--external-docs <url|mapfile>]");
             Console.WriteLine("                   [--toc]");
             Console.WriteLine("                   [--namespace-index]");
             Console.WriteLine("                   [--parallel <N>]");
@@ -298,15 +298,14 @@ namespace Xml2Doc.Cli
         }
 
         /// <summary>
-        /// Computes the Markdown file name for a documented type, mirroring renderer logic (including generic clean‑up and root namespace trimming).
+        /// Computes a per‑type Markdown file name mirroring renderer logic (generic cleanup, optional root namespace trimming, bracket normalization).
         /// </summary>
-        /// <param name="typeId">Type documentation ID without the <c>T:</c> prefix.</param>
-        /// <param name="mode">Filename transformation mode (<see cref="FileNameMode"/>).</param>
-        /// <param name="opt">Renderer options (root namespace trimming and filename trimming flags).</param>
-        /// <returns>File name including <c>.md</c> extension.</returns>
+        /// <param name="typeId">Type documentation ID without the leading kind prefix (e.g. <c>Namespace.Widget`1</c>).</param>
+        /// <param name="mode">Filename transformation mode.</param>
+        /// <param name="opt">Renderer options (trim flags and namespace prefix).</param>
+        /// <returns>Final file name including <c>.md</c> extension.</returns>
         private static string ComputeFileName(string typeId, FileNameMode mode, RendererOptions opt)
         {
-            // typeId is like "Namespace.Type`1" (no "T:" prefix here)
             var name = typeId;
 
             if (mode == FileNameMode.CleanGenerics)
@@ -315,7 +314,6 @@ namespace Xml2Doc.Cli
                 name = name.Replace('{', '<').Replace('}', '>');
             }
 
-            // Apply trim AFTER filename-mode logic
             if (opt.TrimRootNamespaceInFileNames && !string.IsNullOrWhiteSpace(opt.RootNamespaceToTrim))
             {
                 var prefix = opt.RootNamespaceToTrim + ".";
