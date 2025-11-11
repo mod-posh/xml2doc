@@ -17,29 +17,26 @@ namespace Xml2Doc.Core;
 /// Features:
 /// <list type="bullet">
 ///   <item><description>Per‑type output (<see cref="RenderToDirectory(string)"/>) or single consolidated file (<see cref="RenderToSingleFile(string)"/>).</description></item>
-///   <item><description>Overload grouping: method overloads share one heading; each overload signature rendered as a bullet.</description></item>
-///   <item><description><c>&lt;inheritdoc&gt;</c> support via <see cref="InheritDocResolver"/> (inherited content merged before output).</description></item>
-///   <item><description>Stable anchors for members (<see cref="IdToAnchor(string)"/>) and type headings (<see cref="HeadingSlug(string)"/> in single‑file mode).</description></item>
-///   <item><description>Depth‑aware generic formatting (nested generics displayed compactly).</description></item>
-///   <item><description>Token‑aware aliasing (BCL types mapped to C# keywords without corrupting longer identifiers).</description></item>
-///   <item><description>Paragraph‑preserving normalization (retains blank lines and fenced code blocks, collapses soft wraps, trims stray spaces).</description></item>
-///   <item><description>Optional root namespace trimming (headings and, when enabled, file names) via <see cref="RendererOptions.RootNamespaceToTrim"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>.</description></item>
-///   <item><description>Configurable filename style (<see cref="RendererOptions.FileNameMode"/>).</description></item>
-///   <item><description>Optional per‑type member TOC (<see cref="RendererOptions.EmitToc"/>) inserted below each type heading (per‑type mode only).</description></item>
-///   <item><description>Optional namespace index emission (<see cref="RendererOptions.EmitNamespaceIndex"/>) producing a <c>namespaces.md</c> overview plus individual namespace pages.</description></item>
+///   <item><description>Overload grouping (method overloads share one heading; individual signatures listed as bullets).</description></item>
+///   <item><description><c>&lt;inheritdoc&gt;</c> support via <see cref="InheritDocResolver"/> (inherited XML merged before rendering).</description></item>
+///   <item><description>Stable anchors: member anchors from <see cref="IdToAnchor(string)"/> and heading slugs from <see cref="HeadingSlug(string)"/> (single‑file mode).</description></item>
+///   <item><description>Depth‑aware generic formatting (nested generic arguments rendered compactly).</description></item>
+///   <item><description>Token‑aware aliasing (framework types → C# keywords without corrupting larger identifiers).</description></item>
+///   <item><description>Paragraph‑preserving normalization (retains blank lines & fenced code blocks; collapses soft wraps; trims stray spaces).</description></item>
+///   <item><description>Optional root namespace trimming in headings and (optionally) file names (<see cref="RendererOptions.RootNamespaceToTrim"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>).</description></item>
+///   <item><description>Configurable file naming style (<see cref="RendererOptions.FileNameMode"/>).</description></item>
+///   <item><description>Optional per‑type member table of contents (<see cref="RendererOptions.EmitToc"/>) in multi‑file mode.</description></item>
+///   <item><description>Optional namespace index (<see cref="RendererOptions.EmitNamespaceIndex"/>) producing <c>namespaces.md</c> + namespace pages.</description></item>
 /// </list>
-/// Link resolution automatically adapts between per‑file and single‑file strategies (<see cref="LinkMode"/>).
+/// Link targets automatically switch between per‑file and in‑document anchor strategies (<see cref="LinkMode"/>).
 /// </remarks>
-/// <seealso cref="RendererOptions"/>
-/// <seealso cref="FileNameMode"/>
-/// <seealso cref="InheritDocResolver"/>
 public sealed class MarkdownRenderer
 {
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
 
     /// <summary>
-    /// Internal link target selection mode for cref resolution.
+    /// Internal link target selection mode for cref resolution (per‑file vs in‑document).
     /// </summary>
     private enum LinkMode { PerTypeFiles, InDocumentAnchors }
     private LinkMode _linkMode = LinkMode.PerTypeFiles;
@@ -50,10 +47,8 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Creates a renderer for a parsed XML documentation model.
     /// </summary>
-    /// <param name="model">Loaded XML documentation model.</param>
-    /// <param name="options">
-    /// Optional rendering options (defaults applied when <see langword="null"/>).
-    /// </param>
+    /// <param name="model">Loaded XML documentation model (never null).</param>
+    /// <param name="options">Optional rendering options; when null defaults are applied.</param>
     public MarkdownRenderer(Models.Xml2Doc model, RendererOptions? options = null)
     {
         _model = model;
@@ -68,21 +63,20 @@ public sealed class MarkdownRenderer
     // === Public APIs ===
 
     /// <summary>
-    /// Emits one Markdown file per documented type plus an <c>index.md</c> table of contents. Optionally emits namespace pages and a namespace index.
+    /// Emits one Markdown file per documented type plus an <c>index.md</c>. Optionally emits namespace index pages.
     /// </summary>
     /// <param name="outDir">Destination directory (created if absent).</param>
     /// <remarks>
-    /// Per‑type links resolve to sibling files; member links resolve to in‑file anchors.
-    /// File naming honors <see cref="RendererOptions.FileNameMode"/> and optional root namespace trimming in file names
-    /// (<see cref="RendererOptions.TrimRootNamespaceInFileNames"/>).
-    /// When <see cref="RendererOptions.EmitNamespaceIndex"/> is <see langword="true"/>, writes:
+    /// Overwrites existing files. Per‑type links point to sibling files; member links point to in‑file anchors.
+    /// Respects <see cref="RendererOptions.FileNameMode"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>.
+    /// When <see cref="RendererOptions.EmitNamespaceIndex"/> is true:
     /// <list type="bullet">
-    ///   <item><description><c>namespaces.md</c> — overview.</description></item>
-    ///   <item><description><c>namespaces/&lt;namespace&gt;.md</c> — per‑namespace type lists.</description></item>
+    ///   <item><description><c>namespaces.md</c> (overview)</description></item>
+    ///   <item><description><c>namespaces/&lt;namespace&gt;.md</c> (types grouped by namespace)</description></item>
     /// </list>
     /// </remarks>
-    /// <exception cref="IOException">I/O failure while writing output files.</exception>
-    /// <exception cref="UnauthorizedAccessException">Insufficient permissions.</exception>
+    /// <exception cref="IOException">I/O failure while writing output.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient file system permissions.</exception>
     public void RenderToDirectory(string outDir)
     {
         var __prev = _singleFileMode;
@@ -117,7 +111,7 @@ public sealed class MarkdownRenderer
                 foreach (var kv in nsMap.OrderBy(k => k.Key, StringComparer.Ordinal))
                 {
                     var ns = kv.Key;
-                    var fileSafe = ns == "(global)" ? "_global_" : ns.Replace('<', '[').Replace('>', ']').Replace('+', '.').Replace('/', '.').Replace('\\', '.');
+                    var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
                     var nsFile = Path.Combine(nsDir, $"{fileSafe}.md");
 
                     var sbNs = new StringBuilder();
@@ -135,7 +129,7 @@ public sealed class MarkdownRenderer
                 nsIndex.AppendLine("# Namespaces");
                 foreach (var ns in nsMap.Keys.OrderBy(s => s, StringComparer.Ordinal))
                 {
-                    var fileSafe = ns == "(global)" ? "_global_" : ns.Replace('<', '[').Replace('>', ']').Replace('+', '.').Replace('/', '.').Replace('\\', '.');
+                    var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
                 File.WriteAllText(Path.Combine(outDir, "namespaces.md"), nsIndex.ToString());
@@ -148,14 +142,12 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Emits a single Markdown file (index + all types and members).
+    /// Emits a single Markdown file (index + all types + members).
     /// </summary>
-    /// <param name="outPath">Output file path (directory created if missing).</param>
+    /// <param name="outPath">Output file path (creates parent directory if needed).</param>
     /// <remarks>
-    /// Type links target in‑document heading slugs; member links target explicit anchors generated from documentation IDs.
+    /// Type links become heading slugs; member links use explicit anchors from <see cref="IdToAnchor(string)"/>.
     /// </remarks>
-    /// <exception cref="IOException">I/O failure while writing the file.</exception>
-    /// <exception cref="UnauthorizedAccessException">Insufficient permissions.</exception>
     public void RenderToSingleFile(string outPath)
     {
         var __prev = _singleFileMode;
@@ -172,13 +164,14 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Returns the consolidated single‑file content (index + all types) without writing to disk.
+    /// Returns the consolidated single‑file content (index + all types) without writing.
     /// </summary>
     public string RenderToString() => BuildSingleFileContent();
 
     /// <summary>
-    /// Builds single‑file content switching link mode temporarily to in‑document anchors.
+    /// Builds single‑file content, temporarily switching link mode to in‑document anchors.
     /// </summary>
+    /// <returns>Markdown string containing index + all types.</returns>
     private string BuildSingleFileContent()
     {
         var prev = _linkMode;
@@ -218,16 +211,16 @@ public sealed class MarkdownRenderer
     // === Core rendering ===
 
     /// <summary>
-    /// Enumerates all documented types (<c>T:</c> members).
+    /// Enumerates all documented types (<c>T:</c> members only).
     /// </summary>
     private IEnumerable<XMember> GetTypes() =>
         _model.Members.Values.Where(m => m.Kind == "T");
 
     /// <summary>
-    /// Builds a type index pointing either to per‑type files or in‑document anchors.
+    /// Builds a type index linking either to per‑type files or heading anchors (single‑file mode).
     /// </summary>
-    /// <param name="types">Types to include.</param>
-    /// <param name="useAnchors"><c>true</c> for single‑file mode, otherwise per‑file links.</param>
+    /// <param name="types">Sequence of type members.</param>
+    /// <param name="useAnchors">True to link to in‑document anchors; false for per‑type files.</param>
     private string RenderIndex(IEnumerable<XMember> types, bool useAnchors = false)
     {
         var sb = new StringBuilder();
@@ -235,17 +228,17 @@ public sealed class MarkdownRenderer
         foreach (var t in types)
         {
             var shortName = ShortTypeDisplay(t.Id);
-            var link = useAnchors
-                ? $"#{HeadingSlug(shortName)}"
-                : FileNameForPerType(t.Id);
+            var link = useAnchors ? $"#{HeadingSlug(shortName)}" : FileNameForPerType(t.Id);
             sb.AppendLine($"- [{shortName}]({link})");
         }
         return sb.ToString();
     }
 
     /// <summary>
-    /// Renders a type page/section (summary, remarks, examples, see‑also, optional member TOC, then members grouped by overload).
+    /// Renders a single type (summary, remarks, examples, see‑also, optional member TOC, members grouped by overload).
     /// </summary>
+    /// <param name="type">Type (<c>T:</c>) member.</param>
+    /// <param name="includeHeader">Emit a top-level heading when true.</param>
     private string RenderType(XMember type, bool includeHeader = true)
     {
         var sb = new StringBuilder();
@@ -304,6 +297,7 @@ public sealed class MarkdownRenderer
             .OrderBy(m => m.Id)
             .ToList();
 
+        // Insert per‑type member TOC (multi‑file mode only).
         if (includeHeader && _opt.EmitToc && members.Count > 0 && !_singleFileMode)
         {
             sb.AppendLine(BuildMemberToc(members));
@@ -316,6 +310,7 @@ public sealed class MarkdownRenderer
             var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
             var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id;
 
+            // Pretty method generic arity: ``N → <T1,…,TN>
             nameAndParams = Regex.Replace(nameAndParams, @"``(\d+)", m =>
             {
                 var n = int.Parse(m.Groups[1].Value);
@@ -349,10 +344,68 @@ public sealed class MarkdownRenderer
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Computes the exact list of files this renderer would write for the current options,
+    /// without touching disk. Use this for --dry-run reports and for unit tests.
+    /// </summary>
+    /// <param name="outDir">Destination directory (may be non-existent).</param>
+    /// <param name="singleFilePath">
+    /// If non-null/whitespace, plans single-file output; otherwise plans per-type output.
+    /// </param>
+    /// <returns>Absolute paths of all files that would be produced.</returns>
+    public IReadOnlyList<string> PlanOutputs(string outDir, string? singleFilePath = null)
+    {
+        if (!string.IsNullOrWhiteSpace(singleFilePath))
+        {
+            // single-file mode: exactly one file
+            var full = Path.GetFullPath(singleFilePath);
+            return new[] { full };
+        }
+
+        // per-type mode: types + index.md (+ namespace index files if enabled)
+        var root = Path.GetFullPath(outDir);
+        var list = new List<string>();
+
+        var types = GetTypes().OrderBy(t => t.Id, StringComparer.Ordinal).ToList();
+        foreach (var t in types)
+        {
+            var name = FileNameForPerType(t.Id);
+            list.Add(Path.Combine(root, name));
+        }
+
+        // index.md is always written in per-type mode
+        list.Add(Path.Combine(root, "index.md"));
+
+        if (_opt.EmitNamespaceIndex)
+        {
+            // namespaces/<ns>.md + namespaces.md
+            var nsDir = Path.Combine(root, "namespaces");
+            var nsSet = new SortedSet<string>(StringComparer.Ordinal);
+
+            foreach (var t in types)
+            {
+                var id = t.Id; // e.g., Xml2Doc.Core.Linking.DefaultLinkResolver
+                var lastDot = id.LastIndexOf('.');
+                var ns = lastDot > 0 ? id.Substring(0, lastDot) : "(global)";
+                nsSet.Add(ns);
+            }
+
+            foreach (var ns in nsSet)
+            {
+                var fileSafe = SafeNamespaceFileName(ns);
+                list.Add(Path.Combine(nsDir, fileSafe + ".md"));
+            }
+
+            list.Add(Path.Combine(root, "namespaces.md"));
+        }
+
+        return list;
+    }
+
     // === Display helpers ===
 
     /// <summary>
-    /// Creates a GitHub‑style slug: lowercase, trimmed, spaces → dashes, strip non <c>[a-z0-9-]</c>.
+    /// Creates a GitHub‑style slug: lowercase → trim → spaces to dashes → strip non <c>[a-z0-9-]</c>.
     /// </summary>
     private static string HeadingSlug(string heading)
     {
@@ -363,7 +416,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Builds a concise member header (Kind + simplified signature) for headings and overload entries.
+    /// Builds a concise member header (Kind + simplified signature) for headings and overload bullets.
     /// </summary>
     private string MemberHeader(XMember m)
     {
@@ -409,7 +462,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Maps XML documentation kind letter (e.g. <c>M</c>) to a readable word (e.g. <c>Method</c>).
+    /// Maps XML documentation kind letter to a readable word.
     /// </summary>
     private static string KindToWord(string kind) => kind switch
     {
@@ -422,7 +475,7 @@ public sealed class MarkdownRenderer
     };
 
     /// <summary>
-    /// Produces a short display name for a type ID (generic arity → placeholders, optional root namespace trimming).
+    /// Produces a short display name for a type ID (generic arity → &lt;T…&gt;, optional root namespace trimming).
     /// </summary>
     private string ShortTypeDisplay(string typeId)
     {
@@ -456,23 +509,6 @@ public sealed class MarkdownRenderer
         });
 
         return simple;
-    }
-
-    // Produces the correct per-type filename, honoring FileNameMode and TrimRootNamespaceInFileNames
-    private string PerTypeFileName(string typeId)
-    {
-        var name = FileNameFor(typeId, _opt.FileNameMode); // e.g., "Xml2Doc.Sample.AliasingPlayground.md"
-
-        if (_opt.TrimRootNamespaceInFileNames && !string.IsNullOrWhiteSpace(_opt.RootNamespaceToTrim))
-        {
-            var root = _opt.RootNamespaceToTrim!;
-            var stem = System.IO.Path.GetFileNameWithoutExtension(name);
-
-            if (stem.StartsWith(root + ".", StringComparison.Ordinal))
-                name = stem.Substring(root.Length + 1) + ".md"; // e.g., "AliasingPlayground.md"
-        }
-
-        return name;
     }
 
     /// <summary>
@@ -654,8 +690,23 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Per‑type filename generator applying mode + optional root namespace trimming and bracket normalization.
+    /// Creates a stable, file‑safe namespace page filename (e.g. replaces separators and generic brackets).
     /// </summary>
+    private static string SafeNamespaceFileName(string ns)
+    {
+        if (string.Equals(ns, "(global)", StringComparison.Ordinal)) return "_global_";
+        return ns
+            .Replace('<', '[').Replace('>', ']')
+            .Replace('+', '.')
+            .Replace('/', '.').Replace('\\', '.');
+    }
+
+    /// <summary>
+    /// Per‑type filename generator applying mode + optional root namespace trimming (+ optional basename-only mode) and bracket normalization.
+    /// </summary>
+    /// <remarks>
+    /// If <c>_opt.BasenameOnly</c> is present and true (property optional in <see cref="RendererOptions"/>), only the final identifier is retained.
+    /// </remarks>
     private string FileNameForPerType(string typeId)
     {
         var name = typeId;
@@ -673,7 +724,9 @@ public sealed class MarkdownRenderer
                 name = name.Substring(prefix.Length);
         }
 
-        if (_opt.BasenameOnly)
+        // Optional basename stripping (only applied when the options object exposes and enables it).
+        if (_opt.GetType().GetProperty("BasenameOnly") is { } pi &&
+            pi.GetValue(_opt) is bool basenameOnly && basenameOnly)
         {
             var lastDot = name.LastIndexOf('.');
             if (lastDot >= 0) name = name.Substring(lastDot + 1);
@@ -693,7 +746,7 @@ public sealed class MarkdownRenderer
             .ToLowerInvariant();
 
     /// <summary>
-    /// Converts a <c>&lt;seealso&gt;</c> element to Markdown (cref/href/text fallback).
+    /// Converts a <c>&lt;seealso&gt;</c> element to Markdown (cref, href, or inner text).
     /// </summary>
     private string SeeAlsoToMarkdown(XElement sa)
     {
@@ -707,7 +760,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Produces the per‑type output filename for a cref (normalizes nested type separators and applies renderer rules).
+    /// Produces the per‑type output filename for a cref (normalizes nested type separators then applies renderer rules).
     /// </summary>
     private string TypeFileNameForResolver(string typeCref)
     {
@@ -871,6 +924,9 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Normalizes an XML documentation element (summary, remarks, example, param, see, code) to Markdown with paragraph preservation.
     /// </summary>
+    /// <param name="element">XML element or null.</param>
+    /// <param name="preferCodeBlocks">True to prefer fenced blocks for multi‑line code/examples.</param>
+    /// <returns>Markdown string (empty if element is null).</returns>
     private string NormalizeXmlToMarkdown(XElement? element, bool preferCodeBlocks = false)
     {
         if (element is null) return string.Empty;
@@ -1012,8 +1068,11 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Renders a member (or overload bullet) including summary, parameters, returns, exceptions, examples, see‑also links and its stable anchor.
+    /// Renders a member (or overload bullet) including summary, parameters, returns, exceptions, examples, see‑also links, and a stable anchor.
     /// </summary>
+    /// <param name="m">Member to render.</param>
+    /// <param name="sb">Destination builder.</param>
+    /// <param name="asOverload">True to render as a bullet under an overload group; false for a full section.</param>
     private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
     {
         var inherit = m.Element.Element("inheritdoc");
