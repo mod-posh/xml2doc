@@ -31,12 +31,6 @@
     <Xml2Doc_TaskTFMs>net472;net8.0</Xml2Doc_TaskTFMs>
   </PropertyGroup>
 
-  <!-- CI stability: avoid file locks from compiler/build servers -->
-  <PropertyGroup Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true'">
-    <UseSharedCompilation>false</UseSharedCompilation>
-    <UseRazorBuildServer>false</UseRazorBuildServer>
-  </PropertyGroup>
-
   <!-- Apply TFMs per project; no global TargetFramework(s) -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Xml2Doc.Core' and '$(TargetFrameworks)' == ''">
     <TargetFrameworks>$(Xml2Doc_LibTFMs)</TargetFrameworks>
