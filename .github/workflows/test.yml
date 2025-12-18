@@ -8,20 +8,40 @@ on:
 jobs:
   run_tests:
     runs-on: windows-latest
+    env:
+      MSBUILDDISABLENODEREUSE: "1"
     steps:
       - uses: actions/checkout@v6
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ vars.DOTNET_VERSION }}
+
+      - name: Print .NET info (diagnostic)
+        run: |
+          dotnet --info
+          dotnet --list-sdks
+
+      - name: Shutdown build servers (defensive)
+        run: dotnet build-server shutdown
+
       - name: Clean
-        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
+        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+
       - name: Restore dependencies
-        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
-      - name: Build
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore
-      - name: Test
-        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
+        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
+
+      - name: Build (single proc, no servers)
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
+
+      - name: Build twice (lock regression guard)
+        run: |
+          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
+          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
+
+      - name: Test (no servers)
+        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --disable-build-servers --logger "trx;LogFileName=test_results.trx" -- -m:1 /nodeReuse:false
+
       - name: Publish Test Results
         if: always()
         uses: actions/upload-artifact@v6
