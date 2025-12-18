@@ -10,18 +10,48 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ vars.DOTNET_VERSION }}
+          global-json-file: ./global.json
+
+      - name: Print .NET info (diagnostic)
+        run: |
+          dotnet --info
+          dotnet --list-sdks
+
+      - name: Shutdown build servers (defensive)
+        run: dotnet build-server shutdown
+
       - name: Clean
-        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release
+        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+
       - name: Restore dependencies
-        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
-      - name: Build
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore
+        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
+
+      - name: Build (single proc, no servers)
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
+
+      - name: Debug - locate xml2doc.stamp
+        if: always()
+        shell: pwsh
+        run: |
+          $root = "${{ github.workspace }}/${{ vars.PROJECT_NAME }}"
+          Write-Host "Searching for xml2doc.stamp under $root ..."
+          Get-ChildItem -Path $root -Recurse -Filter "xml2doc.stamp" -ErrorAction SilentlyContinue |
+            Select-Object FullName | Format-Table -AutoSize
+
+          Write-Host "Listing Sample obj tree (first 200 lines)..."
+          Get-ChildItem -Path "$root/tests/Xml2Doc.Sample/obj" -Recurse -ErrorAction SilentlyContinue |
+            Select-Object FullName | Select-Object -First 200 | Format-Table -AutoSize
+
       - name: Test
-        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
+        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln `
+              --configuration Release `
+              --no-build `
+              --logger "trx;LogFileName=test_results.trx"
+
       - name: Publish Test Results
         if: always()
         uses: actions/upload-artifact@v6
