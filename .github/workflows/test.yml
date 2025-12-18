@@ -33,6 +33,19 @@ jobs:
       - name: Build (single proc, no servers)
         run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
 
+      - name: Debug - locate xml2doc.stamp
+        if: always()
+        shell: pwsh
+        run: |
+          $root = "${{ github.workspace }}/${{ vars.PROJECT_NAME }}"
+          Write-Host "Searching for xml2doc.stamp under $root ..."
+          Get-ChildItem -Path $root -Recurse -Filter "xml2doc.stamp" -ErrorAction SilentlyContinue |
+            Select-Object FullName | Format-Table -AutoSize
+
+          Write-Host "Listing Sample obj tree (first 200 lines)..."
+          Get-ChildItem -Path "$root/tests/Xml2Doc.Sample/obj" -Recurse -ErrorAction SilentlyContinue |
+            Select-Object FullName | Select-Object -First 200 | Format-Table -AutoSize
+
       - name: Test
         run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln `
               --configuration Release `
