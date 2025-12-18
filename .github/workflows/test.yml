@@ -8,8 +8,6 @@ on:
 jobs:
   run_tests:
     runs-on: windows-latest
-    env:
-      MSBUILDDISABLENODEREUSE: "1"
     steps:
       - uses: actions/checkout@v6
 
@@ -35,8 +33,11 @@ jobs:
       - name: Build (single proc, no servers)
         run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
 
-      - name: Test (no servers)
-        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --disable-build-servers --logger "trx;LogFileName=test_results.trx" -- /m:1 /nodeReuse:false
+      - name: Test
+        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln `
+              --configuration Release `
+              --no-build `
+              --logger "trx;LogFileName=test_results.trx"
 
       - name: Publish Test Results
         if: always()
