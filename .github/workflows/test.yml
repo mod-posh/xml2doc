@@ -12,10 +12,11 @@ jobs:
       MSBUILDDISABLENODEREUSE: "1"
     steps:
       - uses: actions/checkout@v6
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: ${{ vars.DOTNET_VERSION }}
+          global-json-file: ./global.json
 
       - name: Print .NET info (diagnostic)
         run: |
@@ -32,15 +33,15 @@ jobs:
         run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
 
       - name: Build (single proc, no servers)
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
 
       - name: Build twice (lock regression guard)
         run: |
-          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
-          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- -m:1 /nodeReuse:false
+          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
+          dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
 
       - name: Test (no servers)
-        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --disable-build-servers --logger "trx;LogFileName=test_results.trx" -- -m:1 /nodeReuse:false
+        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --disable-build-servers --logger "trx;LogFileName=test_results.trx" -- /m:1 /nodeReuse:false
 
       - name: Publish Test Results
         if: always()
