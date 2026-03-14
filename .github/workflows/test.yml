@@ -9,9 +9,9 @@ jobs:
   run_tests:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ vars.DOTNET_VERSION }}
       - name: Clean
@@ -24,7 +24,7 @@ jobs:
         run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
       - name: Publish Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: Test Results
           path: '**/TestResults/*.trx'

@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Get Project Version
         id: get_version
@@ -86,7 +86,7 @@ jobs:
           fi
 
       - name: Run markdownlint-cli2-action
-        uses: DavidAnson/markdownlint-cli2-action@v20
+        uses: DavidAnson/markdownlint-cli2-action@v22
         with:
           globs: 'Docs/*.md'
           fix: true
