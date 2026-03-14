@@ -16,38 +16,40 @@ namespace Xml2Doc.Cli
     ///   <item><description><b>Per‑type</b> (default): one <c>.md</c> per documented type plus an <c>index.md</c> (pass a directory to <c>--out</c>).</description></item>
     ///   <item><description><b>Single file</b>: consolidated index + all types (pass a file path to <c>--out</c> with <c>--single</c>).</description></item>
     /// </list>
-    /// Option precedence (highest first):
-    /// <list type="number">
-    ///   <item><description>Command‑line arguments</description></item>
-    ///   <item><description>JSON configuration file (<c>--config</c>) values (only where not overridden)</description></item>
-    ///   <item><description>Built‑in defaults</description></item>
-    /// </list>
+    /// Option precedence (highest first): CLI args → JSON <c>--config</c> → built‑in defaults.
     /// Extended options:
     /// <list type="bullet">
     ///   <item><description><c>--file-names</c>: <c>verbatim</c> | <c>clean</c> (generic arity removal).</description></item>
-    ///   <item><description><c>--rootns</c> + <c>--trim-rootns-filenames</c>: trim namespace from headings and (optionally) file names.</description></item>
+    ///   <item><description><c>--rootns</c> / <c>--trim-rootns-filenames</c>: trim namespace from headings and optionally file names.</description></item>
+    ///   <item><description><c>--basename-only</c>: drop all namespace segments (applied after trimming / mode transforms).</description></item>
     ///   <item><description><c>--lang</c>: fenced code block language.</description></item>
-    ///   <item><description><c>--anchor-algorithm</c>: heading slug style (<c>default</c>|<c>github</c>|<c>kramdown</c>|<c>gfm</c>).</description></item>
-    ///   <item><description><c>--template</c>, <c>--front-matter</c>: layout / front matter customization.</description></item>
-    ///   <item><description><c>--auto-link</c>, <c>--alias-map</c>, <c>--external-docs</c>: linking / alias behavior.</description></item>
+    ///   <item><description><c>--anchor-algorithm</c>: <c>default|github|kramdown|gfm</c> → maps to <see cref="AnchorAlgorithm"/> enum.</description></item>
+    ///   <item><description><c>--template</c>, <c>--front-matter</c>: inject outer template and optional front matter.</description></item>
+    ///   <item><description><c>--auto-link</c>, <c>--alias-map</c>, <c>--external-docs</c>: link &amp; alias behavior.</description></item>
     ///   <item><description><c>--toc</c>: per‑type member TOC (multi‑file only).</description></item>
-    ///   <item><description><c>--namespace-index</c>: emit namespace index pages.</description></item>
-    ///   <item><description><c>--basename-only</c>: file names reduced to final identifier (drops namespace portion).</description></item>
-    ///   <item><description><c>--parallel &lt;N&gt;</c>: limit generation concurrency.</description></item>
-    ///   <item><description><c>--report</c>: JSON execution report (includes real writes or planned set on dry‑run).</description></item>
-    ///   <item><description><c>--dry-run</c>: compute planned output list without writing.</description></item>
-    ///   <item><description><c>--diff</c>: reserved (no effect yet).</description></item>
+    ///   <item><description><c>--namespace-index</c>: emit namespace index + per‑namespace pages.</description></item>
+    ///   <item><description><c>--parallel &lt;N&gt;</c>: cap generation concurrency.</description></item>
+    ///   <item><description><c>--report</c>: write JSON execution report.</description></item>
+    ///   <item><description><c>--dry-run</c>: plan (no writes); report includes <c>wouldWrite</c>/<c>wouldDelete</c>.</description></item>
+    ///   <item><description><c>--diff</c>: reserved (currently no effect).</description></item>
     /// </list>
-    /// Dry run behavior:
-    /// <para>
-    /// When <c>--dry-run</c> is supplied the report includes:
+    /// Dry run report fields:
     /// <list type="bullet">
-    ///   <item><description><c>files</c>: empty (no writes).</description></item>
-    ///   <item><description><c>wouldWrite</c>: all paths that would be generated.</description></item>
-    ///   <item><description><c>wouldDelete</c>: existing <c>.md</c> files (including namespace pages) not in <c>wouldWrite</c>.</description></item>
+    ///   <item><description><c>files</c>: empty (no writes performed).</description></item>
+    ///   <item><description><c>wouldWrite</c>: full absolute paths planned.</description></item>
+    ///   <item><description><c>wouldDelete</c>: existing <c>.md</c> not in plan (including namespace pages).</description></item>
     /// </list>
-    /// </para>
-    /// Exit codes: 0 = success (including dry‑run), 1 = invalid/missing required arguments, 2 = runtime error.
+    /// Processing pipeline:
+    /// <list type="number">
+    ///   <item><description>Parse CLI args.</description></item>
+    ///   <item><description>Overlay JSON config values for unspecified options.</description></item>
+    ///   <item><description>Map <c>--anchor-algorithm</c> token to <see cref="AnchorAlgorithm"/> enum.</description></item>
+    ///   <item><description>Instantiate <see cref="RendererOptions"/> and <see cref="MarkdownRenderer"/>.</description></item>
+    ///   <item><description>Call <c>PlanOutputs</c> to produce a deterministic file list.</description></item>
+    ///   <item><description>Render (unless dry‑run); collect actual outputs.</description></item>
+    ///   <item><description>Optionally emit JSON report with planned vs actual sets.</description></item>
+    /// </list>
+    /// Exit codes: 0 success (incl. dry‑run); 1 invalid arguments; 2 unhandled error.
     /// </remarks>
     internal static class Program
     {
@@ -55,10 +57,9 @@ namespace Xml2Doc.Cli
         /// Application entry point for the Xml2Doc CLI.
         /// </summary>
         /// <param name="args">Command‑line arguments (use <c>--help</c> / <c>-h</c> for usage).</param>
-        /// <returns>0 on success; 1 on argument validation failure; 2 on unhandled exception.</returns>
+        /// <returns>0 success; 1 validation failure; 2 runtime error.</returns>
         public static int Main(string[] args)
         {
-            // help
             if (args.Length == 0 || Array.IndexOf(args, "--help") >= 0 || Array.IndexOf(args, "-h") >= 0)
             {
                 PrintHelp();
@@ -87,7 +88,7 @@ namespace Xml2Doc.Cli
             bool? basenameOnly = false;
             string? configPath = null;
 
-            // 1) parse CLI
+            // Parse CLI
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -125,14 +126,11 @@ namespace Xml2Doc.Cli
                 }
             }
 
-            // 2) load JSON config (if supplied), but CLI args win
+            // Merge config (CLI wins)
             if (!string.IsNullOrWhiteSpace(configPath) && File.Exists(configPath))
             {
                 var json = File.ReadAllText(configPath);
-                var cfg = JsonSerializer.Deserialize<CliConfig>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var cfg = JsonSerializer.Deserialize<CliConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 xml ??= cfg?.Xml;
                 outArg ??= cfg?.Out;
@@ -140,20 +138,20 @@ namespace Xml2Doc.Cli
 
                 var cfgNames = cfg?.FileNames;
                 if (!string.IsNullOrWhiteSpace(cfgNames))
-                    fileNameMode = cfgNames!.Equals("clean", StringComparison.OrdinalIgnoreCase)
+                    fileNameMode = cfgNames.Equals("clean", StringComparison.OrdinalIgnoreCase)
                         ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
 
                 rootns ??= cfg?.RootNamespace;
                 if (cfg?.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
-                if (!string.IsNullOrWhiteSpace(cfg?.CodeLanguage)) codeLang = cfg!.CodeLanguage!;
+                if (!string.IsNullOrWhiteSpace(cfg?.CodeLanguage)) codeLang = cfg.CodeLanguage!;
                 reportPath ??= cfg?.Report;
                 if (cfg?.DryRun is bool dr) dryRun = dr || dryRun;
-                if (!string.IsNullOrWhiteSpace(cfg?.AnchorAlgorithm)) anchorAlgorithm = cfg!.AnchorAlgorithm!;
-                if (!string.IsNullOrWhiteSpace(cfg?.Template)) templatePath = templatePath ?? cfg!.Template!;
-                if (!string.IsNullOrWhiteSpace(cfg?.FrontMatter)) frontMatterPath = frontMatterPath ?? cfg!.FrontMatter!;
+                if (!string.IsNullOrWhiteSpace(cfg?.AnchorAlgorithm)) anchorAlgorithm = cfg.AnchorAlgorithm!;
+                if (!string.IsNullOrWhiteSpace(cfg?.Template)) templatePath = templatePath ?? cfg.Template!;
+                if (!string.IsNullOrWhiteSpace(cfg?.FrontMatter)) frontMatterPath = frontMatterPath ?? cfg.FrontMatter!;
                 if (cfg?.AutoLink is bool al) autoLink = al || autoLink;
-                if (!string.IsNullOrWhiteSpace(cfg?.AliasMap)) aliasMapPath = aliasMapPath ?? cfg!.AliasMap!;
-                if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg!.ExternalDocs!;
+                if (!string.IsNullOrWhiteSpace(cfg?.AliasMap)) aliasMapPath = aliasMapPath ?? cfg.AliasMap!;
+                if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg.ExternalDocs!;
                 if (cfg?.Toc is bool tc) toc = tc || toc;
                 if (cfg?.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
                 if (cfg?.BasenameOnly is bool bo) basenameOnly = basenameOnly ?? bo;
@@ -168,16 +166,25 @@ namespace Xml2Doc.Cli
                 return 1;
             }
 
+            // Anchor algorithm token → enum
+            var anchorAlgEnum = (anchorAlgorithm ?? "default").ToLowerInvariant() switch
+            {
+                "github" => Xml2Doc.Core.AnchorAlgorithm.Github,
+                "gfm" => Xml2Doc.Core.AnchorAlgorithm.Gfm,
+                "kramdown" => Xml2Doc.Core.AnchorAlgorithm.Kramdown,
+                _ => Xml2Doc.Core.AnchorAlgorithm.Default
+            };
+
             try
             {
-                // 3) load model & options
+                // Build options & renderer
                 var model = Xml2Doc.Core.Models.Xml2Doc.Load(xml);
                 var options = new RendererOptions(
                     FileNameMode: fileNameMode,
                     RootNamespaceToTrim: string.IsNullOrWhiteSpace(rootns) ? null : rootns,
                     CodeBlockLanguage: codeLang,
                     TrimRootNamespaceInFileNames: trimRootNsInFileNames,
-                    AnchorAlgorithm: anchorAlgorithm,
+                    AnchorAlgorithm: anchorAlgEnum,
                     TemplatePath: templatePath,
                     FrontMatterPath: frontMatterPath,
                     AutoLink: autoLink,
@@ -191,14 +198,14 @@ namespace Xml2Doc.Cli
 
                 var renderer = new MarkdownRenderer(model, options);
 
-                // Plan outputs (dry-run uses this list; normal run relies on it for reporting)
+                // Plan outputs (deterministic)
                 var plannedFiles = single
                     ? renderer.PlanOutputs(outDir: "", singleFilePath: outArg)
                     : renderer.PlanOutputs(outDir: outArg!, singleFilePath: null);
 
-                // 4) render or dry-run
                 List<string> produced = new();
 
+                // Execute or simulate
                 if (dryRun)
                 {
                     var where = single ? Path.GetDirectoryName(Path.GetFullPath(outArg!))! : Path.GetFullPath(outArg!);
@@ -223,7 +230,7 @@ namespace Xml2Doc.Cli
                     produced.AddRange(plannedFiles);
                 }
 
-                // 5) optional JSON report
+                // Report (optional)
                 if (!string.IsNullOrWhiteSpace(reportPath))
                 {
                     var report = new
@@ -232,11 +239,11 @@ namespace Xml2Doc.Cli
                         single,
                         outputFile = single ? Path.GetFullPath(outArg!) : null,
                         outputDir = single ? null : Path.GetFullPath(outArg!),
-                        files = produced.ToArray(),                                // actual writes
-                        wouldWrite = dryRun ? plannedFiles.ToArray() : null,        // dry-run preview
+                        files = produced.ToArray(),
+                        wouldWrite = dryRun ? plannedFiles.ToArray() : null,
                         wouldDelete = dryRun && !single
                             ? ComputeWouldDelete(Path.GetFullPath(outArg!), plannedFiles)
-                            : null,                                               // predicted obsolete files
+                            : null,
                         options = new
                         {
                             fileNameMode = fileNameMode.ToString(),
@@ -264,10 +271,7 @@ namespace Xml2Doc.Cli
                     if (!string.IsNullOrEmpty(repDir) && !Directory.Exists(repDir))
                         Directory.CreateDirectory(repDir);
 
-                    File.WriteAllText(repFull, JsonSerializer.Serialize(report, new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    }));
+                    File.WriteAllText(repFull, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
                     Console.WriteLine($"Report written to {repFull}");
                 }
 
@@ -281,12 +285,11 @@ namespace Xml2Doc.Cli
         }
 
         /// <summary>
-        /// Computes the set of existing Markdown files in the output directory (including namespace pages)
-        /// that are <b>not</b> part of the currently planned output list. Used only for dry-run reporting.
+        /// Identifies existing Markdown files (incl. namespace pages) that are not part of the current plan (dry‑run only).
         /// </summary>
-        /// <param name="outDir">The target output directory.</param>
-        /// <param name="plannedFiles">Files that would be produced this run.</param>
-        /// <returns>Array of full paths that would become obsolete (empty if directory missing or on failure).</returns>
+        /// <param name="outDir">Target output directory.</param>
+        /// <param name="plannedFiles">Planned output file set.</param>
+        /// <returns>Full paths of files that would become obsolete; empty on error.</returns>
         private static string[] ComputeWouldDelete(string outDir, IReadOnlyList<string> plannedFiles)
         {
             try
@@ -294,17 +297,17 @@ namespace Xml2Doc.Cli
                 if (string.IsNullOrWhiteSpace(outDir) || !Directory.Exists(outDir))
                     return Array.Empty<string>();
 
-                var planned = new HashSet<string>(
-                    plannedFiles.Select(Path.GetFullPath),
-                    StringComparer.OrdinalIgnoreCase);
+                var planned = new HashSet<string>(plannedFiles.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
 
-                IEnumerable<string> existing = Directory.GetFiles(outDir, "*.md", SearchOption.TopDirectoryOnly)
-                                                        .Select(Path.GetFullPath);
+                IEnumerable<string> existing = Directory
+                    .GetFiles(outDir, "*.md", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFullPath);
 
                 var nsDir = Path.Combine(outDir, "namespaces");
                 if (Directory.Exists(nsDir))
-                    existing = existing.Concat(Directory.GetFiles(nsDir, "*.md", SearchOption.TopDirectoryOnly)
-                                                        .Select(Path.GetFullPath));
+                    existing = existing.Concat(Directory
+                        .GetFiles(nsDir, "*.md", SearchOption.TopDirectoryOnly)
+                        .Select(Path.GetFullPath));
 
                 return existing.Where(p => !planned.Contains(p)).ToArray();
             }

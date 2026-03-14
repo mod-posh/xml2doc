@@ -1,0 +1,136 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Xml2Doc.Sample</name>
+    </assembly>
+    <members>
+        <member name="T:Xml2Doc.Sample.AliasingPlayground">
+            <summary>Types used to validate token-aware aliasing.</summary>
+        </member>
+        <member name="M:Xml2Doc.Sample.AliasingPlayground.UseComparer(System.StringComparer)">
+            <summary>
+            Accepts a non-aliased BCL type that contains &quot;String&quot; as a substring.
+            Used to ensure token-aware aliasing does not transform &quot;StringComparer&quot;.
+            </summary>
+            <param name="comparer">Comparer instance.</param>
+        </member>
+        <member name="M:Xml2Doc.Sample.AliasingPlayground.Mix(System.String,System.Int32,System.UInt32)">
+            <summary>
+            Mixes aliasable tokens with non-aliasable substrings so the renderer
+            aliases true tokens while leaving larger identifiers intact.
+            </summary>
+            <param name="s">Example string.</param>
+            <param name="x">An example Int32 value.</param>
+            <param name="y">An example UInt32 value.</param>
+        </member>
+        <member name="T:Xml2Doc.Sample.XItem">
+            <summary>Types used to exercise nested generic signatures in XML docs.</summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.GenericPlayground">
+            <summary>Generic playground for exercising nested generic parameter lists.</summary>
+        </member>
+        <member name="M:Xml2Doc.Sample.GenericPlayground.Flatten(System.Collections.Generic.IEnumerable{System.Collections.Generic.IEnumerable{Xml2Doc.Sample.XItem}})">
+            <summary>
+            Flattens a nested sequence.
+            </summary>
+            <remarks>
+            This used to surface a stray brace in signatures like
+            <c>IEnumerable{IEnumerable{XItem}}</c>. The renderer must output
+            <c>IEnumerable&lt;IEnumerable&lt;XItem&gt;&gt;</c> (no extra <c>}</c>).
+            See also <see cref="M:Xml2Doc.Sample.GenericPlayground.Flatten(System.Collections.Generic.IEnumerable{System.Collections.Generic.IEnumerable{Xml2Doc.Sample.XItem}})"/>.
+            </remarks>
+        </member>
+        <member name="M:Xml2Doc.Sample.GenericPlayground.Index(System.Collections.Generic.Dictionary{System.String,System.Collections.Generic.List{Xml2Doc.Sample.XItem}})">
+            <summary>
+            Builds an index over a nested structure.
+            </summary>
+            <param name="map">Nested map to index.</param>
+            <returns>Total number of leaf items.</returns>
+            <remarks>
+            Signature includes <c>Dictionary{string, List{XItem}}</c> which must render as
+            <c>Dictionary&lt;string, List&lt;XItem&gt;&gt;</c> (no stray braces).
+            </remarks>
+        </member>
+        <member name="M:Xml2Doc.Sample.GenericPlayground.Transform``2(System.Collections.Generic.List{System.Collections.Generic.Dictionary{``0,System.Collections.Generic.List{``1}}})">
+            <summary>
+            Tests generic method arity formatting and nested generic parameters.
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.Mathx">
+            <summary>Math helpers for demos.</summary>
+        </member>
+        <member name="M:Xml2Doc.Sample.Mathx.AddAlias(System.Int32,System.Int32)">
+            <inheritdoc cref="M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)"/>
+            <summary>Alias that calls <see cref="M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)"/>.</summary>
+        </member>
+        <member name="M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32)">
+            <summary>Add two integers.</summary>
+            <param name="a">Left addend.</param>
+            <param name="b">Right addend.</param>
+            <returns>Sum of <paramref name="a"/> and <paramref name="b"/>.</returns>
+            <example><code>var s = Mathx.Add(1,2); // 3</code></example>
+        </member>
+        <member name="M:Xml2Doc.Sample.Mathx.Add(System.Int32,System.Int32,System.Int32)">
+            <summary>Add three integers.</summary>
+            <param name="a">First.</param><param name="b">Second.</param><param name="c">Third.</param>
+            <returns>Sum of all.</returns>
+        </member>
+        <member name="T:Xml2Doc.Sample.HTTP_Parser_v2">
+            <summary>
+            Demonstration types whose names exercise different slug/anchor algorithms (Default, Github/Gfm, Kramdown).
+            </summary>
+            <remarks>
+            Each class name intentionally includes characters or patterns that various slug generators treat differently:
+            <list type="bullet">
+              <item><description>Mixed case + underscores + digits (<see cref="T:Xml2Doc.Sample.HTTP_Parser_v2"/>).</description></item>
+              <item><description>Nested type (introduces a '+' in doc IDs) with generic arity and double underscores (<see cref="T:Xml2Doc.Sample.Outer.Inner_Type__Beta2`1"/>).</description></item>
+              <item><description>Sequences of underscores in a single identifier (<see cref="T:Xml2Doc.Sample.Name__With__Many___Underscores"/>).</description></item>
+              <item><description>Diacritics / accented characters (<see cref="T:Xml2Doc.Sample.RésuméParser"/>).</description></item>
+              <item><description>Plain ASCII baseline (<see cref="T:Xml2Doc.Sample.SimpleType"/>).</description></item>
+            </list>
+            Use these to visually compare generated anchors under different <c>AnchorAlgorithm</c> values.
+            </remarks>
+        </member>
+        <member name="M:Xml2Doc.Sample.HTTP_Parser_v2.Go">
+            <summary>
+            Trivial member; included so the type has at least one documented method anchor.
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.Outer">
+            <summary>
+            Outer container used solely to introduce a nested type (inner doc IDs use '+' between type names).
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.Outer.Inner_Type__Beta2`1">
+            <summary>
+            Nested generic type showcasing double underscores, digits, and a generic placeholder.
+            </summary>
+            <typeparam name="T">Generic type parameter (unused; present to show generic arity in anchors).</typeparam>
+        </member>
+        <member name="M:Xml2Doc.Sample.Outer.Inner_Type__Beta2`1.M">
+            <summary>
+            Dummy method; exists to produce a member anchor within a nested generic type context.
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.Name__With__Many___Underscores">
+            <summary>
+            Type with multiple sequential underscore runs to highlight compression / preservation differences across slug algorithms.
+            </summary>
+        </member>
+        <member name="P:Xml2Doc.Sample.Name__With__Many___Underscores.X">
+            <summary>
+            Simple auto-property; value irrelevant, present only to add a property anchor.
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.RésuméParser">
+            <summary>
+            Contains diacritics (e.g. 'é', 'ú') which some algorithms strip (GitHub/Gfm/Kramdown) but the Default may reduce differently.
+            </summary>
+        </member>
+        <member name="T:Xml2Doc.Sample.SimpleType">
+            <summary>
+            Plain ASCII identifier serving as a control sample (all algorithms produce identical slugs).
+            </summary>
+        </member>
+    </members>
+</doc>

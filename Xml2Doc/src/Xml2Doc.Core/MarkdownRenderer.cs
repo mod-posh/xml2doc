@@ -7,28 +7,36 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
+using System.Globalization;
 
 namespace Xml2Doc.Core;
 
 /// <summary>
-/// Renders a parsed XML documentation model to Markdown.
+/// Renders a parsed XML documentation model to Markdown (multi‑file or single‑file).
 /// </summary>
 /// <remarks>
-/// Features:
+/// Core capabilities:
 /// <list type="bullet">
-///   <item><description>Per‑type output (<see cref="RenderToDirectory(string)"/>) or single consolidated file (<see cref="RenderToSingleFile(string)"/>).</description></item>
-///   <item><description>Overload grouping (method overloads share one heading; individual signatures listed as bullets).</description></item>
-///   <item><description><c>&lt;inheritdoc&gt;</c> support via <see cref="InheritDocResolver"/> (inherited XML merged before rendering).</description></item>
-///   <item><description>Stable anchors: member anchors from <see cref="IdToAnchor(string)"/> and heading slugs from <see cref="HeadingSlug(string)"/> (single‑file mode).</description></item>
-///   <item><description>Depth‑aware generic formatting (nested generic arguments rendered compactly).</description></item>
-///   <item><description>Token‑aware aliasing (framework types → C# keywords without corrupting larger identifiers).</description></item>
-///   <item><description>Paragraph‑preserving normalization (retains blank lines & fenced code blocks; collapses soft wraps; trims stray spaces).</description></item>
-///   <item><description>Optional root namespace trimming in headings and (optionally) file names (<see cref="RendererOptions.RootNamespaceToTrim"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>).</description></item>
-///   <item><description>Configurable file naming style (<see cref="RendererOptions.FileNameMode"/>).</description></item>
-///   <item><description>Optional per‑type member table of contents (<see cref="RendererOptions.EmitToc"/>) in multi‑file mode.</description></item>
-///   <item><description>Optional namespace index (<see cref="RendererOptions.EmitNamespaceIndex"/>) producing <c>namespaces.md</c> + namespace pages.</description></item>
+///   <item><description>Multi‑file output via <see cref="RenderToDirectory(string)"/> (one file per type + <c>index.md</c>).</description></item>
+///   <item><description>Single consolidated file via <see cref="RenderToSingleFile(string)"/> (index followed by all types).</description></item>
+///   <item><description>Overload grouping (method overloads share one heading, individual signatures listed as bullets).</description></item>
+///   <item><description><c>&lt;inheritdoc&gt;</c> resolution / merge through <see cref="InheritDocResolver"/>.</description></item>
+///   <item><description>Stable anchors for member sections (<see cref="IdToAnchor(string)"/>) and heading slugs (<see cref="HeadingSlug(string)"/>).</description></item>
+///   <item><description>Depth‑aware generic signature formatting with alias substitution (framework types → C# keywords).</description></item>
+///   <item><description>Paragraph‑preserving XML → Markdown normalization (code blocks kept verbatim; soft wraps collapsed).</description></item>
+///   <item><description>Optional root namespace trimming and filename transformations (<see cref="RendererOptions"/>).</description></item>
+///   <item><description>Optional per‑type member TOC (<see cref="RendererOptions.EmitToc"/>).</description></item>
+///   <item><description>Optional namespace index pages (<see cref="RendererOptions.EmitNamespaceIndex"/>).</description></item>
+///   <item><description>Deterministic planning of outputs without writing via <see cref="PlanOutputs(string,string?)"/> (used for dry‑run / reporting).</description></item>
+///   <item><description>Selectable slug algorithm (<see cref="RendererOptions.AnchorAlgorithm"/>): Default / GitHub / Kramdown / Gfm.</description></item>
 /// </list>
-/// Link targets automatically switch between per‑file and in‑document anchor strategies (<see cref="LinkMode"/>).
+/// Anchor algorithm summary:
+/// <list type="bullet">
+///   <item><description><b>Default</b>: lowercase, whitespace → dash, strip non <c>[a-z0-9-]</c>, collapse multi‑dash runs.</description></item>
+///   <item><description><b>GitHub/Gfm</b>: Unicode normalization + diacritic removal; drop punctuation; whitespace → dash; trim dashes.</description></item>
+///   <item><description><b>Kramdown</b>: Similar to GitHub but retains underscores; punctuation removed; whitespace → dash.</description></item>
+/// </list>
+/// Public rendering methods allow I/O exceptions to surface (no catch/ swallow beyond outer <c>Main</c> typical usage).
 /// </remarks>
 public sealed class MarkdownRenderer
 {
@@ -36,7 +44,7 @@ public sealed class MarkdownRenderer
     private readonly RendererOptions _opt;
 
     /// <summary>
-    /// Internal link target selection mode for cref resolution (per‑file vs in‑document).
+    /// Internal link target selection mode for cref resolution (multi‑file vs single‑file).
     /// </summary>
     private enum LinkMode { PerTypeFiles, InDocumentAnchors }
     private LinkMode _linkMode = LinkMode.PerTypeFiles;
@@ -45,10 +53,35 @@ public sealed class MarkdownRenderer
     private bool _singleFileMode;
 
     /// <summary>
+    /// Precompiled whitespace matching regex (reserved for future slug optimizations).
+    /// </summary>
+    private static readonly Regex Spaces = new Regex(@"\s+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Precompiled pattern for GitHub slug punctuation removal (currently unused; kept for potential micro‑optimization).
+    /// </summary>
+    private static readonly Regex GitHubDrop = new Regex(@"[^a-z0-9\- ]+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Precompiled pattern for Kramdown slug punctuation removal (unused placeholder).
+    /// </summary>
+    private static readonly Regex KramdownDrop = new Regex(@"[^a-z0-9\- _:.]+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Precompiled pattern for GFM slug punctuation removal (unused placeholder).
+    /// </summary>
+    private static readonly Regex GfmDrop = new Regex(@"[^a-z0-9\-_. ]+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Collapses consecutive dashes to a single dash (unused placeholder for potential manual slug pipelines).
+    /// </summary>
+    private static readonly Regex CollapseDash = new Regex(@"\-+", RegexOptions.Compiled);
+
+    /// <summary>
     /// Creates a renderer for a parsed XML documentation model.
     /// </summary>
-    /// <param name="model">Loaded XML documentation model (never null).</param>
-    /// <param name="options">Optional rendering options; when null defaults are applied.</param>
+    /// <param name="model">Parsed XML documentation model (never null).</param>
+    /// <param name="options">Optional rendering options; defaults applied when null.</param>
     public MarkdownRenderer(Models.Xml2Doc model, RendererOptions? options = null)
     {
         _model = model;
@@ -68,15 +101,15 @@ public sealed class MarkdownRenderer
     /// <param name="outDir">Destination directory (created if absent).</param>
     /// <remarks>
     /// Overwrites existing files. Per‑type links point to sibling files; member links point to in‑file anchors.
-    /// Respects <see cref="RendererOptions.FileNameMode"/> / <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>.
-    /// When <see cref="RendererOptions.EmitNamespaceIndex"/> is true:
+    /// Respects <see cref="RendererOptions.FileNameMode"/> and <see cref="RendererOptions.TrimRootNamespaceInFileNames"/>.
+    /// Namespace index emission (<see cref="RendererOptions.EmitNamespaceIndex"/>) adds:
     /// <list type="bullet">
-    ///   <item><description><c>namespaces.md</c> (overview)</description></item>
-    ///   <item><description><c>namespaces/&lt;namespace&gt;.md</c> (types grouped by namespace)</description></item>
+    ///   <item><description><c>namespaces.md</c> — overview of all namespaces.</description></item>
+    ///   <item><description><c>namespaces/&lt;namespace&gt;.md</c> — per‑namespace type listing.</description></item>
     /// </list>
     /// </remarks>
-    /// <exception cref="IOException">I/O failure while writing output.</exception>
-    /// <exception cref="UnauthorizedAccessException">Insufficient file system permissions.</exception>
+    /// <exception cref="IOException">Error writing one or more output files.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient permissions for the target directory.</exception>
     public void RenderToDirectory(string outDir)
     {
         var __prev = _singleFileMode;
@@ -142,12 +175,12 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Emits a single Markdown file (index + all types + members).
+    /// Emits a single Markdown file (index + all types + their members).
     /// </summary>
-    /// <param name="outPath">Output file path (creates parent directory if needed).</param>
-    /// <remarks>
-    /// Type links become heading slugs; member links use explicit anchors from <see cref="IdToAnchor(string)"/>.
-    /// </remarks>
+    /// <param name="outPath">Output file path (parent directory created if needed).</param>
+    /// <remarks>Type links become heading slugs; member links use explicit anchors from <see cref="IdToAnchor(string)"/>.</remarks>
+    /// <exception cref="IOException">Error writing the output file.</exception>
+    /// <exception cref="UnauthorizedAccessException">Insufficient permissions for the output path.</exception>
     public void RenderToSingleFile(string outPath)
     {
         var __prev = _singleFileMode;
@@ -345,24 +378,22 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Computes the exact list of files this renderer would write for the current options,
-    /// without touching disk. Use this for --dry-run reports and for unit tests.
+    /// Computes the exact list of files this renderer would write for the current options (no disk I/O).
     /// </summary>
-    /// <param name="outDir">Destination directory (may be non-existent).</param>
-    /// <param name="singleFilePath">
-    /// If non-null/whitespace, plans single-file output; otherwise plans per-type output.
-    /// </param>
-    /// <returns>Absolute paths of all files that would be produced.</returns>
+    /// <param name="outDir">Destination directory (may not exist).</param>
+    /// <param name="singleFilePath">If non-null, plans single-file output; otherwise multi‑file.</param>
+    /// <returns>Absolute paths of files that would be produced.</returns>
+    /// <remarks>
+    /// Multi‑file mode always includes <c>index.md</c>. Namespace index emission adds <c>namespaces.md</c> and one page per namespace.
+    /// </remarks>
     public IReadOnlyList<string> PlanOutputs(string outDir, string? singleFilePath = null)
     {
         if (!string.IsNullOrWhiteSpace(singleFilePath))
         {
-            // single-file mode: exactly one file
             var full = Path.GetFullPath(singleFilePath);
             return new[] { full };
         }
 
-        // per-type mode: types + index.md (+ namespace index files if enabled)
         var root = Path.GetFullPath(outDir);
         var list = new List<string>();
 
@@ -373,18 +404,16 @@ public sealed class MarkdownRenderer
             list.Add(Path.Combine(root, name));
         }
 
-        // index.md is always written in per-type mode
         list.Add(Path.Combine(root, "index.md"));
 
         if (_opt.EmitNamespaceIndex)
         {
-            // namespaces/<ns>.md + namespaces.md
             var nsDir = Path.Combine(root, "namespaces");
             var nsSet = new SortedSet<string>(StringComparer.Ordinal);
 
             foreach (var t in types)
             {
-                var id = t.Id; // e.g., Xml2Doc.Core.Linking.DefaultLinkResolver
+                var id = t.Id;
                 var lastDot = id.LastIndexOf('.');
                 var ns = lastDot > 0 ? id.Substring(0, lastDot) : "(global)";
                 nsSet.Add(ns);
@@ -405,13 +434,85 @@ public sealed class MarkdownRenderer
     // === Display helpers ===
 
     /// <summary>
-    /// Creates a GitHub‑style slug: lowercase → trim → spaces to dashes → strip non <c>[a-z0-9-]</c>.
+    /// Resolves a heading slug using the configured <see cref="RendererOptions.AnchorAlgorithm"/>.
     /// </summary>
-    private static string HeadingSlug(string heading)
+    /// <param name="heading">Raw heading text.</param>
+    /// <returns>Algorithm-specific slug string.</returns>
+    private string HeadingSlug(string heading)
+    {
+        switch (_opt.AnchorAlgorithm)
+        {
+            case AnchorAlgorithm.Github:
+                return GithubSlug(heading);
+            case AnchorAlgorithm.Kramdown:
+                return KramdownSlug(heading);
+            case AnchorAlgorithm.Gfm:
+                return GfmSlug(heading);
+            case AnchorAlgorithm.Default:
+            default:
+                return DefaultSlug(heading);
+        }
+    }
+
+    /// <summary>
+    /// Default slug (lowercase, whitespace → single dash, strip non <c>[a-z0-9-]</c>, collapse multi‑dash runs, trim dashes).
+    /// </summary>
+    private static string DefaultSlug(string heading)
     {
         var s = heading.Trim().ToLowerInvariant();
         s = Regex.Replace(s, @"\s+", "-");
         s = Regex.Replace(s, @"[^a-z0-9\-]", "");
+        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
+        return s;
+    }
+
+    /// <summary>
+    /// GitHub-style slug: Unicode normalize + diacritic removal, lowercase, drop punctuation, collapse spaces to dashes, trim.
+    /// </summary>
+    private static string GithubSlug(string heading)
+    {
+        var formD = heading.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(formD.Length);
+        foreach (var ch in formD)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        }
+        var s = sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+        s = Regex.Replace(s, @"[^a-z0-9\s\-]", " ");
+        s = Regex.Replace(s, @"\s+", "-");
+        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
+        return s;
+    }
+
+    /// <summary>
+    /// Kramdown/Jekyll slug: diacritics removed, lowercase, punctuation stripped (except underscore), whitespace → dash, trim.
+    /// </summary>
+    private static string KramdownSlug(string heading)
+    {
+        var formD = heading.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(formD.Length);
+        foreach (var ch in formD)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        }
+        var s = sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
+        s = Regex.Replace(s, @"[^\w\s\-]", " ");
+        s = Regex.Replace(s, @"\s+", "-");
+        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
+        return s;
+    }
+
+    /// <summary>
+    /// GFM slug variant: lowercase, retain underscore & dot, remove other punctuation, whitespace → dash, collapse dashes, trim.
+    /// </summary>
+    private static string GfmSlug(string heading)
+    {
+        var s = heading.Trim().ToLowerInvariant();
+        s = Regex.Replace(s, @"[^a-z0-9\-_.\s]", "");
+        s = Regex.Replace(s, @"\s+", "-");
+        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
         return s;
     }
 
@@ -690,7 +791,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Creates a stable, file‑safe namespace page filename (e.g. replaces separators and generic brackets).
+    /// Creates a stable, file‑safe namespace page filename (replaces separators & generic brackets).
     /// </summary>
     private static string SafeNamespaceFileName(string ns)
     {
@@ -702,11 +803,9 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Per‑type filename generator applying mode + optional root namespace trimming (+ optional basename-only mode) and bracket normalization.
+    /// Per‑type filename generator applying mode + optional root namespace trimming + optional basename stripping.
     /// </summary>
-    /// <remarks>
-    /// If <c>_opt.BasenameOnly</c> is present and true (property optional in <see cref="RendererOptions"/>), only the final identifier is retained.
-    /// </remarks>
+    /// <remarks>Basename stripping applied only when <see cref="RendererOptions.BasenameOnly"/> is true.</remarks>
     private string FileNameForPerType(string typeId)
     {
         var name = typeId;
@@ -724,9 +823,7 @@ public sealed class MarkdownRenderer
                 name = name.Substring(prefix.Length);
         }
 
-        // Optional basename stripping (only applied when the options object exposes and enables it).
-        if (_opt.GetType().GetProperty("BasenameOnly") is { } pi &&
-            pi.GetValue(_opt) is bool basenameOnly && basenameOnly)
+        if (_opt.BasenameOnly)
         {
             var lastDot = name.LastIndexOf('.');
             if (lastDot >= 0) name = name.Substring(lastDot + 1);

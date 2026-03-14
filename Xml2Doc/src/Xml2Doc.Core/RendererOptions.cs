@@ -8,69 +8,91 @@ namespace Xml2Doc.Core
     public enum FileNameMode
     {
         /// <summary>
-        /// Use the original documentation identifier verbatim (e.g., <c>MyLib.Widget`1</c> → <c>MyLib.Widget`1.md</c>).
-        /// Generic arity markers (<c>`1</c>, <c>`2</c>, …) and braces remain unchanged.
+        /// Verbatim: preserve the documentation identifier exactly (e.g. <c>MyLib.Widget`1</c> → <c>MyLib.Widget`1.md</c>).
+        /// Generic arity tokens (<c>`N</c>) and XML‑doc generic braces remain unchanged.
         /// </summary>
         Verbatim,
 
         /// <summary>
-        /// Remove generic arity markers (e.g., <c>MyLib.Widget`1</c> → <c>MyLib.Widget.md</c>) and normalize generic
-        /// braces used in XML doc IDs so file names are cleaner and more stable across refactors.
+        /// Clean: remove generic arity tokens (e.g. <c>MyLib.Widget`1</c> → <c>MyLib.Widget.md</c>) and normalize XML‑doc
+        /// generic braces (<c>{}</c> → <c>&lt;&gt;</c>) producing shorter, more stable file names across refactors.
         /// </summary>
         CleanGenerics
     }
 
     /// <summary>
-    /// Options that control how XML documentation is rendered to Markdown.
+    /// Controls how heading anchors (slugs) are generated for types and members.
+    /// </summary>
+    public enum AnchorAlgorithm
+    {
+        /// <summary>
+        /// Default: lowercase, collapse whitespace → single dash, strip non <c>[a-z0-9-]</c>, collapse multi‑dash runs, trim leading/trailing dashes.
+        /// </summary>
+        Default = 0,
+
+        /// <summary>
+        /// GitHub (GFM) style: Unicode normalize, remove diacritics, lowercase, drop punctuation (except space / dash),
+        /// whitespace → dash, collapse multi‑dash runs, trim dashes.
+        /// </summary>
+        Github = 1,
+
+        /// <summary>
+        /// Kramdown/Jekyll style: similar to GitHub but preserves underscores (<c>_</c>) in the slug.
+        /// </summary>
+        Kramdown = 2,
+
+        /// <summary>
+        /// Alias of GitHub style (kept for explicit <c>gfm</c> selection in CLI/config).
+        /// </summary>
+        Gfm = 3
+    }
+
+    /// <summary>
+    /// Rendering options applied when converting XML documentation to Markdown.
     /// </summary>
     /// <param name="FileNameMode">
-    /// Strategy for transforming type documentation IDs into Markdown file names (see <see cref="Core.FileNameMode"/>).
+    /// File naming strategy (see <see cref="Xml2Doc.Core.FileNameMode"/>). Applied before namespace trimming and basename stripping.
     /// </param>
     /// <param name="RootNamespaceToTrim">
-    /// Optional namespace prefix to remove from displayed type headings and link labels
-    /// (e.g., trimming <c>MyCompany.MyProduct</c> from <c>MyCompany.MyProduct.Feature.Widget</c> yields <c>Feature.Widget</c>).
-    /// Does <strong>not</strong> affect underlying documentation IDs—only visible text (unless filename trimming is enabled).
+    /// Optional namespace prefix removed from visible type headings and link labels (e.g. trimming <c>MyCompany.MyProduct</c>
+    /// from <c>MyCompany.MyProduct.Feature.Widget</c> yields <c>Feature.Widget</c>). Does not alter underlying IDs.
     /// </param>
     /// <param name="CodeBlockLanguage">
-    /// Language identifier used for fenced code blocks (e.g., <c>csharp</c>, <c>xml</c>). Defaults to <c>csharp</c>.
+    /// Default fenced code block language (e.g. <c>csharp</c>, <c>xml</c>) used when no language is specified in source XML.
     /// </param>
     /// <param name="TrimRootNamespaceInFileNames">
-    /// When <see langword="true"/>, also applies <paramref name="RootNamespaceToTrim"/> to generated Markdown file names
-    /// (in addition to headings). Ignored when <paramref name="RootNamespaceToTrim"/> is <see langword="null"/>.
+    /// When true, also trims <paramref name="RootNamespaceToTrim"/> from generated file names after <paramref name="FileNameMode"/> normalization.
+    /// Ignored if <paramref name="RootNamespaceToTrim"/> is <see langword="null"/> / empty.
     /// </param>
     /// <param name="AnchorAlgorithm">
-    /// Named algorithm for generating HTML anchors / fragment identifiers (e.g., <c>"default"</c>, <c>"github"</c>, <c>"strict"</c>).
-    /// Allows future extension for slug styles without changing persisted links.
+    /// Slug algorithm for headings (see <see cref="Xml2Doc.Core.AnchorAlgorithm"/>). Changing this after publication alters fragment IDs.
     /// </param>
     /// <param name="TemplatePath">
-    /// Optional path to a user-supplied template (e.g., Razor / simple token template) applied around rendered content.
-    /// When <see langword="null"/>, the built‑in layout is used.
+    /// Optional path to a wrapping template (e.g. Razor / token) applied around rendered body content; null = built‑in minimal layout.
     /// </param>
     /// <param name="FrontMatterPath">
-    /// Optional path to a front‑matter snippet (YAML / TOML / JSON) prepended verbatim to each generated file (if present).
-    /// Useful for static site generators (e.g., Jekyll / Hugo).
+    /// Optional path to front‑matter (YAML / TOML / JSON) prepended verbatim to each output file (for SSG integration).
     /// </param>
     /// <param name="AutoLink">
-    /// When <see langword="true"/>, heuristically converts plain type/member mentions in free text to links (best‑effort).
-    /// Disabled by default to avoid accidental false positives.
+    /// When true, heuristically links unadorned type/member mentions in prose. Off by default to reduce false positives.
     /// </param>
     /// <param name="AliasMapPath">
-    /// Path to a JSON or text map defining additional type/namespace aliases (e.g., to rewrite or shorten certain names).
-    /// If <see langword="null"/>, only built‑in C# aliases are applied.
+    /// Path to a JSON/text alias map adding custom type/namespace replacements beyond built‑in C# keyword aliases.
     /// </param>
     /// <param name="ExternalDocs">
-    /// Optional base URL for external documentation used when creating outbound links for unresolved cref targets
-    /// (e.g., pointing to framework or third‑party API docs).
+    /// Base URL (or map) for external documentation used for unresolved cref targets (e.g. framework APIs).
     /// </param>
     /// <param name="EmitToc">
-    /// When <see langword="true"/>, emits an in‑document table of contents (e.g., at the top of single‑file output or per file).
+    /// When true, emits a member table of contents per type in multi‑file mode (suppressed in single‑file mode).
     /// </param>
     /// <param name="EmitNamespaceIndex">
-    /// When <see langword="true"/>, produces an additional namespace index (grouping types by namespace) alongside the standard index.
+    /// When true, generates a <c>namespaces.md</c> overview plus one page per namespace (multi‑file mode only).
+    /// </param>
+    /// <param name="BasenameOnly">
+    /// When true, file names drop namespace segments (after trimming if enabled), keeping only the final identifier.
     /// </param>
     /// <param name="ParallelDegree">
-    /// Optional maximum degree of parallelism for generation. <see langword="null"/> or values &lt;= 0 use a default heuristic;
-    /// positive values cap concurrency (e.g., set to <c>Environment.ProcessorCount</c> for deterministic load).
+    /// Max parallelism for rendering; <see langword="null"/> or &lt;= 0 selects a heuristic (typically <c>Environment.ProcessorCount</c>).
     /// </param>
     /// <remarks>
     /// Example:
@@ -80,7 +102,7 @@ namespace Xml2Doc.Core
     ///     RootNamespaceToTrim: "MyCompany.MyProduct",
     ///     CodeBlockLanguage: "csharp",
     ///     TrimRootNamespaceInFileNames: true,
-    ///     AnchorAlgorithm: "github",
+    ///     AnchorAlgorithm: AnchorAlgorithm.Github,
     ///     TemplatePath: "templates/type.md.tpl",
     ///     FrontMatterPath: "templates/frontmatter.yml",
     ///     AutoLink: true,
@@ -88,16 +110,23 @@ namespace Xml2Doc.Core
     ///     ExternalDocs: "https://learn.microsoft.com/dotnet/api/",
     ///     EmitToc: true,
     ///     EmitNamespaceIndex: true,
+    ///     BasenameOnly: false,
     ///     ParallelDegree: Environment.ProcessorCount
     /// );
     /// ]]></code>
+    /// Ordering:
+    /// <list type="bullet">
+    ///   <item><description><see cref="FileNameMode"/> normalization → root namespace trimming → basename stripping.</description></item>
+    ///   <item><description>Slug generation uses <see cref="AnchorAlgorithm"/> and does not depend on file naming.</description></item>
+    ///   <item><description>Changing <see cref="AnchorAlgorithm"/> after publishing may invalidate inbound links.</description></item>
+    /// </list>
     /// </remarks>
     public sealed record RendererOptions(
         FileNameMode FileNameMode = FileNameMode.Verbatim,
         string? RootNamespaceToTrim = null,
         string CodeBlockLanguage = "csharp",
         bool TrimRootNamespaceInFileNames = false,
-        string AnchorAlgorithm = "default",
+        AnchorAlgorithm AnchorAlgorithm = AnchorAlgorithm.Default,
         string? TemplatePath = null,
         string? FrontMatterPath = null,
         bool AutoLink = false,
