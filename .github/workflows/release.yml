@@ -77,7 +77,8 @@ jobs:
 
           if [ -f "$xmlDocFile" ]; then
             echo "Generating docs from: $xmlDocFile"
-            xml2doc --xml "$xmlDocFile" --out Docs
+            xml2doc --xml "$xmlDocFile" --out docs/api/LATEST
+            xml2doc --xml "$xmlDocFile" --out docs/api/v${{ env.VERSION }}
           else
             echo "Error: XML documentation file not found!"
             echo "Contents of build directory:"
@@ -88,7 +89,7 @@ jobs:
       - name: Run markdownlint-cli2-action
         uses: DavidAnson/markdownlint-cli2-action@v22
         with:
-          globs: 'Docs/*.md'
+          globs: 'docs/**/*.md'
           fix: true
 
       - name: Commit Documentation Changes
