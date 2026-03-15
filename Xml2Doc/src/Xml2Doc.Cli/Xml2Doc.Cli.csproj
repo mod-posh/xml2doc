@@ -17,8 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj">
-      <SetTargetFramework>$(TargetFramework)</SetTargetFramework>
+    <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Update="..\Xml2Doc.Core\Xml2Doc.Core.csproj">
+      <!-- MSBuild expects Properties="Name=Value", not "net9.0" -->
+      <SetTargetFramework>TargetFramework=$(TargetFramework)</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>
 

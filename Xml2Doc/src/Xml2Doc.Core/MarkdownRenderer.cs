@@ -505,7 +505,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// GFM slug variant: lowercase, retain underscore & dot, remove other punctuation, whitespace → dash, collapse dashes, trim.
+    /// GFM slug variant: lowercase, retain underscore and dot, remove other punctuation, whitespace becomes dash, collapse dashes, trim.
     /// </summary>
     private static string GfmSlug(string heading)
     {
@@ -782,7 +782,7 @@ public sealed class MarkdownRenderer
 
         if (mode == FileNameMode.CleanGenerics)
         {
-            name = Regex.Replace(name, @"`\d+", "");
+            name = Regex.Replace(name, @"`(\d+)", "__$1");
             name = name.Replace('{', '<').Replace('}', '>');
         }
 
@@ -791,7 +791,7 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Creates a stable, file‑safe namespace page filename (replaces separators & generic brackets).
+    /// Creates a stable file safe namespace page filename (replaces separators and generic brackets).
     /// </summary>
     private static string SafeNamespaceFileName(string ns)
     {
@@ -812,7 +812,7 @@ public sealed class MarkdownRenderer
 
         if (_opt.FileNameMode == FileNameMode.CleanGenerics)
         {
-            name = Regex.Replace(name, @"`\d+", "");
+            name = Regex.Replace(name, @"`(\d+)", "__$1");
             name = name.Replace('{', '<').Replace('}', '>');
         }
 

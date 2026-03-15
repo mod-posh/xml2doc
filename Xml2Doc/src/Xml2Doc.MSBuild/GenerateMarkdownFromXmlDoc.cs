@@ -118,6 +118,27 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public bool Diff { get; set; }
 
     /// <summary>
+    /// When true, emits a table of contents section in the generated Markdown.
+    /// </summary>
+    public bool EmitToc { get; set; }
+
+    /// <summary>
+    /// When true, generates a namespace index in the output.
+    /// </summary>
+    public bool EmitNamespaceIndex { get; set; }
+
+    /// <summary>
+    /// When true, uses only the basename for file references (omits directory paths).
+    /// </summary>
+    public bool BasenameOnly { get; set; }
+
+    /// <summary>
+    /// Algorithm for generating anchor links in Markdown. Supported values: "default", "github", "kramdown", "gfm".
+    /// Defaults to "default" if not specified or unrecognized.
+    /// </summary>
+    public string? AnchorAlgorithm { get; set; }
+
+    /// <summary>
     /// Generated Markdown files. Single‑file mode yields one item. Empty when dry‑run or skipped.
     /// </summary>
     [Output] public ITaskItem[] GeneratedFiles { get; private set; } = Array.Empty<ITaskItem>();
@@ -194,11 +215,23 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 ? Core.FileNameMode.CleanGenerics
                 : Core.FileNameMode.Verbatim;
 
+            var anchorAlgEnum = (AnchorAlgorithm ?? "default").ToLowerInvariant() switch
+            {
+                "github" => Core.AnchorAlgorithm.Github,
+                "gfm" => Core.AnchorAlgorithm.Gfm,
+                "kramdown" => Core.AnchorAlgorithm.Kramdown,
+                _ => Core.AnchorAlgorithm.Default
+            };
+
             var options = new RendererOptions(
                 FileNameMode: fnMode,
                 RootNamespaceToTrim: string.IsNullOrWhiteSpace(RootNamespaceToTrim) ? null : RootNamespaceToTrim,
                 CodeBlockLanguage: string.IsNullOrWhiteSpace(CodeBlockLanguage) ? "csharp" : CodeBlockLanguage,
-                TrimRootNamespaceInFileNames: TrimRootNamespaceInFileNames
+                TrimRootNamespaceInFileNames: TrimRootNamespaceInFileNames,
+                EmitToc: EmitToc,
+                EmitNamespaceIndex: EmitNamespaceIndex,
+                BasenameOnly: BasenameOnly,
+                AnchorAlgorithm: anchorAlgEnum
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -340,6 +373,13 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <summary>
     /// Computes a deterministic fingerprint of significant inputs (XML hash, mode, normalized output path, filename mode, root namespace, language).
     /// </summary>
+    /// <param name="xmlSha256">SHA-256 hash of the XML documentation file.</param>
+    /// <param name="singleFile">Whether single-file mode is enabled.</param>
+    /// <param name="outputPath">Output file or directory path.</param>
+    /// <param name="fileNameMode">File naming mode (verbatim or clean).</param>
+    /// <param name="rootNs">Root namespace to trim.</param>
+    /// <param name="lang">Code block language identifier.</param>
+    /// <returns>SHA-256 hash of the concatenated input parameters.</returns>
     private static string ComputeFingerprint(string xmlSha256, bool singleFile, string outputPath, string fileNameMode, string rootNs, string lang)
     {
         using var sha = SHA256.Create();
@@ -362,6 +402,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <summary>
     /// Normalizes a path for hashing (full path, trimmed trailing separators). Returns empty string for blank or on failure.
     /// </summary>
+    /// <param name="p">The path to normalize.</param>
+    /// <returns>Normalized absolute path with trailing separators removed, or empty string if input is null/empty or normalization fails.</returns>
     private static string NormalizePathForHash(string p)
     {
         try
@@ -380,14 +422,31 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// </summary>
     private sealed class ReportModel
     {
+        /// <summary>Source XML documentation file path.</summary>
         public string xml { get; set; } = "";
+
+        /// <summary>Whether single-file mode was used.</summary>
         public bool single { get; set; }
+
+        /// <summary>Output file path (single-file mode only).</summary>
         public string? outputFile { get; set; }
+
+        /// <summary>Output directory path (per-type mode only).</summary>
         public string? outputDir { get; set; }
+
+        /// <summary>Generated Markdown file paths.</summary>
         public string[] files { get; set; } = Array.Empty<string>();
+
+        /// <summary>Rendering options snapshot.</summary>
         public ReportOptions options { get; set; } = new();
+
+        /// <summary>Computed fingerprint of significant inputs.</summary>
         public string? fingerprint { get; set; }
+
+        /// <summary>SHA-256 hash of the XML documentation file.</summary>
         public string? xmlSha256 { get; set; }
+
+        /// <summary>Report generation timestamp (optional).</summary>
         public DateTimeOffset? timestamp { get; set; }
     }
 
@@ -396,8 +455,13 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// </summary>
     private sealed class ReportOptions
     {
+        /// <summary>File naming mode (Verbatim or CleanGenerics).</summary>
         public string fileNameMode { get; set; } = "Verbatim";
+
+        /// <summary>Root namespace trimmed from type names.</summary>
         public string? rootNs { get; set; }
+
+        /// <summary>Code block language identifier.</summary>
         public string? lang { get; set; }
     }
 }

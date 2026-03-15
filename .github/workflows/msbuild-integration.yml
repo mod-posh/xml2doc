@@ -1,0 +1,66 @@
+name: MSBuild Integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"   # 08:00 UTC daily (adjust as you like)
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "Xml2Doc/src/Xml2Doc.MSBuild/**"
+      - "Xml2Doc/tests/Xml2Doc.Sample/**"
+      - "Xml2Doc/tests/Xml2Doc.Tests/**"
+      - "scripts/test-msbuild-integration.ps1"
+      - ".github/workflows/msbuild-integration.yml"
+      - "global.json"
+      - "Directory.Build.props"
+
+jobs:
+  msbuild_integration:
+    runs-on: windows-latest
+    env:
+      MSBUILDDISABLENODEREUSE: "1"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./global.json
+
+      - name: Print .NET info
+        run: |
+          dotnet --info
+          dotnet --list-sdks
+
+      - name: Shutdown build servers
+        run: dotnet build-server shutdown
+
+      - name: Clean
+        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+
+      - name: Restore
+        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
+
+      - name: Build (no servers)
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers
+
+      - name: MSBuild integration (script)
+        shell: pwsh
+        run: ./scripts/test-msbuild-integration.ps1 -Configuration Release -KeepArtifacts
+
+      - name: Upload MSBuild integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: msbuild-integration-artifacts
+          path: |
+            Xml2Doc/tests/Xml2Doc.Sample/obj/Release/xml2doc-it/**
+            Xml2Doc/tests/Xml2Doc.Sample/obj/Release/net9.0/xml2doc.stamp
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: MSBuild Integration Test Results
+          path: '**/TestResults/*.trx'

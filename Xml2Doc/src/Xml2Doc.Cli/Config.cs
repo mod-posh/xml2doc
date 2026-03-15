@@ -73,9 +73,10 @@ namespace Xml2Doc.Cli
         /// <summary>Emit namespace index when true. Maps to <c>--namespace-index</c>.</summary>
         public bool? NamespaceIndex { get; set; }
 
-        /// <summary>Max parallelism (<=0 or null uses default heuristic). Maps to <c>--parallel</c>.</summary>
+        /// <summary>Max parallelism (less than or equal to 0 or null uses default heuristic). Maps to --parallel option.</summary>
         public int? Parallel { get; set; }
 
+        /// <summary>When true, only the basename of output files is used for links.</summary>
         public bool BasenameOnly { get; init; }
     }
 }

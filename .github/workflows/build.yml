@@ -39,7 +39,7 @@ jobs:
           dotnet pack ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln
           --configuration Release
           --output ./publish
-          /m:1
+          -p:BuildInParallel=false
           -p:UseSharedCompilation=false
           -p:ContinuousIntegrationBuild=true
           -p:PackageVersion=${{ env.VERSION_PREFIX }}-${{ env.VERSION_SUFFIX }}

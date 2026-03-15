@@ -1,0 +1,11 @@
+# API Reference
+- [AliasingPlayground](Xml2Doc.Sample.AliasingPlayground.md)
+- [GenericPlayground](Xml2Doc.Sample.GenericPlayground.md)
+- [HTTP_Parser_v2](Xml2Doc.Sample.HTTP_Parser_v2.md)
+- [Mathx](Xml2Doc.Sample.Mathx.md)
+- [Name__With__Many___Underscores](Xml2Doc.Sample.Name__With__Many___Underscores.md)
+- [Outer](Xml2Doc.Sample.Outer.md)
+- [Inner_Type__Beta2<T1>](Xml2Doc.Sample.Outer.Inner_Type__Beta2__1.md)
+- [RésuméParser](Xml2Doc.Sample.RésuméParser.md)
+- [SimpleType](Xml2Doc.Sample.SimpleType.md)
+- [XItem](Xml2Doc.Sample.XItem.md)

@@ -1,0 +1,24 @@
+{
+  "xml": "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\obj\\Debug\\net9.0\\Xml2Doc.Sample.xml",
+  "single": false,
+  "outputDir": "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs",
+  "files": [
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\index.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.AliasingPlayground.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.GenericPlayground.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.HTTP_Parser_v2.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.Mathx.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.Name__With__Many___Underscores.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.Outer.Inner_Type__Beta2__1.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.Outer.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.R\u00E9sum\u00E9Parser.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.SimpleType.md",
+    "D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\Xml2Doc.Sample.XItem.md"
+  ],
+  "options": {
+    "fileNameMode": "CleanGenerics",
+    "lang": "csharp"
+  },
+  "fingerprint": "|false|D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs\\api.md|D:\\CODE\\Organizations\\mod-posh\\xml2doc\\Xml2Doc\\tests\\Xml2Doc.Sample\\docs|clean||csharp|false|false|false|false|default",
+  "xmlSha256": "313b5af7ab0bd5bff91d79ee7cdc1b1f5e524f08602cf80d57693ddcebcc67f0"
+}

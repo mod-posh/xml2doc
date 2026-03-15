@@ -1,0 +1,67 @@
+name: CLI Integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"   # 08:00 UTC daily
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "Xml2Doc/src/Xml2Doc.Cli/**"
+      - "Xml2Doc/src/Xml2Doc.Core/**"
+      - "Xml2Doc/tests/Xml2Doc.Sample/**"   # sample changes should force fixture validation
+      - "Xml2Doc/tests/Xml2Doc.Tests/**"    # Assets + snapshots
+      - "scripts/test-cli-integration.ps1"
+      - ".github/workflows/cli-integration.yml"
+      - "global.json"
+      - "Directory.Build.props"
+
+jobs:
+  cli_integration:
+    runs-on: windows-latest
+    env:
+      MSBUILDDISABLENODEREUSE: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./global.json
+
+      - name: Print .NET info
+        shell: pwsh
+        run: |
+          dotnet --info
+          dotnet --list-sdks
+
+      - name: Shutdown build servers
+        shell: pwsh
+        run: dotnet build-server shutdown
+
+      - name: Clean
+        shell: pwsh
+        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
+
+      - name: Build (no servers)
+        shell: pwsh
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers -- /m:1 /nodeReuse:false
+
+      - name: CLI integration (script)
+        shell: pwsh
+        run: ./scripts/test-cli-integration.ps1 -Configuration Release -KeepArtifacts
+
+      - name: Upload CLI integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-integration-artifacts
+          path: |
+            Xml2Doc/tests/Xml2Doc.Sample/obj/Release/cli-it/**
+            Xml2Doc/tests/Xml2Doc.Sample/bin/Release/net9.0/Xml2Doc.Sample.xml
+            Xml2Doc/tests/Xml2Doc.Tests/Assets/Xml2Doc.Sample.xml

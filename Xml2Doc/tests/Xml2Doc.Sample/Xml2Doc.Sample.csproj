@@ -1,50 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <IsPackable>false</IsPackable>
+
+    <!-- Keep sample opt-in by default -->
+    <Xml2Doc_Enabled Condition="'$(Xml2Doc_Enabled)'==''">false</Xml2Doc_Enabled>
   </PropertyGroup>
 
-  <!-- Enable snapshot doc generation for tests -->
-  <PropertyGroup>
-    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
-    <Xml2Doc_OutputDir>$(MSBuildThisFileDirectory)..\Xml2Doc.Tests\__snapshots__\</Xml2Doc_OutputDir>
-  </PropertyGroup>
-
-  <!-- Ensure the task project builds first -->
+  <!-- Ensure task project builds in source-tree runs -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj" />
   </ItemGroup>
 
-  <!-- Register task directly; avoid dynamic target that introduced the circular dependency.
-       Prefer netstandard2.0 (loadable by full‑framework MSBuild.exe); fall back to net8.0 if needed. -->
-  <PropertyGroup>
-    <_TaskRoot>$(MSBuildThisFileDirectory)..\..\src\Xml2Doc.MSBuild\bin\$(Configuration)\</_TaskRoot>
-    <_TaskAsm Condition="Exists('$(_TaskRoot)netstandard2.0\Xml2Doc.MSBuild.dll')">$(_TaskRoot)netstandard2.0\Xml2Doc.MSBuild.dll</_TaskAsm>
-    <_TaskAsm Condition="'$(_TaskAsm)'=='' AND Exists('$(_TaskRoot)net8.0\Xml2Doc.MSBuild.dll')">$(_TaskRoot)net8.0\Xml2Doc.MSBuild.dll</_TaskAsm>
-  </PropertyGroup>
+  <Import Project="..\..\src\Xml2Doc.MSBuild\build\xml2doc.msbuild.props" Condition="Exists('..\..\src\Xml2Doc.MSBuild\build\xml2doc.msbuild.props')" />
 
-  <UsingTask TaskName="GenerateMarkdownFromXmlDoc"
-             AssemblyFile="$(_TaskAsm)"
-             Condition="Exists('$(_TaskAsm)')" />
+  <Import Project="..\..\src\Xml2Doc.MSBuild\build\xml2doc.msbuild.targets" Condition="Exists('..\..\src\Xml2Doc.MSBuild\build\xml2doc.msbuild.targets')" />
 
-  <!-- Run after CoreCompile so the XML doc file exists; no dependency back to Build => no cycle. -->
-  <Target Name="GenerateApiDocs"
-          AfterTargets="CoreCompile"
-          Condition="'$(Xml2Doc_Enabled)'=='true' AND Exists('$(_TaskAsm)')">
-    <GenerateMarkdownFromXmlDoc
-      XmlPath="$(DocumentationFile)"
-      SingleFile="false"
-      OutputDirectory="$(Xml2Doc_OutputDir)"
-      FileNameMode="clean"
-      RootNamespaceToTrim="Xml2Doc.Sample"
-      TrimRootNamespaceInFileNames="true"
-      CodeBlockLanguage="csharp"
-      Toc="true"
-      NamespaceIndex="true"
-      BasenameOnly="true"
-      AnchorAlgorithm="Github"
-      ReportPath="$(Xml2Doc_OutputDir)xml2doc-report.json" />
-  </Target>
 </Project>

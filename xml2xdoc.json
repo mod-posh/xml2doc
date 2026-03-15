@@ -1,6 +1,6 @@
 {
   "Xml": "Xml2Doc/src/Xml2Doc.Core/bin/Release/net9.0/Xml2Doc.Core.xml",
-  "Out": "Docs",
+  "Out": "docs\\api",
   "Single": false,
   "FileNames": "clean",
   "RootNamespace": "Xml2Doc",
