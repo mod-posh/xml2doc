@@ -6,7 +6,7 @@
     <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)' == ''">net472</_Xml2Doc_TaskTfm>
   </PropertyGroup>
 
-  <!-- Task assembly path -->
+  <!-- Resolve task assembly path -->
   <Choose>
     <When Condition="Exists('$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll')">
       <PropertyGroup>
@@ -35,6 +35,15 @@
     </Otherwise>
   </Choose>
 
+  <!-- Normalize stamp/fingerprint paths once, before targets run -->
+  <PropertyGroup>
+    <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)' == ''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
+    <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)' == ''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
+
+    <Xml2Doc_OutputStamp Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_OutputStamp)'))">$(IntermediateOutputPath)$(Xml2Doc_OutputStamp)</Xml2Doc_OutputStamp>
+    <Xml2Doc_FingerprintFile Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_FingerprintFile)'))">$(IntermediateOutputPath)$(Xml2Doc_FingerprintFile)</Xml2Doc_FingerprintFile>
+  </PropertyGroup>
+
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2Doc_TaskPath)" />
 
   <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2Doc_TaskPath)')">
@@ -47,12 +56,6 @@
 
   <!-- Dump AFTER CoreCompile so DocumentationFile is finalized -->
   <Target Name="_Xml2Doc_Dump" AfterTargets="CoreCompile" Condition="'$(Xml2Doc_Dump)'=='true'">
-    <PropertyGroup>
-      <!-- Default these HERE so IntermediateOutputPath is valid -->
-      <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)'==''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
-      <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)'==''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
-    </PropertyGroup>
-
     <Message Importance="High" Text="Xml2Doc dump: Enabled=$(Xml2Doc_Enabled) GenDocs=$(GenerateDocumentationFile) DocumentationFile='$(DocumentationFile)' ExistsDoc=$([System.IO.File]::Exists('$(DocumentationFile)')) IntermediateOutputPath='$(IntermediateOutputPath)' OutputStamp='$(Xml2Doc_OutputStamp)' FingerprintFile='$(Xml2Doc_FingerprintFile)'" />
   </Target>
 
@@ -61,12 +64,6 @@
             and '$(GenerateDocumentationFile)' == 'true'
             and '$(DocumentationFile)' != ''
             and Exists('$(DocumentationFile)')">
-
-    <PropertyGroup>
-      <!-- Default these HERE so IntermediateOutputPath is valid -->
-      <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)'==''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
-      <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)'==''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
-    </PropertyGroup>
 
     <GetFileHash Files="$(DocumentationFile)" Algorithm="SHA256">
       <Output TaskParameter="Items" ItemName="_Xml2Doc_HashItem" />
@@ -98,14 +95,6 @@
 
   <Target Name="Xml2Doc_Generate" AfterTargets="CoreCompile" DependsOnTargets="Xml2Doc_ComputeFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'" Inputs="$(Xml2Doc_FingerprintFile)" Outputs="$(Xml2Doc_OutputStamp)">
 
-    <PropertyGroup>
-      <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)'==''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
-      <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)'==''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
-
-      <!-- If someone set relative paths, re-root them under IntermediateOutputPath -->
-      <Xml2Doc_OutputStamp Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_OutputStamp)'))">$(IntermediateOutputPath)$(Xml2Doc_OutputStamp)</Xml2Doc_OutputStamp>
-      <Xml2Doc_FingerprintFile Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_FingerprintFile)'))">$(IntermediateOutputPath)$(Xml2Doc_FingerprintFile)</Xml2Doc_FingerprintFile>
-    </PropertyGroup>
     <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="'$(Xml2Doc_SingleFile)'!='true' and '$(Xml2Doc_OutputDir)'!='' and !Exists('$(Xml2Doc_OutputDir)')" />
     <MakeDir Directories="$(_Xml2Doc_OutputFileDir)" Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
     <MakeDir Directories="$(_Xml2Doc_OutputStampDir)" Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
@@ -114,6 +103,7 @@
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
+
     <PropertyGroup>
       <_Xml2Doc_GeneratedJoined>@(Xml2Doc_GeneratedFiles,';')</_Xml2Doc_GeneratedJoined>
     </PropertyGroup>
