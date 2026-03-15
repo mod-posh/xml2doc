@@ -151,15 +151,22 @@ function Invoke-SampleBuild([bool]$SingleFile, [string]$BinLogPath)
     "/p:Xml2Doc_SingleFile=false /p:Xml2Doc_OutputDir=`"$outDir`""
   }
 
+  $stampPath = Join-Path $sampleDir "obj\$Configuration\net9.0\xml2doc.stamp"
+  $fingerprintPath = Join-Path $sampleDir "obj\$Configuration\net9.0\xml2doc.fingerprint.txt"
+
   $props =
   "/p:Xml2Doc_Enabled=true " +
   "/p:GenerateDocumentationFile=true " +
+  "/p:Xml2Doc_OutputStamp=`"$stampPath`" " +
+  "/p:Xml2Doc_FingerprintFile=`"$fingerprintPath`" " +
   "/p:Xml2Doc_ReportIncludeTimestamp=false " +
   "/p:Xml2Doc_ReportPath=`"$report`" " +
   "/p:Xml2Doc_FileNameMode=clean " +
   "/p:Xml2Doc_RootNamespaceToTrim=Xml2Doc.Sample " +
   "/p:Xml2Doc_TrimRootNamespaceInFileNames=true " +
   "/p:Xml2Doc_CodeBlockLanguage=csharp " +
+  "/p:Xml2Doc_LogChosenTask=true " +
+  "/p:Xml2Doc_Dump=true " +
   "/p:Xml2Doc_DryRun=false " +
   $modeProps
 
@@ -167,8 +174,6 @@ function Invoke-SampleBuild([bool]$SingleFile, [string]$BinLogPath)
   "msbuild `"$sampleProj`" " +
   "/t:Build " +
   "/p:Configuration=$Configuration " +
-  "/p:Xml2Doc_LogChosenTask=true " +
-  "/p:Xml2Doc_Dump=true " +
   "/m:1 /nr:false /nodeReuse:false " +
   "/v:minimal " +
   "/bl:`"$BinLogPath`" " +
