@@ -4,13 +4,36 @@
     <!-- Choose task TFM -->
     <_Xml2Doc_TaskTfm Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</_Xml2Doc_TaskTfm>
     <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)' == ''">net472</_Xml2Doc_TaskTfm>
-
-    <!-- Task assembly path -->
-    <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
-    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
-    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">$(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
-    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">$(MSBuildThisFileDirectory)..\bin\Debug\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
   </PropertyGroup>
+
+  <!-- Task assembly path -->
+  <Choose>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+      </PropertyGroup>
+    </When>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+      </PropertyGroup>
+    </When>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)..\bin\Debug\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\bin\Debug\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
 
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2Doc_TaskPath)" />
 
@@ -19,7 +42,7 @@
   </Target>
 
   <Target Name="_Xml2Doc_LogChosenTask" BeforeTargets="Build" Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
-    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType))" Importance="Low" />
+    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType), Configuration=$(Configuration))" Importance="High" />
   </Target>
 
   <!-- Dump AFTER CoreCompile so DocumentationFile is finalized -->
