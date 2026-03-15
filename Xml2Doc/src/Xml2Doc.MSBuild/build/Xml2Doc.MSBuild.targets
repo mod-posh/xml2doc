@@ -35,31 +35,43 @@
     </Otherwise>
   </Choose>
 
-  <!-- Normalize stamp/fingerprint paths once, before targets run -->
+  <!-- Normalize stamp/fingerprint paths once -->
   <PropertyGroup>
     <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)' == ''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
     <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)' == ''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
 
     <Xml2Doc_OutputStamp Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_OutputStamp)'))">$(IntermediateOutputPath)$(Xml2Doc_OutputStamp)</Xml2Doc_OutputStamp>
     <Xml2Doc_FingerprintFile Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_FingerprintFile)'))">$(IntermediateOutputPath)$(Xml2Doc_FingerprintFile)</Xml2Doc_FingerprintFile>
+
+    <_Xml2Doc_OutputStampDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputStamp)'))</_Xml2Doc_OutputStampDir>
+    <_Xml2Doc_OutputFileDir Condition="'$(Xml2Doc_OutputFile)' != ''">$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))</_Xml2Doc_OutputFileDir>
   </PropertyGroup>
 
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2Doc_TaskPath)" />
 
-  <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+  <Target Name="Xml2Doc_VerifyTaskAssembly"
+          BeforeTargets="Xml2Doc_Generate"
+          Condition="!Exists('$(_Xml2Doc_TaskPath)')">
     <Warning Text="Xml2Doc task assembly not found at $(_Xml2Doc_TaskPath). Package layout mismatch?" />
   </Target>
 
-  <Target Name="_Xml2Doc_LogChosenTask" BeforeTargets="Build" Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
-    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType), Configuration=$(Configuration))" Importance="High" />
+  <Target Name="_Xml2Doc_LogChosenTask"
+          BeforeTargets="Build"
+          Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
+    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType), Configuration=$(Configuration))"
+             Importance="High" />
   </Target>
 
-  <!-- Dump AFTER CoreCompile so DocumentationFile is finalized -->
-  <Target Name="_Xml2Doc_Dump" AfterTargets="CoreCompile" Condition="'$(Xml2Doc_Dump)'=='true'">
-    <Message Importance="High" Text="Xml2Doc dump: Enabled=$(Xml2Doc_Enabled) GenDocs=$(GenerateDocumentationFile) DocumentationFile='$(DocumentationFile)' ExistsDoc=$([System.IO.File]::Exists('$(DocumentationFile)')) IntermediateOutputPath='$(IntermediateOutputPath)' OutputStamp='$(Xml2Doc_OutputStamp)' FingerprintFile='$(Xml2Doc_FingerprintFile)'" />
+  <Target Name="_Xml2Doc_Dump"
+          AfterTargets="CoreCompile"
+          Condition="'$(Xml2Doc_Dump)'=='true'">
+    <Message Importance="High"
+             Text="Xml2Doc dump: Enabled=$(Xml2Doc_Enabled) GenDocs=$(GenerateDocumentationFile) DocumentationFile='$(DocumentationFile)' ExistsDoc=$([System.IO.File]::Exists('$(DocumentationFile)')) IntermediateOutputPath='$(IntermediateOutputPath)' OutputStamp='$(Xml2Doc_OutputStamp)' FingerprintFile='$(Xml2Doc_FingerprintFile)'" />
   </Target>
 
-  <Target Name="Xml2Doc_ComputeFingerprint" AfterTargets="CoreCompile" Condition="
+  <Target Name="Xml2Doc_ComputeFingerprint"
+          AfterTargets="CoreCompile"
+          Condition="
             '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
             and '$(GenerateDocumentationFile)' == 'true'
             and '$(DocumentationFile)' != ''
@@ -82,7 +94,8 @@
       <_Xml2Doc_Fingerprint>$(_Xml2Doc_Hash)|$(_Xml2Doc_Options)</_Xml2Doc_Fingerprint>
     </PropertyGroup>
 
-    <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)" Condition="Exists('$(Xml2Doc_FingerprintFile)')">
+    <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)"
+                       Condition="Exists('$(Xml2Doc_FingerprintFile)')">
       <Output TaskParameter="Lines" ItemName="_Xml2Doc_ExistingFingerprint" />
     </ReadLinesFromFile>
 
@@ -90,16 +103,50 @@
       <_Xml2Doc_Existing>@(_Xml2Doc_ExistingFingerprint)</_Xml2Doc_Existing>
     </PropertyGroup>
 
-    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)" Lines="$(_Xml2Doc_Fingerprint)" Overwrite="true" Encoding="UTF-8" Condition="'$(_Xml2Doc_Existing)' != '$(_Xml2Doc_Fingerprint)'" />
+    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)"
+                      Lines="$(_Xml2Doc_Fingerprint)"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="'$(_Xml2Doc_Existing)' != '$(_Xml2Doc_Fingerprint)'" />
   </Target>
 
-  <Target Name="Xml2Doc_Generate" AfterTargets="CoreCompile" DependsOnTargets="Xml2Doc_ComputeFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'" Inputs="$(Xml2Doc_FingerprintFile)" Outputs="$(Xml2Doc_OutputStamp)">
+  <Target Name="Xml2Doc_Generate"
+          AfterTargets="CoreCompile"
+          DependsOnTargets="Xml2Doc_ComputeFingerprint"
+          Condition="
+            '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
+            and '$(GenerateDocumentationFile)' == 'true'
+            and '$(DocumentationFile)' != ''
+            and Exists('$(DocumentationFile)')
+            and Exists('$(Xml2Doc_FingerprintFile)')"
+          Inputs="$(Xml2Doc_FingerprintFile)"
+          Outputs="$(Xml2Doc_OutputStamp)">
 
-    <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="'$(Xml2Doc_SingleFile)'!='true' and '$(Xml2Doc_OutputDir)'!='' and !Exists('$(Xml2Doc_OutputDir)')" />
-    <MakeDir Directories="$(_Xml2Doc_OutputFileDir)" Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
-    <MakeDir Directories="$(_Xml2Doc_OutputStampDir)" Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
+    <MakeDir Directories="$(Xml2Doc_OutputDir)"
+             Condition="'$(Xml2Doc_SingleFile)'!='true' and '$(Xml2Doc_OutputDir)'!='' and !Exists('$(Xml2Doc_OutputDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_OutputFileDir)"
+             Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_OutputStampDir)"
+             Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
 
-    <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)" SingleFile="$(Xml2Doc_SingleFile)" OutputFile="$(Xml2Doc_OutputFile)" OutputDirectory="$(Xml2Doc_OutputDir)" FileNameMode="$(Xml2Doc_FileNameMode)" RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)" TrimRootNamespaceInFileNames="$(Xml2Doc_TrimRootNamespaceInFileNames)" CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)" ReportPath="$(Xml2Doc_ReportPath)" DryRun="$(Xml2Doc_DryRun)" Diff="$(Xml2Doc_Diff)" EmitToc="$(Xml2Doc_Toc)" EmitNamespaceIndex="$(Xml2Doc_NamespaceIndex)" BasenameOnly="$(Xml2Doc_BasenameOnly)" AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)" Fingerprint="$(_Xml2Doc_Fingerprint)" XmlSha256="$(_Xml2Doc_Hash)" IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
+    <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)"
+                                SingleFile="$(Xml2Doc_SingleFile)"
+                                OutputFile="$(Xml2Doc_OutputFile)"
+                                OutputDirectory="$(Xml2Doc_OutputDir)"
+                                FileNameMode="$(Xml2Doc_FileNameMode)"
+                                RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)"
+                                TrimRootNamespaceInFileNames="$(Xml2Doc_TrimRootNamespaceInFileNames)"
+                                CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
+                                ReportPath="$(Xml2Doc_ReportPath)"
+                                DryRun="$(Xml2Doc_DryRun)"
+                                Diff="$(Xml2Doc_Diff)"
+                                EmitToc="$(Xml2Doc_Toc)"
+                                EmitNamespaceIndex="$(Xml2Doc_NamespaceIndex)"
+                                BasenameOnly="$(Xml2Doc_BasenameOnly)"
+                                AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"
+                                Fingerprint="$(_Xml2Doc_Fingerprint)"
+                                XmlSha256="$(_Xml2Doc_Hash)"
+                                IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
@@ -108,7 +155,11 @@
       <_Xml2Doc_GeneratedJoined>@(Xml2Doc_GeneratedFiles,';')</_Xml2Doc_GeneratedJoined>
     </PropertyGroup>
 
-    <WriteLinesToFile File="$(Xml2Doc_OutputStamp)" Lines="generated: $(_Xml2Doc_GeneratedJoined)" Overwrite="true" Encoding="UTF-8" Condition="'$(Xml2Doc_DidWork)'=='true' or !Exists('$(Xml2Doc_OutputStamp)')" />
+    <WriteLinesToFile File="$(Xml2Doc_OutputStamp)"
+                      Lines="generated: $(_Xml2Doc_GeneratedJoined)"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="'$(Xml2Doc_DidWork)'=='true' or !Exists('$(Xml2Doc_OutputStamp)')" />
   </Target>
 
 </Project>

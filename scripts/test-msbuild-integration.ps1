@@ -181,6 +181,27 @@ function Invoke-SampleBuild([bool]$SingleFile, [string]$BinLogPath)
 
   Run-OrThrow -File "dotnet" -Args $args -Cwd $repo -ErrorPrefix "Sample build failed."
 }
+function Show-PathState([string] $label, [string] $path)
+{
+  Write-Detail "$($label): $path"
+
+  if (-not (Test-Path $path))
+  {
+    Write-Detail "  <missing>"
+    return
+  }
+
+  if (Test-Path $path -PathType Leaf)
+  {
+    Write-Detail "  <file exists>"
+    return
+  }
+
+  $tree = Get-Tree $path
+  $tree.Split([Environment]::NewLine) | ForEach-Object {
+    Write-Host "      $_"
+  }
+}
 
 $bin1 = Join-Path $runRoot "build1.binlog"
 $bin2 = Join-Path $runRoot "build2.binlog"
@@ -188,6 +209,14 @@ $bin3 = Join-Path $runRoot "build3.binlog"
 
 Write-Step "Build 1: per-type output"
 $r1 = Invoke-SampleBuild -SingleFile:$false -BinLogPath $bin1
+
+Write-Step "Inspecting build outputs after build 1"
+Show-PathState -label "Run root contents" -path $runRoot
+Show-PathState -label "Sample obj\net9.0 contents" -path (Join-Path $sampleDir "obj\$Configuration\net9.0")
+Show-PathState -label "Expected stamp file" -path $stampDefault
+Show-PathState -label "Expected fingerprint file" -path (Join-Path $sampleDir "obj\$Configuration\net9.0\xml2doc.fingerprint.txt")
+Show-PathState -label "Expected report file" -path $report
+Show-PathState -label "Expected docs dir" -path $outDir
 
 Assert-True (Test-Path $stampDefault) "Expected stamp at $stampDefault`nrunRoot:`n$(Get-Tree $runRoot)"
 Assert-True (Test-Path $report) "Expected report at $report`nrunRoot:`n$(Get-Tree $runRoot)"
