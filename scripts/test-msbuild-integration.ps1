@@ -167,6 +167,8 @@ function Invoke-SampleBuild([bool]$SingleFile, [string]$BinLogPath)
   "msbuild `"$sampleProj`" " +
   "/t:Build " +
   "/p:Configuration=$Configuration " +
+  "/p:Xml2Doc_LogChosenTask=true " +
+  "/p:Xml2Doc_Dump=true " +
   "/m:1 /nr:false /nodeReuse:false " +
   "/v:minimal " +
   "/bl:`"$BinLogPath`" " +
