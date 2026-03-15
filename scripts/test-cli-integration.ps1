@@ -108,9 +108,14 @@ function Normalize([string]$s)
 function Get-Tree([string] $root)
 {
  if (-not (Test-Path $root)) { return '<missing>' }
- $files = Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+
+ $rootPath = (Resolve-Path $root).Path.TrimEnd('\', '/')
+
+ $files = Get-ChildItem -Path $rootPath -Recurse -File -ErrorAction SilentlyContinue |
  Sort-Object FullName |
- ForEach-Object { $_.FullName.Substring($root.Length).TrimStart('\\', '/') -replace '\\', '/' }
+ ForEach-Object {
+  $_.FullName.Substring($rootPath.Length).TrimStart('\', '/') -replace '\\', '/'
+ }
 
  if (-not $files) { return '<empty>' }
  return ($files -join [Environment]::NewLine)
