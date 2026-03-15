@@ -13,6 +13,17 @@ function RepoRoot
  (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
 
+function Write-Step([string] $Message)
+{
+ Write-Host ""
+ Write-Host "==> $Message"
+}
+
+function Write-Detail([string] $Message)
+{
+ Write-Host "    $Message"
+}
+
 function Assert-True([bool]$cond, [string]$message)
 {
  if (-not $cond) { throw $message }
@@ -59,18 +70,36 @@ function Run-OrThrow
   [string] $ErrorPrefix = 'Command failed'
  )
 
+ Write-Detail "CMD: $File $Args"
+
  $r = Run-Capture -FileName $File -Arguments $Args -WorkingDirectory $Cwd
  if ($r.ExitCode -ne 0)
  {
   throw "$ErrorPrefix`n`nCMD: $File $Args`n`nSTDOUT:`n$($r.StdOut)`n`nSTDERR:`n$($r.StdErr)"
  }
+
+ if ($r.StdOut)
+ {
+  Write-Detail "STDOUT:"
+  $r.StdOut.TrimEnd().Split("`n") | ForEach-Object {
+   Write-Host "      $_".TrimEnd()
+  }
+ }
+
+ if ($r.StdErr)
+ {
+  Write-Detail "STDERR:"
+  $r.StdErr.TrimEnd().Split("`n") | ForEach-Object {
+   Write-Host "      $_".TrimEnd()
+  }
+ }
+
  return $r
 }
 
 function Normalize([string]$s)
 {
  if ($null -eq $s) { return '' }
- # Normalize newlines + trim trailing whitespace per-line
  $s = $s.Replace("`r`n", "`n").Replace("`r", "`n")
  $lines = $s.Split("`n") | ForEach-Object { $_.TrimEnd() }
  return ($lines -join "`n").TrimEnd()
@@ -165,6 +194,8 @@ function Extract-Anchors([string] $mdPath)
 
 # --------------------
 
+Write-Step "Resolving repository paths"
+
 $repo = RepoRoot
 
 $sampleProj = Join-Path $repo 'Xml2Doc\tests\Xml2Doc.Sample\Xml2Doc.Sample.csproj'
@@ -172,6 +203,12 @@ $cliProj = Join-Path $repo 'Xml2Doc\src\Xml2Doc.Cli\Xml2Doc.Cli.csproj'
 
 $fixtureXml = Join-Path $repo 'Xml2Doc\tests\Xml2Doc.Tests\Assets\Xml2Doc.Sample.xml'
 $snapDir = Join-Path $repo 'Xml2Doc\tests\Xml2Doc.Tests\__snapshots__\PerType_CleanNames'
+
+Write-Detail "Repo root: $repo"
+Write-Detail "Sample project: $sampleProj"
+Write-Detail "CLI project: $cliProj"
+Write-Detail "Fixture XML: $fixtureXml"
+Write-Detail "Snapshot dir: $snapDir"
 
 Assert-True (Test-Path $sampleProj) "Sample project not found: $sampleProj"
 Assert-True (Test-Path $cliProj) "CLI project not found: $cliProj"
@@ -181,8 +218,10 @@ $runId = [guid]::NewGuid().ToString('n')
 $runRoot = Join-Path $repo "Xml2Doc\tests\Xml2Doc.Sample\obj\$Configuration\cli-it\$runId"
 New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 
-# 1) Build sample to generate the authoritative XML, and verify committed fixture is up-to-date.
-#    (We keep Xml2Doc off here; CLI tests work from the XML.)
+Write-Detail "Run root: $runRoot"
+
+Write-Step "Building sample project to regenerate authoritative XML"
+
 Run-OrThrow -File 'dotnet' -Args (
  "build `"$sampleProj`" -c $Configuration -f net9.0 -v minimal -m:1 -nr:false /p:Xml2Doc_Enabled=false"
 ) -Cwd $repo -ErrorPrefix 'Building sample failed.' | Out-Null
@@ -190,22 +229,34 @@ Run-OrThrow -File 'dotnet' -Args (
 $sampleXml = Join-Path $repo "Xml2Doc\tests\Xml2Doc.Sample\bin\$Configuration\net9.0\Xml2Doc.Sample.xml"
 Assert-True (Test-Path $sampleXml) "Sample XML not found at: $sampleXml"
 
+Write-Detail "Generated sample XML: $sampleXml"
+
+Write-Step "Validating committed fixture XML matches freshly generated sample XML"
+
 $hSample = (Get-FileHash $sampleXml -Algorithm SHA256).Hash
 $hFix = (Get-FileHash $fixtureXml -Algorithm SHA256).Hash
+
+Write-Detail "Sample XML hash : $hSample"
+Write-Detail "Fixture XML hash: $hFix"
+
 if ($hSample -ne $hFix)
 {
  throw (
-  "Fixture XML is out of date.\n" +
-  "  sample:  $sampleXml\n" +
-  "  fixture: $fixtureXml\n\n" +
-  "Hashes differ:\n  sample:  $hSample\n  fixture: $hFix\n\n" +
+  "Fixture XML is out of date.`n" +
+  "  sample:  $sampleXml`n" +
+  "  fixture: $fixtureXml`n`n" +
+  "Hashes differ:`n  sample:  $hSample`n  fixture: $hFix`n`n" +
   "Run scripts/update-fixtures.ps1 and commit the updated Assets/Xml2Doc.Sample.xml"
  )
 }
 
-# 2) Build CLI for both TFMs
+Write-Detail "Fixture XML is current."
+
+Write-Step "Building CLI for both target frameworks"
+
 foreach ($tfm in @('net8.0', 'net9.0'))
 {
+ Write-Detail "Building CLI for $tfm"
  Run-OrThrow -File 'dotnet' -Args (
   "build `"$cliProj`" -c $Configuration -f $tfm -v minimal -m:1 -nr:false"
  ) -Cwd $repo -ErrorPrefix "Building CLI ($tfm) failed." | Out-Null
@@ -216,35 +267,53 @@ $cli9 = Join-Path $repo "Xml2Doc\src\Xml2Doc.Cli\bin\$Configuration\net9.0\Xml2D
 Assert-True (Test-Path $cli8) "Missing CLI dll: $cli8"
 Assert-True (Test-Path $cli9) "Missing CLI dll: $cli9"
 
-# 3) Baseline per-type output: compare each TFM to snapshots, and to each other.
+Write-Detail "CLI net8 path: $cli8"
+Write-Detail "CLI net9 path: $cli9"
+
+Write-Step "Loading expected snapshot file set"
+
 $expected = Get-ExpectedSnapshotFiles -snapDir $snapDir
+Write-Detail "Expected markdown file count: $($expected.Count)"
 
 $out8 = Join-Path $runRoot 'out-net8'
 $out9 = Join-Path $runRoot 'out-net9'
 New-Item -ItemType Directory -Force -Path $out8 | Out-Null
 New-Item -ItemType Directory -Force -Path $out9 | Out-Null
 
+Write-Step "Generating per-type output with CLI net8"
 $r8 = Run-OrThrow -File 'dotnet' -Args (
  "`"$cli8`" --xml `"$fixtureXml`" --out `"$out8`" --file-names clean"
 ) -Cwd $repo -ErrorPrefix 'Running CLI net8 failed.'
 Set-Content -Path (Join-Path $runRoot 'net8.stdout.txt') -Value $r8.StdOut
 Set-Content -Path (Join-Path $runRoot 'net8.stderr.txt') -Value $r8.StdErr
+Write-Detail "net8 output tree:"
+Get-Tree $out8 | ForEach-Object { $_.Split([Environment]::NewLine) } | ForEach-Object { Write-Host "      $_" }
 
+Write-Step "Generating per-type output with CLI net9"
 $r9 = Run-OrThrow -File 'dotnet' -Args (
  "`"$cli9`" --xml `"$fixtureXml`" --out `"$out9`" --file-names clean"
 ) -Cwd $repo -ErrorPrefix 'Running CLI net9 failed.'
 Set-Content -Path (Join-Path $runRoot 'net9.stdout.txt') -Value $r9.StdOut
 Set-Content -Path (Join-Path $runRoot 'net9.stderr.txt') -Value $r9.StdErr
+Write-Detail "net9 output tree:"
+Get-Tree $out9 | ForEach-Object { $_.Split([Environment]::NewLine) } | ForEach-Object { Write-Host "      $_" }
 
+Write-Step "Comparing per-type output file sets to expected snapshots"
 Assert-FileSet -outDir $out8 -expected $expected
 Assert-FileSet -outDir $out9 -expected $expected
+Write-Detail "Output file sets match expected snapshots."
 
+Write-Step "Comparing per-type output content to committed snapshots"
 Assert-MatchesSnapshots -outDir $out8 -snapDir $snapDir -expectedFiles $expected
 Assert-MatchesSnapshots -outDir $out9 -snapDir $snapDir -expectedFiles $expected
+Write-Detail "Snapshot content matches for net8 and net9."
 
+Write-Step "Comparing net8 and net9 output for cross-TFM stability"
 Assert-DirsEqual -aDir $out8 -bDir $out9 -files $expected
+Write-Detail "Cross-TFM output is identical."
 
-# 4) Option smoke: anchor algorithms should produce different ID sets in single-file mode.
+Write-Step "Running single-file anchor algorithm smoke test"
+
 $singleDir = Join-Path $runRoot 'single-file'
 New-Item -ItemType Directory -Force -Path $singleDir | Out-Null
 
@@ -254,14 +323,16 @@ $anchorSets = @{}
 foreach ($a in $algos)
 {
  $dst = Join-Path $singleDir ("api-{0}.md" -f $a)
+ Write-Detail "Generating single-file output with anchor algorithm '$a' -> $dst"
+
  Run-OrThrow -File 'dotnet' -Args (
   "`"$cli9`" --xml `"$fixtureXml`" --out `"$dst`" --single --anchor-algorithm $a --file-names clean --basename-only"
  ) -Cwd $repo -ErrorPrefix "Single-file run failed ($a)." | Out-Null
 
  $anchorSets[$a] = (Extract-Anchors -mdPath $dst)
+ Write-Detail "Anchor count for '$a': $($anchorSets[$a].Count)"
 }
 
-# Expect at least one algorithm to differ from default
 $baseline = ($anchorSets['default'] -join '|')
 $diff = $false
 foreach ($a in $algos | Where-Object { $_ -ne 'default' })
@@ -269,8 +340,10 @@ foreach ($a in $algos | Where-Object { $_ -ne 'default' })
  if (($anchorSets[$a] -join '|') -ne $baseline) { $diff = $true; break }
 }
 Assert-True $diff 'Expected at least one anchor algorithm to produce a different anchor set than default.'
+Write-Detail "Anchor algorithm variation confirmed."
 
-# 5) Option smoke: namespace index + trim + basename affects layout
+Write-Step "Running namespace-index / trim-rootns / basename-only smoke test"
+
 $nsDir = Join-Path $runRoot 'namespace-index'
 New-Item -ItemType Directory -Force -Path $nsDir | Out-Null
 
@@ -293,8 +366,18 @@ Assert-True (Test-Path $nsPage) "Expected per-namespace page at $nsPage"
 $nsContent = (Get-Content $nsPage -Raw).Replace("`r`n", "`n")
 Assert-True ($nsContent -match '\.\./AliasingPlayground\.md') 'Expected basename-only relative link in namespace page.'
 
+Write-Detail "Namespace-index output tree:"
+Get-Tree $nsDir | ForEach-Object { $_.Split([Environment]::NewLine) } | ForEach-Object { Write-Host "      $_" }
+
+Write-Step "CLI integration completed successfully"
 Write-Host "CLI integration OK. Artifacts: $runRoot"
+
 if (-not $KeepArtifacts)
 {
+ Write-Detail "Removing artifact directory: $runRoot"
  Remove-Item -Recurse -Force $runRoot
+}
+else
+{
+ Write-Detail "Keeping artifact directory: $runRoot"
 }
