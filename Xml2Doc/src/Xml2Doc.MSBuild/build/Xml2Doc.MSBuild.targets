@@ -1,98 +1,186 @@
 ﻿<Project>
+
   <!-- Decide preferred TFM based on MSBuild runtime -->
   <PropertyGroup>
-    <!-- ORIGINAL: keep for reference but superseded by the _TaskTfm/_TaskPath block below -->
-    <!-- <_Xml2DocPreferredTfm>net8.0</_Xml2DocPreferredTfm> <_Xml2DocPreferredTfm Condition="'$(MSBuildRuntimeType)'=='Full'">net472</_Xml2DocPreferredTfm> <_Xml2DocTaskDll>$(MSBuildThisFileDirectory)..\lib\$(_Xml2DocPreferredTfm)\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll> <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net8.0\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll> <_Xml2DocTaskDll Condition="!Exists('$(_Xml2DocTaskDll)')">$(MSBuildThisFileDirectory)..\lib\net472\Xml2Doc.MSBuild.dll</_Xml2DocTaskDll> -->
-    <!-- NEW (single source of truth): pick task TFM by MSBuild runtime and compute path -->
+    <!-- Pick task TFM by MSBuild runtime -->
     <_Xml2Doc_TaskTfm Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</_Xml2Doc_TaskTfm>
     <_Xml2Doc_TaskTfm Condition="'$(_Xml2Doc_TaskTfm)' == ''">net472</_Xml2Doc_TaskTfm>
-    <!-- package layout (NuGet) -->
+
+    <!-- 1) NuGet package layout -->
     <_Xml2Doc_TaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_TaskPath>
+
+    <!-- 2) Source-tree fallback (imported from src\Xml2Doc.MSBuild\buildTransitive\...) -->
+    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+      $(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll
+    </_Xml2Doc_TaskPath>
+
+    <!-- 3) Extra fallbacks -->
+    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+      $(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll
+    </_Xml2Doc_TaskPath>
+    <_Xml2Doc_TaskPath Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+      $(MSBuildThisFileDirectory)..\bin\Debug\$(_Xml2Doc_TaskTfm)\Xml2Doc.MSBuild.dll
+    </_Xml2Doc_TaskPath>
   </PropertyGroup>
-  <!-- ORIGINAL (INVALID LOCATION): MakeDir cannot be at project root -->
-  <!-- <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="!Exists('$(Xml2Doc_OutputDir)')" /> -->
+
   <!-- Load the task from the resolved path -->
-  <UsingTask TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2Doc_TaskPath)" />
-  <!-- ORIGINAL: verify target checked old variable; switch to _Xml2Doc_TaskPath -->
-  <!-- <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2DocTaskDll)')"> <Warning Text="Xml2Doc task assembly not found at $(_Xml2DocTaskDll). Package layout mismatch?" /> </Target> -->
-  <Target Name="Xml2Doc_VerifyTaskAssembly" BeforeTargets="Xml2Doc_Generate" Condition="!Exists('$(_Xml2Doc_TaskPath)')">
-    <Warning Text="Xml2Doc task assembly not found at $(_Xml2Doc_TaskPath). Package layout mismatch?" />
+  <UsingTask TaskName="Xml2Doc.MSBuild.GenerateMarkdownFromXmlDoc"
+             AssemblyFile="$(_Xml2Doc_TaskPath)" />
+
+  <!-- Compat hook: older consumers may depend on this -->
+  <Target Name="Xml2Doc_WriteFingerprint"
+          DependsOnTargets="Xml2Doc_ComputeFingerprint" />
+
+  <!-- Verify the task assembly exists -->
+  <Target Name="Xml2Doc_VerifyTaskAssembly"
+          BeforeTargets="Xml2Doc_Generate"
+          Condition="!Exists('$(_Xml2Doc_TaskPath)')">
+    <Warning Text="Xml2Doc task assembly not found at $(_Xml2Doc_TaskPath). Package/source layout mismatch?" />
   </Target>
-  <Target Name="_Xml2Doc_LogChosenTask" BeforeTargets="Build" Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
-    <Message Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType))" Importance="Low" />
+
+  <!-- Prove import + show key paths (only when enabled) -->
+  <Target Name="Xml2Doc_ProbeImport"
+          BeforeTargets="CoreCompile"
+          Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
+    <Message Importance="High"
+             Text="Xml2Doc imported into $(MSBuildProjectName) TFM=$(TargetFramework) Doc=$(DocumentationFile) Stamp=$(Xml2Doc_OutputStamp)" />
   </Target>
-  <!-- ORIGINAL (SECOND UsingTask): remove to avoid double registration / path disagreement -->
-  <!-- <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2DocTaskDll)" /> -->
+
+  <!-- Make chosen-task logging visible at -v:normal -->
+  <Target Name="_Xml2Doc_LogChosenTask"
+          BeforeTargets="Build"
+          Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
+    <Message Importance="High"
+             Text="Xml2Doc task: $(_Xml2Doc_TaskPath) (TFM=$(_Xml2Doc_TaskTfm), MSBuildRuntimeType=$(MSBuildRuntimeType), Config=$(Configuration))" />
+  </Target>
+
+  <!-- High-signal diagnostics AFTER CoreCompile (when doc file should exist) -->
+  <Target Name="Xml2Doc_Diagnose"
+          AfterTargets="CoreCompile"
+          Condition="'$(Xml2Doc_LogChosenTask)'=='true'">
+    <Message Importance="High"
+             Text="Xml2Doc Diagnose: Project=$(MSBuildProjectName) TFM=$(TargetFramework) Config=$(Configuration)" />
+    <Message Importance="High"
+             Text="Xml2Doc Diagnose: Enabled=$(Xml2Doc_Enabled) GenDoc=$(GenerateDocumentationFile) DocFile=$(DocumentationFile) Exists=$([System.IO.File]::Exists('$(DocumentationFile)'))" />
+    <Message Importance="High"
+             Text="Xml2Doc Diagnose: OutDir=$(Xml2Doc_OutputDir) OutFile=$(Xml2Doc_OutputFile) Stamp=$(Xml2Doc_OutputStamp)" />
+    <Message Importance="High"
+             Text="Xml2Doc Diagnose: FingerprintFile=$(Xml2Doc_FingerprintFile)" />
+  </Target>
+
   <PropertyGroup>
-    <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(DocumentationFile)'!='' and Exists('$(DocumentationFile)')">true</_Xml2Doc_CanRun>
+    <!-- Don't check Exists() here; this is evaluated too early. -->
+    <_Xml2Doc_CanRun Condition="'$(Xml2Doc_Enabled)'=='true' and '$(GenerateDocumentationFile)'=='true' and '$(DocumentationFile)'!=''">true</_Xml2Doc_CanRun>
   </PropertyGroup>
-  <!-- NEW: compute SHA256 of $(DocumentationFile) + combine with options, and only update fingerprint file if content actually changes. -->
-  <Target Name="Xml2Doc_ComputeFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'">
-    <!-- 1) Hash the XML doc -->
+
+  <!-- Compute SHA256 + option fingerprint -->
+  <Target Name="Xml2Doc_ComputeFingerprint"
+          Condition="'$(_Xml2Doc_CanRun)'=='true' and Exists('$(DocumentationFile)')">
+
     <GetFileHash Files="$(DocumentationFile)" Algorithm="SHA256">
       <Output TaskParameter="Items" ItemName="_Xml2Doc_HashItem" />
     </GetFileHash>
-    <!-- 2) Build the normalized options fingerprint -->
+
     <PropertyGroup>
       <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)</_Xml2Doc_Options>
-      <_Xml2Doc_Hash>$(_Xml2Doc_Hash)</_Xml2Doc_Hash>
-      <!-- will be set below from item metadata -->
     </PropertyGroup>
-    <!-- Pull Hash metadata out of the item (there is exactly one file) -->
+
     <ItemGroup>
       <_Xml2Doc_HashValue Include="@(_Xml2Doc_HashItem->'%(Hash)')" />
     </ItemGroup>
+
     <PropertyGroup>
       <_Xml2Doc_Hash>@(_Xml2Doc_HashValue)</_Xml2Doc_Hash>
       <_Xml2Doc_Fingerprint>$(_Xml2Doc_Hash)|$(_Xml2Doc_Options)</_Xml2Doc_Fingerprint>
     </PropertyGroup>
-    <!-- 3) Read existing fingerprint (if any) and only write when different -->
-    <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)" Condition="Exists('$(Xml2Doc_FingerprintFile)')">
+
+    <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)"
+                       Condition="Exists('$(Xml2Doc_FingerprintFile)')">
       <Output TaskParameter="Lines" ItemName="_Xml2Doc_ExistingFingerprint" />
     </ReadLinesFromFile>
+
     <PropertyGroup>
       <_Xml2Doc_Existing>@(_Xml2Doc_ExistingFingerprint)</_Xml2Doc_Existing>
     </PropertyGroup>
-    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)" Lines="$(_Xml2Doc_Fingerprint)" Overwrite="true" Encoding="UTF-8" Condition="'$(_Xml2Doc_Existing)' != '$(_Xml2Doc_Fingerprint)'" />
+
+    <WriteLinesToFile File="$(Xml2Doc_FingerprintFile)"
+                      Lines="$(_Xml2Doc_Fingerprint)"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="'$(_Xml2Doc_Existing)' != '$(_Xml2Doc_Fingerprint)'" />
+
     <Message Importance="Low" Text="Xml2Doc: fingerprint $(_Xml2Doc_Fingerprint)" />
   </Target>
-  <Target Name="Xml2Doc_Generate" AfterTargets="CoreCompile" DependsOnTargets="Xml2Doc_WriteFingerprint" Condition="'$(_Xml2Doc_CanRun)'=='true'" Inputs="$(DocumentationFile);$(Xml2Doc_FingerprintFile)" Outputs="$(Xml2Doc_OutputStamp)">
-    <Message Importance="Low" Text="Xml2Doc: xml='$(DocumentationFile)' single=$(Xml2Doc_SingleFile) outDir='$(Xml2Doc_OutputDir)' outFile='$(Xml2Doc_OutputFile)'" />
-    <!-- Precompute the single-file directory to avoid nested property functions in Condition -->
+
+  <Target Name="Xml2Doc_Generate"
+          AfterTargets="CoreCompile"
+          DependsOnTargets="Xml2Doc_WriteFingerprint"
+          Condition="'$(_Xml2Doc_CanRun)'=='true' and Exists('$(DocumentationFile)')"
+          Inputs="$(DocumentationFile);$(Xml2Doc_FingerprintFile)"
+          Outputs="$(Xml2Doc_OutputStamp)">
+
+    <Message Importance="Low"
+             Text="Xml2Doc: xml='$(DocumentationFile)' single=$(Xml2Doc_SingleFile) outDir='$(Xml2Doc_OutputDir)' outFile='$(Xml2Doc_OutputFile)'" />
+
     <PropertyGroup>
-      <!-- OLD inline usage (commented below) called Path.GetDirectoryName inside the Condition and caused MSB4092 -->
-      <_Xml2Doc_OutputFileDir>$([System.IO.Path]::GetDirectoryName($(Xml2Doc_OutputFile)))</_Xml2Doc_OutputFileDir>
+      <!-- Quote property expansion so spaces don't break GetDirectoryName -->
+      <_Xml2Doc_OutputFileDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))</_Xml2Doc_OutputFileDir>
     </PropertyGroup>
-    <!-- NEW: Create destination directories INSIDE the target (valid location) -->
-    <MakeDir Directories="$(Xml2Doc_OutputDir)" Condition="'$(Xml2Doc_SingleFile)'!='true' and !Exists('$(Xml2Doc_OutputDir)')" />
-    <!-- OLD (kept for reference; was triggering MSB4092 due to nested quotes/functions) <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))" Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(Xml2Doc_OutputFile)'!='' and !Exists('$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))')" /> -->
-    <!-- NEW: use the precomputed directory property to keep Condition simple -->
-    <MakeDir Directories="$(_Xml2Doc_OutputFileDir)" Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
-    <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)" SingleFile="$(Xml2Doc_SingleFile)" OutputFile="$(Xml2Doc_OutputFile)" OutputDirectory="$(Xml2Doc_OutputDir)" FileNameMode="$(Xml2Doc_FileNameMode)" RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)" TrimRootNamespaceInFileNames="$(Xml2Doc_TrimRootNamespaceInFileNames)" CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)" ReportPath="$(Xml2Doc_ReportPath)" DryRun="$(Xml2Doc_DryRun)" Diff="$(Xml2Doc_Diff)" Fingerprint="$(_Xml2Doc_Fingerprint)" XmlSha256="$(_Xml2Doc_Hash)" IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
+
+    <MakeDir Directories="$(Xml2Doc_OutputDir)"
+             Condition="'$(Xml2Doc_SingleFile)'!='true' and !Exists('$(Xml2Doc_OutputDir)')" />
+
+    <MakeDir Directories="$(_Xml2Doc_OutputFileDir)"
+             Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
+
+    <GenerateMarkdownFromXmlDoc
+        XmlPath="$(DocumentationFile)"
+        SingleFile="$(Xml2Doc_SingleFile)"
+        OutputFile="$(Xml2Doc_OutputFile)"
+        OutputDirectory="$(Xml2Doc_OutputDir)"
+        FileNameMode="$(Xml2Doc_FileNameMode)"
+        RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)"
+        TrimRootNamespaceInFileNames="$(Xml2Doc_TrimRootNamespaceInFileNames)"
+        CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
+        ReportPath="$(Xml2Doc_ReportPath)"
+        DryRun="$(Xml2Doc_DryRun)"
+        Diff="$(Xml2Doc_Diff)"
+        Fingerprint="$(_Xml2Doc_Fingerprint)"
+        XmlSha256="$(_Xml2Doc_Hash)"
+        IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_GeneratedFiles" />
       <Output TaskParameter="ReportPathOut" PropertyName="Xml2Doc_ReportPathOut" />
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_DidWork" />
     </GenerateMarkdownFromXmlDoc>
-    <!-- Join item list into a property to avoid MSB4012 when writing the stamp -->
+
     <PropertyGroup>
       <_Xml2Doc_GeneratedJoined>@(Xml2Doc_GeneratedFiles,';')</_Xml2Doc_GeneratedJoined>
+
       <_Xml2Doc_ReportDisplay Condition="'$(Xml2Doc_ReportPathOut)'!=''">$(Xml2Doc_ReportPathOut)</_Xml2Doc_ReportDisplay>
       <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'=='' and '$(Xml2Doc_ReportPath)'!=''">$(Xml2Doc_ReportPath)</_Xml2Doc_ReportDisplay>
       <_Xml2Doc_ReportDisplay Condition="'$(_Xml2Doc_ReportDisplay)'==''">n/a</_Xml2Doc_ReportDisplay>
-    </PropertyGroup>
-    <!-- ... inside Target Name="Xml2Doc_Generate" ... just before WriteLinesToFile -->
-    <PropertyGroup>
-      <!-- Normalize and capture the directory for the stamp -->
+
       <_Xml2Doc_OutputStampDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputStamp)'))</_Xml2Doc_OutputStampDir>
     </PropertyGroup>
-    <!-- Make sure the obj/<Config>/<TFM>/ directory exists for the stamp -->
-    <MakeDir Directories="$(_Xml2Doc_OutputStampDir)" Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
+
+    <MakeDir Directories="$(_Xml2Doc_OutputStampDir)"
+             Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
+
     <Message Importance="Low" Text="Xml2Doc: writing/updating stamp at '$(Xml2Doc_OutputStamp)'" />
-    <WriteLinesToFile File="$(Xml2Doc_OutputStamp)" Lines="generated: $(_Xml2Doc_GeneratedJoined) | report: $(_Xml2Doc_ReportDisplay) | time: $([System.DateTime]::Now.ToString('o'))" Overwrite="true" Encoding="UTF-8" />
+
+    <WriteLinesToFile File="$(Xml2Doc_OutputStamp)"
+                      Lines="generated: $(_Xml2Doc_GeneratedJoined) | report: $(_Xml2Doc_ReportDisplay) | time: $([System.DateTime]::Now.ToString('o'))"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+
     <ItemGroup>
       <FileWrites Include="@(Xml2Doc_GeneratedFiles)" />
     </ItemGroup>
-    <Message Importance="High" Condition="'$(Xml2Doc_DidWork)'=='true'" Text="Xml2Doc: generated @(Xml2Doc_GeneratedFiles,';')" />
-    <Message Importance="Low" Condition="'$(Xml2Doc_DidWork)'!='true'" Text="Xml2Doc: up-to-date (skipped)" />
+
+    <Message Importance="High" Condition="'$(Xml2Doc_DidWork)'=='true'"
+             Text="Xml2Doc: generated @(Xml2Doc_GeneratedFiles,';')" />
+    <Message Importance="Low" Condition="'$(Xml2Doc_DidWork)'!='true'"
+             Text="Xml2Doc: up-to-date (skipped)" />
   </Target>
+
 </Project>

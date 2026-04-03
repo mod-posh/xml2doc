@@ -1,0 +1,1 @@
+﻿|false|c:\Code\Organizations\mod-posh\xml2doc\Xml2Doc\tests\Xml2Doc.Sample\docs\api.md|c:\Code\Organizations\mod-posh\xml2doc\Xml2Doc\tests\Xml2Doc.Sample\docs|clean||csharp

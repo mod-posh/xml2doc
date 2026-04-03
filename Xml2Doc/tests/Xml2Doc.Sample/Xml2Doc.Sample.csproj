@@ -1,11 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Point at the in-repo buildTransitive folder -->
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <IsPackable>false</IsPackable>
+
+    <!-- IMPORTANT: set this before importing props -->
+    <_Xml2DocBuildTransitiveDir>\..\..\src\Xml2Doc.MSBuild\build\</_Xml2DocBuildTransitiveDir>
   </PropertyGroup>
+
+  <!-- Import props EARLY -->
+  <Import Project="$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.props"
+          Condition="Exists('$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.props')" />
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Make DocumentationFile predictable + matches obj/<Config>/<TFM>/ -->
+    <DocumentationFile>$(IntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
+
+    <!-- Xml2Doc configuration -->
+    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\docs</Xml2Doc_OutputDir>
+    <Xml2Doc_TrimRootNamespaceInFileNames>true</Xml2Doc_TrimRootNamespaceInFileNames>
+    <Xml2Doc_ReportPath>$(MSBuildProjectDirectory)\docs\xml2doc.sample-report.json</Xml2Doc_ReportPath>
+
+    <!-- optional: enable by default in the sample -->
+    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
+  </PropertyGroup>
+
+  <!-- This prints on every build and proves whether imports exist -->
+  <Target Name="Xml2Doc_Sample_ImportProbe" BeforeTargets="CoreCompile">
+    <Message Importance="High" Text="Xml2Doc Sample Probe: buildTransitiveDir='$(_Xml2DocBuildTransitiveDir)'" />
+    <Message Importance="High" Text="Xml2Doc Sample Probe: props exists = $([System.IO.File]::Exists('$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.props'))" />
+    <Message Importance="High" Text="Xml2Doc Sample Probe: targets exists = $([System.IO.File]::Exists('$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.targets'))" />
+  </Target>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj" />
   </ItemGroup>
+
+  <!-- Import targets LATE -->
+  <Import Project="$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.targets"
+          Condition="Exists('$(_Xml2DocBuildTransitiveDir)\xml2doc.msbuild.targets')" />
+
 </Project>

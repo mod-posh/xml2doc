@@ -6,6 +6,7 @@ using Xunit;
 
 namespace Xml2Doc.Tests
 {
+    [Collection("Build collection")]
     public class MsbuildIncrementalTests
     {
         // ----- repo path helpers -----
@@ -26,7 +27,6 @@ namespace Xml2Doc.Tests
             }
         }
 
-        private static string Solution => Path.Combine(RepoRoot, "Xml2Doc.sln");
         private static string SampleProject => Path.Combine(RepoRoot, "tests", "Xml2Doc.Sample", "Xml2Doc.Sample.csproj");
 
         // Find the xml2doc.stamp that our targets write under obj/<Config>/<TFM>/
@@ -75,7 +75,7 @@ namespace Xml2Doc.Tests
             const string cfg = "Release";
 
             // 1) Build the whole solution once (known-good entry point)
-            Run("dotnet", $"build \"{Solution}\" -c {cfg} -m:1 -nr:false -v:minimal", RepoRoot);
+            Run("dotnet", $"build \"{SampleProject}\" -c {cfg} -f net9.0 -- /m:1 /nr:false -v:minimal /p:Xml2Doc_LogChosenTask=true", RepoRoot);
 
             // 2) Locate the xml2doc.stamp emitted for the sample project
             var stamp1 = FindStamp(SampleProject, cfg);
@@ -84,7 +84,7 @@ namespace Xml2Doc.Tests
             var t1 = File.GetLastWriteTimeUtc(stamp1!);
 
             // 3) Build the solution again with NO changes -> target should be up-to-date (stamp time unchanged)
-            Run("dotnet", $"build \"{Solution}\" -c {cfg} -m:1 -nr:false -v:minimal", RepoRoot);
+            Run("dotnet", $"build \"{SampleProject}\" -c {cfg} /m:1 /nr:false -v:minimal", RepoRoot);
 
             var stamp2 = FindStamp(SampleProject, cfg);
             Assert.True(!string.IsNullOrEmpty(stamp2) && File.Exists(stamp2!),
@@ -97,7 +97,7 @@ namespace Xml2Doc.Tests
             // NOTE: Passing MSBuild properties to the solution is reliable here.
             var outFile = Path.Combine(Path.GetDirectoryName(SampleProject)!, "docs", "api.md");
             Run("dotnet",
-                $"build \"{Solution}\" -c {cfg} -m:1 -nr:false -v:minimal " +
+                $"build \"{SampleProject}\" -c {cfg} /m:1 /nr:false -v:minimal " +
                 $"/p:Xml2Doc_SingleFile=true /p:Xml2Doc_OutputFile=\"{outFile}\"",
                 RepoRoot);
 

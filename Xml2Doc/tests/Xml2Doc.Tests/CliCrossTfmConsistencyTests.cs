@@ -33,7 +33,6 @@ namespace Xml2Doc.Tests
 
         // IMPORTANT: RepoRoot is exactly the folder that contains Xml2Doc.sln (…\Xml2Doc)
         // Do NOT add another "Xml2Doc" segment here.
-        public static string Solution => Path.Combine(RepoRoot, "Xml2Doc.sln");
         public static string SampleProject => Path.Combine(RepoRoot, "tests", "Xml2Doc.Sample", "Xml2Doc.Sample.csproj");
         public static string CliProject => Path.Combine(RepoRoot, "src", "Xml2Doc.Cli", "Xml2Doc.Cli.csproj");
 
@@ -46,7 +45,7 @@ namespace Xml2Doc.Tests
         public static string TempOut(string suffix) =>
             Path.Combine(Path.GetTempPath(), $"xml2doc-test-{suffix}-{Guid.NewGuid():N}");
     }
-
+    [Collection("Build collection")]
     public class CliCrossTfmConsistencyTests
     {
         private static readonly string[] ExpectedFiles =
@@ -114,7 +113,11 @@ namespace Xml2Doc.Tests
             if (_built) return;
 
             // Build once, single node to avoid file-handle noise
-            Run("dotnet", $"build \"{TestPaths.Solution}\" -c {cfg} -m:1 -nr:false -v minimal", TestPaths.RepoRoot);
+            Run("dotnet", $"build \"{TestPaths.SampleProject}\" -c {cfg} -f net9.0 -- /m:1 /nr:false -v:minimal", TestPaths.RepoRoot);
+
+            Run("dotnet", $"build \"{TestPaths.CliProject}\" -c {cfg} -f net8.0 -- /m:1 /nr:false -v:minimal", TestPaths.RepoRoot);
+            Run("dotnet", $"build \"{TestPaths.CliProject}\" -c {cfg} -f net9.0 -- /m:1 /nr:false -v:minimal", TestPaths.RepoRoot);
+
             _built = true;
         }
 
