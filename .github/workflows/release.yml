@@ -30,7 +30,7 @@ jobs:
         shell: bash
 
       - name: Create Release
-        uses: mod-posh/NewTaggedRelease@v0.0.3.2
+        uses: mod-posh/NewTaggedRelease@v0.0.3.3
         with:
           name: 'Release v${{ env.VERSION }}'
           filename: 'RELEASE.md'
