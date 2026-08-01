@@ -1,5 +1,8 @@
 name: Announce New Release
 
+permissions:
+  contents: read
+
 on:
   workflow_run:
     workflows: ["New Release"]  # Make sure this matches `release.yml`
