@@ -76,7 +76,7 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             var currentFiles = new HashSet<string>(
                 filesToWrite,
-                StringComparer.Ordinal);
+                GetPathComparer());
 
             var filesToDelete = previouslyOwnedFiles
                 .Where(file => !currentFiles.Contains(file))
@@ -143,7 +143,7 @@ namespace Xml2Doc.Core.OutputLifecycle
             Func<string, Exception> duplicateEntryException)
         {
             var normalizedEntries = new List<string>(entries.Count);
-            var uniqueEntries = new HashSet<string>(StringComparer.Ordinal);
+            var uniqueEntries = new HashSet<string>(GetPathComparer());
 
             foreach (var entry in entries)
             {
@@ -216,6 +216,11 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             return path + Path.DirectorySeparatorChar;
         }
+
+        private static StringComparer GetPathComparer() =>
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
 
         private static StringComparison GetPathComparison() =>
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
