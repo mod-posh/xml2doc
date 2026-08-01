@@ -18,4 +18,4 @@ These records explain **why architectural decisions were made**.
 | ADR‑008 | Multi‑target compatibility     | Accepted |
 | ADR‑009 | Structured diagnostics         | Proposed |
 | ADR‑010 | Pluggable anchor algorithms    | Proposed |
-| ADR‑011 | Generated output ownership     | Proposed |
+| ADR‑011 | Generated output ownership     | Accepted |
