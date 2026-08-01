@@ -41,6 +41,7 @@
     <Xml2Doc_Toc>false</Xml2Doc_Toc>
     <Xml2Doc_NamespaceIndex>false</Xml2Doc_NamespaceIndex>
     <Xml2Doc_BasenameOnly>false</Xml2Doc_BasenameOnly>
+    <Xml2Doc_GenerateIndex Condition="'$(Xml2Doc_GenerateIndex)'==''">true</Xml2Doc_GenerateIndex>
 
     <Xml2Doc_ReportIncludeTimestamp Condition="'$(Xml2Doc_ReportIncludeTimestamp)'==''">false</Xml2Doc_ReportIncludeTimestamp>
 

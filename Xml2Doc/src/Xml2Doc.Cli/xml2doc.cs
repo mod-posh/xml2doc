@@ -84,6 +84,7 @@ namespace Xml2Doc.Cli
             string? externalDocs = null;
             bool toc = false;
             bool namespaceIndex = false;
+            bool generateIndex = true;
             int? parallel = null;
             bool? basenameOnly = false;
             string? configPath = null;
@@ -114,6 +115,7 @@ namespace Xml2Doc.Cli
                     case "--external-docs" when i + 1 < args.Length: externalDocs = args[++i]; break;
                     case "--toc": toc = true; break;
                     case "--namespace-index": namespaceIndex = true; break;
+                    case "--no-index": generateIndex = false; break;
                     case "--basename-only": basenameOnly = true; break;
                     case "--parallel" when i + 1 < args.Length:
                         if (int.TryParse(args[++i], out var p)) parallel = p;
@@ -154,6 +156,7 @@ namespace Xml2Doc.Cli
                 if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg.ExternalDocs!;
                 if (cfg?.Toc is bool tc) toc = tc || toc;
                 if (cfg?.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
+                if (cfg?.GenerateIndex is bool gi && generateIndex) generateIndex = gi;
                 if (cfg?.BasenameOnly is bool bo) basenameOnly = basenameOnly ?? bo;
                 if (cfg?.Parallel is int pi && parallel is null) parallel = pi;
                 if (cfg?.Diff is bool df) diff = df || diff;
@@ -193,7 +196,8 @@ namespace Xml2Doc.Cli
                     EmitToc: toc,
                     EmitNamespaceIndex: namespaceIndex,
                     BasenameOnly: basenameOnly ?? false,
-                    ParallelDegree: parallel
+                    ParallelDegree: parallel,
+                    GenerateIndex: generateIndex
                 );
 
                 var renderer = new MarkdownRenderer(model, options);
@@ -258,6 +262,7 @@ namespace Xml2Doc.Cli
                             externalDocs,
                             toc,
                             namespaceIndex,
+                            generateIndex,
                             basenameOnly = options.BasenameOnly,
                             parallel
                         },
@@ -342,6 +347,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--external-docs <url|mapfile>]");
             Console.WriteLine("                   [--toc]");
             Console.WriteLine("                   [--namespace-index]");
+            Console.WriteLine("                   [--no-index]");
             Console.WriteLine("                   [--basename-only]");
             Console.WriteLine("                   [--parallel <N>]");
             Console.WriteLine("                   [--config <file>]");

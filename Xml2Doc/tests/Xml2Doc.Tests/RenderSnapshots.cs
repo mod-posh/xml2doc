@@ -161,6 +161,23 @@ public class RenderSnapshots
     }
 
     [Fact]
+    public void PerType_GenerateIndexFalse_OmitsIndexFromPlanAndOutput()
+    {
+        var model = LoadFixtureModel();
+        var options = DefaultOptions() with { GenerateIndex = false };
+        var renderer = new MarkdownRenderer(model, options);
+        var outDir = Path.Combine(Path.GetTempPath(), "Xml2Doc.Tests", Path.GetRandomFileName());
+
+        var planned = renderer.PlanOutputs(outDir);
+        planned.ShouldNotContain(Path.Combine(Path.GetFullPath(outDir), "index.md"));
+
+        renderer.RenderToDirectory(outDir);
+
+        File.Exists(Path.Combine(outDir, "index.md")).ShouldBeFalse();
+        Directory.GetFiles(outDir, "*.md", SearchOption.TopDirectoryOnly).ShouldNotBeEmpty();
+    }
+
+    [Fact]
     public async Task Generic_BraceHandling_IsClean()
     {
         var model = LoadFixtureModel();

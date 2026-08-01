@@ -214,6 +214,7 @@ Add this to your project’s `.csproj`:
 | `Xml2Doc_SingleFile`          | Combine all output into a single Markdown file        |
 | `Xml2Doc_OutputFile`          | Path for the merged Markdown file                     |
 | `Xml2Doc_OutputDir`           | Directory for per-type docs                           |
+| `Xml2Doc_GenerateIndex`       | Generate `index.md` in per-type mode (default: true)  |
 | `Xml2Doc_FileNameMode`        | `verbatim` or `clean`                                 |
 | `Xml2Doc_RootNamespaceToTrim` | Namespace prefix to trim for cleaner names            |
 | `Xml2Doc_CodeBlockLanguage`   | Code block language (`csharp` by default)             |
@@ -228,6 +229,11 @@ Example configuration:
   <Xml2Doc_RootNamespaceToTrim>MyCompany.MyProduct</Xml2Doc_RootNamespaceToTrim>
 </PropertyGroup>
 ```
+
+When multiple projects intentionally write per-type pages to the same output directory, only one
+invocation may own `index.md`. Set `<Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>` on each
+independent project and generate the repository-level index in a separate aggregation step. Xml2Doc
+does not currently merge indexes produced by concurrent project builds.
 
 ---
 

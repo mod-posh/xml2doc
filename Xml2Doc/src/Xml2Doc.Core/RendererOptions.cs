@@ -94,6 +94,10 @@ namespace Xml2Doc.Core
     /// <param name="ParallelDegree">
     /// Max parallelism for rendering; <see langword="null"/> or &lt;= 0 selects a heuristic (typically <c>Environment.ProcessorCount</c>).
     /// </param>
+    /// <param name="GenerateIndex">
+    /// When true, per-type output includes <c>index.md</c>. Disable this when multiple independent
+    /// invocations intentionally share one output directory and index ownership is handled separately.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -135,6 +139,7 @@ namespace Xml2Doc.Core
         bool EmitToc = false,
         bool EmitNamespaceIndex = false,
         bool BasenameOnly = false,
-        int? ParallelDegree = null
+        int? ParallelDegree = null,
+        bool GenerateIndex = true
     );
 }
