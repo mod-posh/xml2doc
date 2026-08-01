@@ -45,7 +45,7 @@ namespace Xml2Doc.Core.OutputLifecycle
                 throw new ArgumentNullException(nameof(plannedOutputs));
             }
 
-            var canonicalOutputRoot = Path.GetFullPath(outputRoot);
+            var canonicalOutputRoot = NormalizeRootPath(outputRoot);
 
             var filesToWrite = ValidateAndNormalizeEntries(
                 canonicalOutputRoot,
@@ -108,7 +108,7 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             try
             {
-                manifestOutputRoot = Path.GetFullPath(manifest.OutputRoot);
+                manifestOutputRoot = NormalizeRootPath(manifest.OutputRoot);
             }
             catch (Exception exception) when (
                 exception is ArgumentException ||
@@ -162,6 +162,21 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             normalizedEntries.Sort(StringComparer.Ordinal);
             return normalizedEntries;
+        }
+
+        private static string NormalizeRootPath(string path)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var pathRoot = Path.GetPathRoot(fullPath);
+
+            while (fullPath.Length > pathRoot.Length &&
+                   (fullPath[fullPath.Length - 1] == Path.DirectorySeparatorChar ||
+                    fullPath[fullPath.Length - 1] == Path.AltDirectorySeparatorChar))
+            {
+                fullPath = fullPath.Substring(0, fullPath.Length - 1);
+            }
+
+            return fullPath;
         }
 
         private static string NormalizeEntry(
