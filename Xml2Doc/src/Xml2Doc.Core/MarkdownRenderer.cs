@@ -96,7 +96,7 @@ public sealed class MarkdownRenderer
     // === Public APIs ===
 
     /// <summary>
-    /// Emits one Markdown file per documented type plus an <c>index.md</c>. Optionally emits namespace index pages.
+    /// Emits one Markdown file per documented type and, by default, an <c>index.md</c>. Optionally emits namespace index pages.
     /// </summary>
     /// <param name="outDir">Destination directory (created if absent).</param>
     /// <remarks>
@@ -125,7 +125,8 @@ public sealed class MarkdownRenderer
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
                 File.WriteAllText(file, RenderType(t, includeHeader: true));
             }
-            File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
+            if (_opt.GenerateIndex)
+                File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
 
             if (_opt.EmitNamespaceIndex)
             {
@@ -384,7 +385,8 @@ public sealed class MarkdownRenderer
     /// <param name="singleFilePath">If non-null, plans single-file output; otherwise multi‑file.</param>
     /// <returns>Absolute paths of files that would be produced.</returns>
     /// <remarks>
-    /// Multi‑file mode always includes <c>index.md</c>. Namespace index emission adds <c>namespaces.md</c> and one page per namespace.
+    /// Multi‑file mode includes <c>index.md</c> when <see cref="RendererOptions.GenerateIndex"/> is true.
+    /// Namespace index emission adds <c>namespaces.md</c> and one page per namespace.
     /// </remarks>
     public IReadOnlyList<string> PlanOutputs(string outDir, string? singleFilePath = null)
     {
@@ -404,7 +406,8 @@ public sealed class MarkdownRenderer
             list.Add(Path.Combine(root, name));
         }
 
-        list.Add(Path.Combine(root, "index.md"));
+        if (_opt.GenerateIndex)
+            list.Add(Path.Combine(root, "index.md"));
 
         if (_opt.EmitNamespaceIndex)
         {

@@ -128,6 +128,12 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public bool EmitNamespaceIndex { get; set; }
 
     /// <summary>
+    /// When true, per-type output includes <c>index.md</c>. Set false for projects that share an
+    /// output directory and delegate index ownership to a separate aggregation step. Defaults to true.
+    /// </summary>
+    public bool GenerateIndex { get; set; } = true;
+
+    /// <summary>
     /// When true, uses only the basename for file references (omits directory paths).
     /// </summary>
     public bool BasenameOnly { get; set; }
@@ -231,7 +237,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 EmitToc: EmitToc,
                 EmitNamespaceIndex: EmitNamespaceIndex,
                 BasenameOnly: BasenameOnly,
-                AnchorAlgorithm: anchorAlgEnum
+                AnchorAlgorithm: anchorAlgEnum,
+                GenerateIndex: GenerateIndex
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -279,12 +286,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     DidWork = true;
                 }
 
-                if (Directory.Exists(outDir))
-                {
-                    GeneratedFiles = Directory.GetFiles(outDir, "*.md", SearchOption.TopDirectoryOnly)
-                                              .Select(p => (ITaskItem)new TaskItem(p))
-                                              .ToArray();
-                }
+GeneratedFiles = renderer.PlanOutputs(outDir)
+    .Select(p => (ITaskItem)new TaskItem(p))
+    .ToArray();
 
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc {(DryRun ? "[dry-run] would write" : "wrote")} Markdown files to {outDir}");
             }

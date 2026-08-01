@@ -45,6 +45,7 @@ That’s it—on successful build, docs are generated according to the propertie
 | `Xml2Doc_SingleFile`          | `true` = generate one combined Markdown file; `false` = per-type files.    |
 | `Xml2Doc_OutputFile`          | Output file path when `SingleFile=true` (e.g. `$(ProjectDir)docs\api.md`). |
 | `Xml2Doc_OutputDir`           | Output directory when `SingleFile=false` (e.g. `$(ProjectDir)docs`).       |
+| `Xml2Doc_GenerateIndex`       | Generate `index.md` in per-type mode. Default: `true`.                     |
 | `Xml2Doc_FileNameMode`        | `verbatim` (keep generic arity) or `clean` (friendly generic names).       |
 | `Xml2Doc_RootNamespaceToTrim` | Optional namespace prefix trimmed from display names.                      |
 | `Xml2Doc_CodeBlockLanguage`   | Code block language for fenced blocks (default `csharp`).                  |
@@ -59,6 +60,17 @@ That’s it—on successful build, docs are generated according to the propertie
   <Xml2Doc_OutputFile>$(ProjectDir)docs\api.md</Xml2Doc_OutputFile>
   <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
   <Xml2Doc_RootNamespaceToTrim>MyCompany.MyProduct</Xml2Doc_RootNamespaceToTrim>
+</PropertyGroup>
+```
+
+**Shared output directories:** independent project builds cannot safely merge the same `index.md`.
+When projects share `Xml2Doc_OutputDir`, set `Xml2Doc_GenerateIndex` to `false` for those projects
+and create the repository-level index in a separate aggregation step:
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_OutputDir>$(SolutionDir)docs</Xml2Doc_OutputDir>
+  <Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>
 </PropertyGroup>
 ```
 

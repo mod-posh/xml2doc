@@ -127,6 +127,7 @@ Focus areas:
 • report output
 • multi‑target compatibility
 • improved test infrastructure
+• explicit ownership controls for shared output directories
 
 Architectural themes:
 
@@ -137,6 +138,7 @@ Related ADRs:
 
 • ADR‑007 MSBuild incremental generation
 • ADR‑008 Multi‑target compatibility
+• ADR‑011 Generated output ownership and lifecycle
 
 ---
 

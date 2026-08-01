@@ -24,6 +24,7 @@ Now multi-targeted and verified for consistent output across modern .NET TFMs.
   - Filename mode: `Verbatim` or `CleanGenerics`
   - `RootNamespaceToTrim` (display-only trimming)
   - Code block language (default `csharp`)
+  - Per-type `index.md` generation (`GenerateIndex`, default `true`)
   - Output mode (single vs. multi-file)
 
 ## Supported Target Frameworks

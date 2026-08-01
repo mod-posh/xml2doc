@@ -82,7 +82,7 @@
     </GetFileHash>
 
     <PropertyGroup>
-      <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)</_Xml2Doc_Options>
+      <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)</_Xml2Doc_Options>
     </PropertyGroup>
 
     <ItemGroup>
@@ -142,6 +142,7 @@
                                 Diff="$(Xml2Doc_Diff)"
                                 EmitToc="$(Xml2Doc_Toc)"
                                 EmitNamespaceIndex="$(Xml2Doc_NamespaceIndex)"
+                                GenerateIndex="$(Xml2Doc_GenerateIndex)"
                                 BasenameOnly="$(Xml2Doc_BasenameOnly)"
                                 AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"
                                 Fingerprint="$(_Xml2Doc_Fingerprint)"
