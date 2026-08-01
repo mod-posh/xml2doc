@@ -169,6 +169,13 @@ namespace Xml2Doc.Core.OutputLifecycle
             var fullPath = Path.GetFullPath(path);
             var pathRoot = Path.GetPathRoot(fullPath);
 
+            if (string.IsNullOrEmpty(pathRoot))
+            {
+                throw new ArgumentException(
+                    "The path does not contain a valid filesystem root.",
+                    nameof(path));
+            }
+
             while (fullPath.Length > pathRoot.Length &&
                    (fullPath[fullPath.Length - 1] == Path.DirectorySeparatorChar ||
                     fullPath[fullPath.Length - 1] == Path.AltDirectorySeparatorChar))

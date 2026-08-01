@@ -1,6 +1,7 @@
 using Shouldly;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xml2Doc.Core.OutputLifecycle;
 using Xunit;
 
@@ -221,12 +222,252 @@ namespace Xml2Doc.Tests
                     previousManifest: null));
         }
 
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputRootHasTrailingSeparator_MatchesManifestRootWithoutTrailingSeparator()
+        {
+            var outputRoot = CreateOutputRoot();
+            var currentOutputRoot = EnsureTrailingDirectorySeparator(outputRoot);
+            var previousManifest = CreateManifest(outputRoot, "Owned.md");
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                currentOutputRoot,
+                new[] { "Owned.md" },
+                previousManifest);
+
+            plan.FilesToWrite.ShouldBe(new[] { "Owned.md" });
+            plan.FilesToDelete.ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void CreatePlan_WhenManifestOutputRootHasTrailingSeparator_MatchesCurrentRootWithoutTrailingSeparator()
+        {
+            var outputRoot = CreateOutputRoot();
+            var previousManifest = new OutputManifest(
+                OutputManifest.CurrentSchemaVersion,
+                EnsureTrailingDirectorySeparator(outputRoot),
+                new[] { "Owned.md" });
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                new[] { "Owned.md" },
+                previousManifest);
+
+            plan.FilesToWrite.ShouldBe(new[] { "Owned.md" });
+            plan.FilesToDelete.ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputContainsInternalTraversal_NormalizesRelativePath()
+        {
+            var outputRoot = CreateOutputRoot();
+            var unnormalizedPath = Path.Combine(
+                "folder",
+                "..",
+                "File.md");
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                new[] { unnormalizedPath },
+                previousManifest: null);
+
+            plan.FilesToWrite.ShouldBe(new[] { "File.md" });
+            plan.FilesToDelete.ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void CreatePlan_WhenManifestEntryContainsInternalTraversal_NormalizesOwnedPath()
+        {
+            var outputRoot = CreateOutputRoot();
+            var unnormalizedPath = Path.Combine(
+                "folder",
+                "..",
+                "File.md");
+            var previousManifest = CreateManifest(
+                outputRoot,
+                unnormalizedPath);
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                Array.Empty<string>(),
+                previousManifest);
+
+            plan.FilesToWrite.ShouldBeEmpty();
+            plan.FilesToDelete.ShouldBe(new[] { "File.md" });
+        }
+
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputsCollideAfterNormalization_ThrowsArgumentException()
+        {
+            var outputRoot = CreateOutputRoot();
+            var equivalentPath = Path.Combine(
+                "folder",
+                "..",
+                "File.md");
+
+            Should.Throw<ArgumentException>(() =>
+                OutputManifestPlanner.CreatePlan(
+                    outputRoot,
+                    new[]
+                    {
+                        "File.md",
+                        equivalentPath
+                    },
+                    previousManifest: null));
+        }
+
+        [Fact]
+        public void CreatePlan_WhenManifestEntriesCollideAfterNormalization_ThrowsInvalidDataException()
+        {
+            var outputRoot = CreateOutputRoot();
+            var equivalentPath = Path.Combine(
+                "folder",
+                "..",
+                "File.md");
+            var previousManifest = CreateManifest(
+                outputRoot,
+                "File.md",
+                equivalentPath);
+
+            Should.Throw<InvalidDataException>(() =>
+                OutputManifestPlanner.CreatePlan(
+                    outputRoot,
+                    Array.Empty<string>(),
+                    previousManifest));
+        }
+
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputIsNested_PreservesOutputRootRelativePath()
+        {
+            var outputRoot = CreateOutputRoot();
+            var nestedPath = Path.Combine(
+                "api",
+                "models",
+                "Widget.md");
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                new[] { nestedPath },
+                previousManifest: null);
+
+            plan.FilesToWrite.ShouldBe(new[] { nestedPath });
+            plan.FilesToDelete.ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void CreatePlan_WhenCurrentAndPreviousPathsDifferOnlyByCase_UsesPlatformPathIdentity()
+        {
+            var outputRoot = CreateOutputRoot();
+            var previousManifest = CreateManifest(
+                outputRoot,
+                "Widget.md");
+
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                new[] { "widget.md" },
+                previousManifest);
+
+            plan.FilesToWrite.ShouldBe(new[] { "widget.md" });
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                plan.FilesToDelete.ShouldBeEmpty();
+            }
+            else
+            {
+                plan.FilesToDelete.ShouldBe(new[] { "Widget.md" });
+            }
+        }
+
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputsDifferOnlyByCase_UsesPlatformPathIdentityAndOrdinalOrdering()
+        {
+            var outputRoot = CreateOutputRoot();
+            var plannedOutputs = new[]
+            {
+                "widget.md",
+                "Widget.md"
+            };
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Should.Throw<ArgumentException>(() =>
+                    OutputManifestPlanner.CreatePlan(
+                        outputRoot,
+                        plannedOutputs,
+                        previousManifest: null));
+            }
+            else
+            {
+                var plan = OutputManifestPlanner.CreatePlan(
+                    outputRoot,
+                    plannedOutputs,
+                    previousManifest: null);
+
+                plan.FilesToWrite.ShouldBe(new[]
+                {
+                    "Widget.md",
+                    "widget.md"
+                });
+                plan.FilesToDelete.ShouldBeEmpty();
+            }
+        }
+
+        [Fact]
+        public void CreatePlan_WhenManifestEntriesDifferOnlyByCase_UsesPlatformPathIdentityAndOrdinalOrdering()
+        {
+            var outputRoot = CreateOutputRoot();
+            var previousManifest = CreateManifest(
+                outputRoot,
+                "widget.md",
+                "Widget.md");
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Should.Throw<InvalidDataException>(() =>
+                    OutputManifestPlanner.CreatePlan(
+                        outputRoot,
+                        Array.Empty<string>(),
+                        previousManifest));
+            }
+            else
+            {
+                var plan = OutputManifestPlanner.CreatePlan(
+                    outputRoot,
+                    Array.Empty<string>(),
+                    previousManifest);
+
+                plan.FilesToWrite.ShouldBeEmpty();
+                plan.FilesToDelete.ShouldBe(new[]
+                {
+                    "Widget.md",
+                    "widget.md"
+                });
+            }
+        }
+
         private static string CreateOutputRoot() =>
             Path.GetFullPath(
                 Path.Combine(
                     Path.GetTempPath(),
                     "Xml2Doc.Tests",
                     Path.GetRandomFileName()));
+
+        private static string EnsureTrailingDirectorySeparator(string path)
+        {
+            var fullPath = Path.GetFullPath(path);
+
+            if (fullPath.EndsWith(
+                    Path.DirectorySeparatorChar.ToString(),
+                    StringComparison.Ordinal) ||
+                fullPath.EndsWith(
+                    Path.AltDirectorySeparatorChar.ToString(),
+                    StringComparison.Ordinal))
+            {
+                return fullPath;
+            }
+
+            return fullPath + Path.DirectorySeparatorChar;
+        }
 
         private static OutputManifest CreateManifest(
             string outputRoot,
