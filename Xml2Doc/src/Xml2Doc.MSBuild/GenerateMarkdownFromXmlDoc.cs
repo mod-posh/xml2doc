@@ -286,11 +286,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     DidWork = true;
                 }
 
-                GeneratedFiles = DryRun
-                    ? Array.Empty<ITaskItem>()
-                    : renderer.PlanOutputs(outDir)
-                              .Select(p => (ITaskItem)new TaskItem(p))
-                              .ToArray();
+GeneratedFiles = renderer.PlanOutputs(outDir)
+    .Select(p => (ITaskItem)new TaskItem(p))
+    .ToArray();
 
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc {(DryRun ? "[dry-run] would write" : "wrote")} Markdown files to {outDir}");
             }
