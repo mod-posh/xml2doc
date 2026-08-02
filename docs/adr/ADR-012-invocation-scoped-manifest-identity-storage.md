@@ -75,5 +75,5 @@ another's generated files.
 
 ### Derive identity from the current output set
 
-Rejected because the identity would change when a type is added, removed, or rename the exact
+Rejected because the identity would change when a type is added, removed, or rename-the exact
 changes for which a stable ownership history is required.
