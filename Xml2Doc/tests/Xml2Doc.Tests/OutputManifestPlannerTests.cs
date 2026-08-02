@@ -445,6 +445,19 @@ namespace Xml2Doc.Tests
             }
         }
 
+        [Fact]
+        public void CreatePlan_WhenCurrentOutputRootIsInvalid_ThrowsArgumentException()
+        {
+            var exception = Should.Throw<ArgumentException>(() =>
+                OutputManifestPlanner.CreatePlan(
+                    "\0",
+                    Array.Empty<string>(),
+                    previousManifest: null));
+
+            exception.ParamName.ShouldBe("outputRoot");
+            exception.InnerException.ShouldNotBeNull();
+        }
+
         private static string CreateOutputRoot() =>
             Path.GetFullPath(
                 Path.Combine(

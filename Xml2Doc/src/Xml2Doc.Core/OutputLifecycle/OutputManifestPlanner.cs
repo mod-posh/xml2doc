@@ -45,7 +45,22 @@ namespace Xml2Doc.Core.OutputLifecycle
                 throw new ArgumentNullException(nameof(plannedOutputs));
             }
 
-            var canonicalOutputRoot = NormalizeRootPath(outputRoot);
+            string canonicalOutputRoot;
+
+            try
+            {
+                canonicalOutputRoot = NormalizeRootPath(outputRoot);
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException ||
+                exception is NotSupportedException ||
+                exception is PathTooLongException)
+            {
+                throw new ArgumentException(
+                    "The output root is invalid.",
+                    nameof(outputRoot),
+                    exception);
+            }
 
             var filesToWrite = ValidateAndNormalizeEntries(
                 canonicalOutputRoot,
