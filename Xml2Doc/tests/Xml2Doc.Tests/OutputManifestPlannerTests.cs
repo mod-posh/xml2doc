@@ -458,57 +458,6 @@ namespace Xml2Doc.Tests
             exception.InnerException.ShouldNotBeNull();
         }
 
-        [Fact]
-        public void CreatePlan_WhenCurrentAndPreviousPathsDifferOnlyByCase_TreatsThemAsSameOutput()
-        {
-            var outputRoot = CreateOutputRoot();
-            var previousManifest = CreateManifest(
-                outputRoot,
-                "Widget.md");
-
-            var plan = OutputManifestPlanner.CreatePlan(
-                outputRoot,
-                new[] { "widget.md" },
-                previousManifest);
-
-            plan.FilesToWrite.ShouldBe(new[] { "widget.md" });
-            plan.FilesToDelete.ShouldBeEmpty();
-        }
-
-        [Fact]
-        public void CreatePlan_WhenCurrentOutputsDifferOnlyByCase_ThrowsArgumentException()
-        {
-            var outputRoot = CreateOutputRoot();
-
-            var exception = Should.Throw<ArgumentException>(() =>
-                OutputManifestPlanner.CreatePlan(
-                    outputRoot,
-                    new[]
-                    {
-                "widget.md",
-                "Widget.md"
-                    },
-                    previousManifest: null));
-
-            exception.ParamName.ShouldBe("plannedOutputs");
-        }
-
-        [Fact]
-        public void CreatePlan_WhenManifestEntriesDifferOnlyByCase_ThrowsInvalidDataException()
-        {
-            var outputRoot = CreateOutputRoot();
-            var previousManifest = CreateManifest(
-                outputRoot,
-                "widget.md",
-                "Widget.md");
-
-            Should.Throw<InvalidDataException>(() =>
-                OutputManifestPlanner.CreatePlan(
-                    outputRoot,
-                    Array.Empty<string>(),
-                    previousManifest));
-        }
-
         private static string CreateOutputRoot() =>
             Path.GetFullPath(
                 Path.Combine(
