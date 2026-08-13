@@ -104,17 +104,9 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
             finally
             {
-                if (manifestCommitted &&
-                    Directory.Exists(transactionDirectory))
-                {
-                    Directory.Delete(
-                        transactionDirectory,
-                        recursive: true);
-                }
-                else
-                {
-                    DeleteDirectoryIfEmpty(transactionDirectory);
-                }
+                TryDeleteTransactionDirectory(
+                    transactionDirectory,
+                    recursive: manifestCommitted);
             }
         }
 
@@ -225,12 +217,29 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
         }
 
-        private static void DeleteDirectoryIfEmpty(string directory)
+        private static void TryDeleteTransactionDirectory(
+            string directory,
+            bool recursive)
         {
-            if (Directory.Exists(directory) &&
-                Directory.GetFileSystemEntries(directory).Length == 0)
+            try
             {
-                Directory.Delete(directory);
+                if (!Directory.Exists(directory) ||
+                    (!recursive &&
+                     Directory.GetFileSystemEntries(directory).Length != 0))
+                {
+                    return;
+                }
+
+                Directory.Delete(directory, recursive);
+            }
+            catch (IOException)
+            {
+                // Transaction metadata cleanup is best-effort. Once the manifest is committed,
+                // a transient lock must not turn successful generation into a failed build.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Preserve the generation result when cleanup is blocked by filesystem policy.
             }
         }
 

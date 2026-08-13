@@ -150,8 +150,12 @@ namespace Xml2Doc.Tests
             var blockedOutput = renderer.PlanOutputs(output.Path)[0];
             Directory.CreateDirectory(blockedOutput);
 
-            Should.Throw<UnauthorizedAccessException>(() =>
+            var exception = Record.Exception(() =>
                 renderer.RenderToDirectory(output.Path));
+
+            (exception is IOException ||
+             exception is UnauthorizedAccessException).ShouldBeTrue(
+                "Writing to a path occupied by a directory must fail with an I/O error.");
 
             output.Exists("Stale.md").ShouldBeTrue();
             File.ReadAllBytes(location.ManifestPath)

@@ -40,8 +40,9 @@ also introduce invalid-character, traversal, length, and collision risks.
 5. CLI and MSBuild expose the same explicit Core identity concept. A shared output directory uses a
    distinct stable identity for each independent invocation. Reusing an identity intentionally
    transfers ownership of that manifest's recorded paths to the current invocation.
-6. Identity resolution and manifest-location calculation are pure Core behavior. Serialization,
-   loading, atomic replacement, host exposure, and deletion are subsequent implementation slices.
+6. Identity resolution, manifest-location calculation, serialization, loading, atomic replacement,
+   ownership-aware deletion, and transactional cleanup are Core behavior. CLI and MSBuild expose
+   the same opt-in pruning and identity settings without implementing lifecycle behavior themselves.
 
 ## Consequences
 
