@@ -19,3 +19,4 @@ These records explain **why architectural decisions were made**.
 | ADR‑009 | Structured diagnostics         | Proposed |
 | ADR‑010 | Pluggable anchor algorithms    | Proposed |
 | ADR‑011 | Generated output ownership     | Accepted |
+| ADR‑012 | Invocation-scoped manifest identity | Accepted |

@@ -134,6 +134,18 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public bool GenerateIndex { get; set; } = true;
 
     /// <summary>
+    /// When true, removes stale files recorded by this invocation's manifest after successful
+    /// per-type generation. Disabled by default.
+    /// </summary>
+    public bool PruneStaleFiles { get; set; }
+
+    /// <summary>
+    /// Explicit stable identity used to scope generated-output ownership. Required when
+    /// <see cref="PruneStaleFiles"/> is true.
+    /// </summary>
+    public string? ManifestIdentity { get; set; }
+
+    /// <summary>
     /// When true, uses only the basename for file references (omits directory paths).
     /// </summary>
     public bool BasenameOnly { get; set; }
@@ -206,6 +218,20 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 
             var xmlFull = Path.GetFullPath(XmlPath);
 
+            if (PruneStaleFiles && SingleFile)
+            {
+                Log.LogError(
+                    "Xml2Doc: PruneStaleFiles=true is only supported for per-type output.");
+                return false;
+            }
+
+            if (PruneStaleFiles && string.IsNullOrWhiteSpace(ManifestIdentity))
+            {
+                Log.LogError(
+                    "Xml2Doc: ManifestIdentity is required when PruneStaleFiles=true.");
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(XmlSha256))
             {
                 try { XmlSha256 = ComputeFileSha256(xmlFull); }
@@ -238,7 +264,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 EmitNamespaceIndex: EmitNamespaceIndex,
                 BasenameOnly: BasenameOnly,
                 AnchorAlgorithm: anchorAlgEnum,
-                GenerateIndex: GenerateIndex
+                GenerateIndex: GenerateIndex,
+                PruneStaleFiles: PruneStaleFiles,
+                ManifestIdentity: ManifestIdentity
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -286,9 +314,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     DidWork = true;
                 }
 
-GeneratedFiles = renderer.PlanOutputs(outDir)
-    .Select(p => (ITaskItem)new TaskItem(p))
-    .ToArray();
+                GeneratedFiles = renderer.PlanOutputs(outDir)
+                    .Select(p => (ITaskItem)new TaskItem(p))
+                    .ToArray();
 
                 Log.LogMessage(MessageImportance.High, $"Xml2Doc {(DryRun ? "[dry-run] would write" : "wrote")} Markdown files to {outDir}");
             }
@@ -301,7 +329,9 @@ GeneratedFiles = renderer.PlanOutputs(outDir)
                     outputPath: SingleFile ? (outFile ?? OutputFile ?? "") : (outDir ?? OutputDirectory ?? ""),
                     fileNameMode: fnMode.ToString(),
                     rootNs: options.RootNamespaceToTrim ?? "",
-                    lang: options.CodeBlockLanguage ?? ""
+                    lang: options.CodeBlockLanguage ?? "",
+                    pruneStaleFiles: PruneStaleFiles,
+                    manifestIdentity: ManifestIdentity ?? ""
                 );
             }
 
@@ -325,7 +355,9 @@ GeneratedFiles = renderer.PlanOutputs(outDir)
                         {
                             fileNameMode = fnMode.ToString(),
                             rootNs = options.RootNamespaceToTrim,
-                            lang = options.CodeBlockLanguage
+                            lang = options.CodeBlockLanguage,
+                            pruneStaleFiles = PruneStaleFiles,
+                            manifestIdentity = ManifestIdentity
                         },
                         fingerprint = Fingerprint,
                         xmlSha256 = XmlSha256,
@@ -383,8 +415,18 @@ GeneratedFiles = renderer.PlanOutputs(outDir)
     /// <param name="fileNameMode">File naming mode (verbatim or clean).</param>
     /// <param name="rootNs">Root namespace to trim.</param>
     /// <param name="lang">Code block language identifier.</param>
+    /// <param name="pruneStaleFiles">Whether stale-output pruning is enabled.</param>
+    /// <param name="manifestIdentity">Stable invocation-scoped ownership identity.</param>
     /// <returns>SHA-256 hash of the concatenated input parameters.</returns>
-    private static string ComputeFingerprint(string xmlSha256, bool singleFile, string outputPath, string fileNameMode, string rootNs, string lang)
+    private static string ComputeFingerprint(
+        string xmlSha256,
+        bool singleFile,
+        string outputPath,
+        string fileNameMode,
+        string rootNs,
+        string lang,
+        bool pruneStaleFiles,
+        string manifestIdentity)
     {
         using var sha = SHA256.Create();
         var data = string.Join("|", new[]
@@ -394,7 +436,9 @@ GeneratedFiles = renderer.PlanOutputs(outDir)
             NormalizePathForHash(outputPath),
             fileNameMode,
             rootNs,
-            lang
+            lang,
+            pruneStaleFiles.ToString(),
+            manifestIdentity
         });
         var bytes = Encoding.UTF8.GetBytes(data);
         var hash = sha.ComputeHash(bytes);
@@ -467,5 +511,11 @@ GeneratedFiles = renderer.PlanOutputs(outDir)
 
         /// <summary>Code block language identifier.</summary>
         public string? lang { get; set; }
+
+        /// <summary>Whether invocation-scoped stale-output pruning was enabled.</summary>
+        public bool pruneStaleFiles { get; set; }
+
+        /// <summary>Stable invocation identity used to scope ownership.</summary>
+        public string? manifestIdentity { get; set; }
     }
 }

@@ -1,6 +1,17 @@
 name: Merge Test Workflow
 
 on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feature/**"
+      - "fix/**"
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "RELEASE.md"
+      - "Xml2Doc.md"
   pull_request:
     branches: [ main ]
     paths-ignore:

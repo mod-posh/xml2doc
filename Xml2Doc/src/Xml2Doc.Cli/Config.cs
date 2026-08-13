@@ -15,7 +15,8 @@ namespace Xml2Doc.Cli
     /// <c>--xml</c>, <c>--out</c>, <c>--single</c>, <c>--file-names</c>, <c>--rootns</c>, <c>--lang</c>,
     /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>,
     /// <c>--anchor-algorithm</c>, <c>--template</c>, <c>--front-matter</c>, <c>--auto-link</c>,
-    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--parallel</c>.
+    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--parallel</c>,
+    /// <c>--prune-stale</c>, <c>--manifest-id</c>.
     /// </remarks>
     public sealed class CliConfig
     {
@@ -81,5 +82,11 @@ namespace Xml2Doc.Cli
 
         /// <summary>When true, only the basename of output files is used for links.</summary>
         public bool BasenameOnly { get; init; }
+
+        /// <summary>Remove stale files owned by this invocation. Maps to <c>--prune-stale</c>.</summary>
+        public bool? PruneStaleFiles { get; set; }
+
+        /// <summary>Stable invocation identity used to scope output ownership. Maps to <c>--manifest-id</c>.</summary>
+        public string? ManifestIdentity { get; set; }
     }
 }

@@ -139,6 +139,7 @@ Related ADRs:
 • ADR‑007 MSBuild incremental generation
 • ADR‑008 Multi‑target compatibility
 • ADR‑011 Generated output ownership and lifecycle
+• ADR‑012 Invocation-scoped manifest identity and storage
 
 ---
 

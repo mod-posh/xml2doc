@@ -19,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Xml2Doc.Core\Xml2Doc.Core.csproj" />
+	<ProjectReference Include="..\..\src\Xml2Doc.Cli\Xml2Doc.Cli.csproj" />
 	<ProjectReference Include="..\..\src\Xml2Doc.MSBuild\Xml2Doc.MSBuild.csproj" />
     <ProjectReference Include="..\Xml2Doc.Sample\Xml2Doc.Sample.csproj" />
   </ItemGroup>
