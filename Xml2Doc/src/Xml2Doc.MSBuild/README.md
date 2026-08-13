@@ -49,6 +49,8 @@ That’s it—on successful build, docs are generated according to the propertie
 | `Xml2Doc_FileNameMode`        | `verbatim` (keep generic arity) or `clean` (friendly generic names).       |
 | `Xml2Doc_RootNamespaceToTrim` | Optional namespace prefix trimmed from display names.                      |
 | `Xml2Doc_CodeBlockLanguage`   | Code block language for fenced blocks (default `csharp`).                  |
+| `Xml2Doc_PruneStaleFiles`     | Remove stale files owned by this invocation. Default: `false`.             |
+| `Xml2Doc_ManifestIdentity`    | Stable identity required when stale-output pruning is enabled.             |
 
 ### Examples
 
@@ -83,6 +85,21 @@ and create the repository-level index in a separate aggregation step:
   <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
 </PropertyGroup>
 ```
+
+**Safely prune stale per-type output**
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_SingleFile>false</Xml2Doc_SingleFile>
+  <Xml2Doc_OutputDir>$(ProjectDir)docs</Xml2Doc_OutputDir>
+  <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
+  <Xml2Doc_ManifestIdentity>$(MSBuildProjectFullPath)</Xml2Doc_ManifestIdentity>
+</PropertyGroup>
+```
+
+Use an identity that remains stable for the same invocation. Only files recorded by that exact
+identity can be removed; hand-authored files and files owned by other builds are preserved.
+Pruning is supported only for per-type output.
 
 **Only generate in Release**
 
