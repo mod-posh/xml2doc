@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
+using Xml2Doc.Core.OutputLifecycle;
 using System.Globalization;
 
 namespace Xml2Doc.Core;
@@ -113,6 +114,23 @@ public sealed class MarkdownRenderer
     public void RenderToDirectory(string outDir)
     {
         var __prev = _singleFileMode;
+        OutputManifestLocation? manifestLocation = null;
+        IReadOnlyList<string>? generatedFiles = null;
+
+        if (_opt.PruneStaleFiles)
+        {
+            manifestLocation = OutputManifestLocation.Create(
+                outDir,
+                _opt.ManifestIdentity!);
+            generatedFiles = GetOutputRootRelativePaths(
+                manifestLocation.OutputRoot,
+                PlanOutputs(outDir));
+            OutputManifestPlanner.CreatePlan(
+                manifestLocation.OutputRoot,
+                generatedFiles,
+                previousManifest: null);
+        }
+
         try
         {
             _singleFileMode = false;
@@ -167,6 +185,14 @@ public sealed class MarkdownRenderer
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
                 File.WriteAllText(Path.Combine(outDir, "namespaces.md"), nsIndex.ToString());
+            }
+
+            if (manifestLocation is not null &&
+                generatedFiles is not null)
+            {
+                OutputLifecycleExecutor.ExecuteAfterSuccessfulGeneration(
+                    manifestLocation,
+                    generatedFiles);
             }
         }
         finally
@@ -432,6 +458,39 @@ public sealed class MarkdownRenderer
         }
 
         return list;
+    }
+
+    private static IReadOnlyList<string> GetOutputRootRelativePaths(
+        string outputRoot,
+        IReadOnlyList<string> absolutePaths)
+    {
+        var rootWithSeparator =
+            outputRoot.EndsWith(
+                Path.DirectorySeparatorChar.ToString(),
+                StringComparison.Ordinal) ||
+            outputRoot.EndsWith(
+                Path.AltDirectorySeparatorChar.ToString(),
+                StringComparison.Ordinal)
+                ? outputRoot
+                : outputRoot + Path.DirectorySeparatorChar;
+
+        return absolutePaths
+            .Select(path =>
+            {
+                var fullPath = Path.GetFullPath(path);
+
+                if (!fullPath.StartsWith(
+                        rootWithSeparator,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "A planned renderer output is outside the output root.");
+                }
+
+                return fullPath.Substring(rootWithSeparator.Length);
+            })
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
     }
 
     // === Display helpers ===

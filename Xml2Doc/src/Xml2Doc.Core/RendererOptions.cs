@@ -98,6 +98,13 @@ namespace Xml2Doc.Core
     /// When true, per-type output includes <c>index.md</c>. Disable this when multiple independent
     /// invocations intentionally share one output directory and index ownership is handled separately.
     /// </param>
+    /// <param name="PruneStaleFiles">
+    /// When true, per-type rendering removes only stale files recorded by the same invocation manifest.
+    /// Disabled by default.
+    /// </param>
+    /// <param name="ManifestIdentity">
+    /// Explicit stable invocation identity required when <paramref name="PruneStaleFiles"/> is true.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -140,6 +147,8 @@ namespace Xml2Doc.Core
         bool EmitNamespaceIndex = false,
         bool BasenameOnly = false,
         int? ParallelDegree = null,
-        bool GenerateIndex = true
+        bool GenerateIndex = true,
+        bool PruneStaleFiles = false,
+        string? ManifestIdentity = null
     );
 }
