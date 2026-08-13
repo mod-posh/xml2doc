@@ -145,10 +145,13 @@ namespace Xml2Doc.Core.OutputLifecycle
             string root,
             params string[] segments)
         {
-            var path = root;
+            var pathBuilder = new StringBuilder(
+                EnsureTrailingDirectorySeparator(root));
 
-            foreach (var segment in segments)
+            for (var index = 0; index < segments.Length; index++)
             {
+                var segment = segments[index];
+
                 if (string.IsNullOrEmpty(segment) ||
                     Path.IsPathRooted(segment))
                 {
@@ -157,10 +160,15 @@ namespace Xml2Doc.Core.OutputLifecycle
                         nameof(segments));
                 }
 
-                path = EnsureTrailingDirectorySeparator(path) + segment;
+                pathBuilder.Append(segment);
+
+                if (index < segments.Length - 1)
+                {
+                    pathBuilder.Append(Path.DirectorySeparatorChar);
+                }
             }
 
-            return path;
+            return pathBuilder.ToString();
         }
 
         private static string EnsureTrailingDirectorySeparator(string path)
