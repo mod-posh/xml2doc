@@ -269,7 +269,18 @@ public sealed class MarkdownRenderer
         if (Path.IsPathRooted(fileName))
             throw new ArgumentException("The output file name must be relative.", nameof(fileName));
 
-        return Path.Combine(outputDirectory, fileName);
+        var outputRoot = Path.GetFullPath(outputDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        var candidate = Path.GetFullPath(Path.Combine(outputRoot, fileName));
+        var comparison = Path.DirectorySeparatorChar == '\\'
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (!candidate.StartsWith(outputRoot, comparison))
+            throw new ArgumentException("The output file name must remain within the output directory.", nameof(fileName));
+
+        return candidate;
     }
 
     /// <summary>
