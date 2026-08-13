@@ -80,8 +80,7 @@ namespace Xml2Doc.Tests
                 foreach (var markdownFile in markdownFiles)
                 {
                     var content = File.ReadAllText(markdownFile);
-                    content.ShouldNotContain(
-                        "\r",
+                    content.Contains('\r').ShouldBeFalse(
                         $"Expected LF-only output in {markdownFile}.");
                 }
             }

@@ -37,16 +37,16 @@ jobs:
           global-json-file: ./global.json
 
       - name: Clean
-        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+        run: dotnet clean ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --configuration Release --disable-build-servers
 
       - name: Restore dependencies
-        run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
+        run: dotnet restore ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --disable-build-servers
 
       - name: Build
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers
+        run: dotnet build ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --configuration Release --no-restore --disable-build-servers
 
       - name: Test (exclude integration)
-        run: dotnet test ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx" --filter "Category!=Integration"
+        run: dotnet test ${{ github.workspace }}/Xml2Doc/Xml2Doc.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx" --filter "Category!=Integration"
 
       - name: Publish Test Results
         if: always()
