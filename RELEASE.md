@@ -1,55 +1,53 @@
-# Version 1.4.0 Release
+# Version 2.0.0 — Deterministic Cross-Platform Output
 
 ## Goal
-Make Xml2Doc more extensible and reliable by centralizing link/anchor logic, adding template/YAML hooks, enabling safe auto-linking in text, and unlocking incremental/perf gains—without breaking current GitHub-style anchors or per-type vs single-file modes.
+
+Make Xml2Doc output deterministic across operating systems by introducing explicit line-ending configuration and adopting LF as the default. This is a major release because changing the default from platform-native line endings may alter generated files, snapshots, hashes, and downstream automation on Windows.
 
 ## Scope (themes)
-- Unified cref linking behind a resolver (type/member across modes)
-- Pluggable anchor algorithms (GitHub/Docsify/Kramdown)
-- Templating + optional YAML front matter
-- Auto-linking within free text (skip code)
-- Configurable aliasing and external-docs fallback
-- Structured diagnostics (CI-friendly)
-- Signature rendering service (constraints, indexers, params)
-- Optional TOCs and namespace indexes
-- Two-phase pipeline + parallel rendering + incremental writes
-- CLI/MSBuild wiring for all of the above (opt-in flags/properties)
+
+* Add configurable `LF`, `CRLF`, and `Native` line-ending styles
+* Use LF as the default for deterministic cross-platform output
+* Normalize final generated Markdown consistently
+* Write UTF-8 output without a byte-order mark
+* Expose line-ending configuration through the Core API
+* Add the `--line-endings` CLI option
+* Add the `Xml2Doc_LineEndings` MSBuild property
+* Validate output across Windows, Linux, and macOS
+* Document the breaking change and migration options
+* Preserve `Native` mode for consumers requiring previous platform-specific behavior
 
 ## Acceptance checks
-- All crefs resolve correctly in both per-type and single-file outputs for the sample and tests (no regressions vs 1.3.1).
-- Default anchors remain GitHub-compatible; alternative algorithms selectable via options.
-- Template/front matter hook emits expected structure; defaults unchanged.
-- Auto-linker modifies text only outside code blocks/inline code.
-- Parallel render is deterministic; incremental runs skip unchanged outputs.
-- CLI/MSBuild expose features with sensible defaults and emit actionable diagnostics.
+
+* Default output uses LF on all supported operating systems.
+* Selecting `CRLF` produces CRLF-only output.
+* Selecting `Native` preserves platform-native line-ending behavior.
+* Generated files use UTF-8 without a byte-order mark.
+* Core, CLI, and MSBuild configuration paths produce equivalent results.
+* Invalid line-ending values produce actionable errors.
+* Tests pass on Windows, Linux, and macOS.
+* Existing renderer behaviour remains unchanged apart from the documented line-ending and encoding changes.
+* Release documentation clearly explains how Windows consumers can restore the previous behaviour.
+
+## Breaking changes
+
+* The default generated line ending changes from platform-native to LF.
+* Generated Markdown may differ byte-for-byte on Windows.
+* Snapshot tests, checksums, source-control diffs, and downstream tools that depend on CRLF output may require updates.
+* Consumers can select `Native` or `CRLF` explicitly when compatibility with previous Windows output is required.
+
+## Issues and pull requests
+
+* Issue #67 — deterministic line endings
+* PR #71 — implementation, tests, CLI/MSBuild integration, and documentation
 
 ## Notes / References
-- 1.3.1 stabilized internal links and anchors (baseline to preserve). 
-- Design intent & constraints captured in the conversation/context seed. 
-(References: Core renderer & roadmap; conversation log.)
 
-## BUG, GITHUB-ACTIONS
-
-* issue-56: CI build intermittently fails on Windows with file locks in `obj\Release\*\*.GeneratedMSBuildEditorConfig.editorconfig` and `CS2012`
-
-## TASK, AREA:CORE
-
-* issue-41: [Core] Optional TOC and per-namespace index generation
-* issue-33: [Core] Centralize cref linking behind ILinkResolver
-
-## TASK, AREA:CORE, AREA:CLI, AREA:MSBUILD
-
-* issue-46: Multi-target packages: ship net9.0 + net6.0 (Core optionally netstandard2.0) so MSBuild/IDE can load tasks in-process
-
-## AREA:CORE, AREA:MSBUILD, FEATURE
-
-* issue-47: Add option to trim root namespace from generated file names (not just headings)
-
-## TASK, AREA:MSBUILD
-
-* issue-45: [MSBuild] New properties + incremental build
+* Version 1.4.0 is the compatibility baseline.
+* ADR-013 documents the deterministic line-ending decision.
+* This milestone intentionally uses a major version because the default output format changes for existing Windows consumers.
 
 ## NO LABEL
 
-* issue-64: Per-type generation leaves stale Markdown pages when documented types are removed or renamed
+* issue-67: Preserve deterministic line endings in generated Markdown output
 
