@@ -48,6 +48,21 @@ namespace Xml2Doc.Core
     }
 
     /// <summary>
+    /// Controls the line-ending sequence used in rendered Markdown.
+    /// </summary>
+    public enum LineEndingStyle
+    {
+        /// <summary>Use line feed (<c>\n</c>) on every platform.</summary>
+        Lf = 0,
+
+        /// <summary>Use carriage return followed by line feed (<c>\r\n</c>).</summary>
+        CrLf = 1,
+
+        /// <summary>Use <see cref="Environment.NewLine"/> for the current host.</summary>
+        Native = 2
+    }
+
+    /// <summary>
     /// Rendering options applied when converting XML documentation to Markdown.
     /// </summary>
     /// <param name="FileNameMode">
@@ -105,6 +120,9 @@ namespace Xml2Doc.Core
     /// <param name="ManifestIdentity">
     /// Explicit stable invocation identity required when <paramref name="PruneStaleFiles"/> is true.
     /// </param>
+    /// <param name="LineEndings">
+    /// Line-ending policy for all rendered Markdown. Defaults to deterministic LF on every host.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -149,6 +167,7 @@ namespace Xml2Doc.Core
         int? ParallelDegree = null,
         bool GenerateIndex = true,
         bool PruneStaleFiles = false,
-        string? ManifestIdentity = null
+        string? ManifestIdentity = null,
+        LineEndingStyle LineEndings = LineEndingStyle.Lf
     );
 }

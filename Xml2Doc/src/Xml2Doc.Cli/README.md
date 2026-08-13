@@ -56,6 +56,7 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
 | `--config <file>`                | Path to a JSON configuration file                             |
 | `--prune-stale`                 | Remove stale files previously owned by this invocation        |
 | `--manifest-id <identity>`      | Stable ownership identity required with `--prune-stale`       |
+| `--line-endings <style>`       | Markdown newlines: `lf` (default), `crlf`, or `native`         |
 | `--help`                         | Display help text                                             |
 
 ### Example Config File
@@ -90,6 +91,11 @@ Xml2Doc.exe --config xml2doc.json
 ```
 
 CLI flags always override values from the config file.
+
+Generated Markdown uses LF on every platform by default. Use `--line-endings crlf` only when a
+consumer requires CRLF, or `--line-endings native` for host-specific compatibility. A
+`.gitattributes` rule such as `*.md text eol=lf` can reinforce repository policy, but is not required
+for deterministic Xml2Doc output.
 
 ## Notes for CI
 

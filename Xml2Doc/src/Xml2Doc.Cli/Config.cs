@@ -88,5 +88,8 @@ namespace Xml2Doc.Cli
 
         /// <summary>Stable invocation identity used to scope output ownership. Maps to <c>--manifest-id</c>.</summary>
         public string? ManifestIdentity { get; set; }
+
+        /// <summary>Markdown line endings (<c>lf</c>, <c>crlf</c>, or <c>native</c>). Maps to <c>--line-endings</c>.</summary>
+        public string? LineEndings { get; set; }
     }
 }

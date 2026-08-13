@@ -146,6 +146,11 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public string? ManifestIdentity { get; set; }
 
     /// <summary>
+    /// Markdown line endings: <c>lf</c> (default), <c>crlf</c>, or <c>native</c>.
+    /// </summary>
+    public string LineEndings { get; set; } = "lf";
+
+    /// <summary>
     /// When true, uses only the basename for file references (omits directory paths).
     /// </summary>
     public bool BasenameOnly { get; set; }
@@ -232,6 +237,25 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 return false;
             }
 
+            LineEndingStyle lineEndingStyle;
+
+            switch ((LineEndings ?? "lf").ToLowerInvariant())
+            {
+                case "lf":
+                    lineEndingStyle = LineEndingStyle.Lf;
+                    break;
+                case "crlf":
+                    lineEndingStyle = LineEndingStyle.CrLf;
+                    break;
+                case "native":
+                    lineEndingStyle = LineEndingStyle.Native;
+                    break;
+                default:
+                    Log.LogError(
+                        "Xml2Doc: LineEndings must be one of: lf, crlf, native.");
+                    return false;
+            }
+
             if (string.IsNullOrWhiteSpace(XmlSha256))
             {
                 try { XmlSha256 = ComputeFileSha256(xmlFull); }
@@ -266,7 +290,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 AnchorAlgorithm: anchorAlgEnum,
                 GenerateIndex: GenerateIndex,
                 PruneStaleFiles: PruneStaleFiles,
-                ManifestIdentity: ManifestIdentity
+                ManifestIdentity: ManifestIdentity,
+                LineEndings: lineEndingStyle
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -331,7 +356,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     rootNs: options.RootNamespaceToTrim ?? "",
                     lang: options.CodeBlockLanguage ?? "",
                     pruneStaleFiles: PruneStaleFiles,
-                    manifestIdentity: ManifestIdentity ?? ""
+                    manifestIdentity: ManifestIdentity ?? "",
+                    lineEndings: lineEndingStyle.ToString()
                 );
             }
 
@@ -357,7 +383,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                             rootNs = options.RootNamespaceToTrim,
                             lang = options.CodeBlockLanguage,
                             pruneStaleFiles = PruneStaleFiles,
-                            manifestIdentity = ManifestIdentity
+                            manifestIdentity = ManifestIdentity,
+                            lineEndings = lineEndingStyle.ToString()
                         },
                         fingerprint = Fingerprint,
                         xmlSha256 = XmlSha256,
@@ -417,6 +444,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <param name="lang">Code block language identifier.</param>
     /// <param name="pruneStaleFiles">Whether stale-output pruning is enabled.</param>
     /// <param name="manifestIdentity">Stable invocation-scoped ownership identity.</param>
+    /// <param name="lineEndings">Selected Markdown line-ending policy.</param>
     /// <returns>SHA-256 hash of the concatenated input parameters.</returns>
     private static string ComputeFingerprint(
         string xmlSha256,
@@ -426,7 +454,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         string rootNs,
         string lang,
         bool pruneStaleFiles,
-        string manifestIdentity)
+        string manifestIdentity,
+        string lineEndings)
     {
         using var sha = SHA256.Create();
         var data = string.Join("|", new[]
@@ -438,7 +467,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             rootNs,
             lang,
             pruneStaleFiles.ToString(),
-            manifestIdentity
+            manifestIdentity,
+            lineEndings
         });
         var bytes = Encoding.UTF8.GetBytes(data);
         var hash = sha.ComputeHash(bytes);
@@ -517,5 +547,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 
         /// <summary>Stable invocation identity used to scope ownership.</summary>
         public string? manifestIdentity { get; set; }
+
+        /// <summary>Selected Markdown line-ending policy.</summary>
+        public string? lineEndings { get; set; }
     }
 }

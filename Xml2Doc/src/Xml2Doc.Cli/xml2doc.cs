@@ -92,6 +92,8 @@ namespace Xml2Doc.Cli
             string? configPath = null;
             bool pruneStaleFiles = false;
             string? manifestIdentity = null;
+            string lineEndings = "lf";
+            bool lineEndingsSpecified = false;
 
             // Parse CLI
             for (int i = 0; i < args.Length; i++)
@@ -127,6 +129,10 @@ namespace Xml2Doc.Cli
                     case "--config" when i + 1 < args.Length: configPath = args[++i]; break;
                     case "--prune-stale": pruneStaleFiles = true; break;
                     case "--manifest-id" when i + 1 < args.Length: manifestIdentity = args[++i]; break;
+                    case "--line-endings" when i + 1 < args.Length:
+                        lineEndings = args[++i];
+                        lineEndingsSpecified = true;
+                        break;
                     case "--help":
                     case "-h":
                         PrintHelp();
@@ -169,6 +175,11 @@ namespace Xml2Doc.Cli
                 if (cfg?.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
                 if (!string.IsNullOrWhiteSpace(cfg?.ManifestIdentity))
                     manifestIdentity ??= cfg.ManifestIdentity;
+                if (!lineEndingsSpecified &&
+                    !string.IsNullOrWhiteSpace(cfg?.LineEndings))
+                {
+                    lineEndings = cfg.LineEndings!;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(xml) || string.IsNullOrWhiteSpace(outArg))
@@ -188,6 +199,25 @@ namespace Xml2Doc.Cli
             {
                 Console.Error.WriteLine("--manifest-id is required when --prune-stale is enabled.");
                 return 1;
+            }
+
+            LineEndingStyle lineEndingStyle;
+
+            switch (lineEndings.ToLowerInvariant())
+            {
+                case "lf":
+                    lineEndingStyle = LineEndingStyle.Lf;
+                    break;
+                case "crlf":
+                    lineEndingStyle = LineEndingStyle.CrLf;
+                    break;
+                case "native":
+                    lineEndingStyle = LineEndingStyle.Native;
+                    break;
+                default:
+                    Console.Error.WriteLine(
+                        "--line-endings must be one of: lf, crlf, native.");
+                    return 1;
             }
 
             // Anchor algorithm token → enum
@@ -220,7 +250,8 @@ namespace Xml2Doc.Cli
                     ParallelDegree: parallel,
                     GenerateIndex: generateIndex,
                     PruneStaleFiles: pruneStaleFiles,
-                    ManifestIdentity: manifestIdentity
+                    ManifestIdentity: manifestIdentity,
+                    LineEndings: lineEndingStyle
                 );
 
                 var renderer = new MarkdownRenderer(model, options);
@@ -311,7 +342,8 @@ namespace Xml2Doc.Cli
                             basenameOnly = options.BasenameOnly,
                             parallel,
                             pruneStaleFiles,
-                            manifestIdentity
+                            manifestIdentity,
+                            lineEndings = lineEndingStyle.ToString()
                         },
                         dryRun,
                         diffRequested = diff,
@@ -365,6 +397,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--basename-only]");
             Console.WriteLine("                   [--parallel <N>]");
             Console.WriteLine("                   [--prune-stale --manifest-id <identity>]");
+            Console.WriteLine("                   [--line-endings <lf|crlf|native>]");
             Console.WriteLine("                   [--config <file>]");
             Console.WriteLine();
         }

@@ -23,7 +23,11 @@ on:
 
 jobs:
   run_tests:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
@@ -48,5 +52,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: Test Results
+          name: Test Results (${{ matrix.os }})
           path: '**/TestResults/*.trx'
