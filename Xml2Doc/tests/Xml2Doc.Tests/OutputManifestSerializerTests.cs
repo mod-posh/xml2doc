@@ -15,7 +15,8 @@ namespace Xml2Doc.Tests
             var files = new[]
             {
                 "zeta.md",
-                Path.Combine("folder", "..", "beta.md"),
+                "folder" + Path.DirectorySeparatorChar +
+                ".." + Path.DirectorySeparatorChar + "beta.md",
                 "Alpha.md"
             };
 

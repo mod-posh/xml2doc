@@ -85,10 +85,27 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             Directory.CreateDirectory(manifestDirectory);
 
+            var manifestFileName = Path.GetFileName(location.ManifestPath);
+
+            if (string.IsNullOrEmpty(manifestFileName))
+            {
+                throw new InvalidOperationException(
+                    "The manifest path does not contain a file name.");
+            }
+
+            var temporaryFileName =
+                "." + manifestFileName +
+                "." + Guid.NewGuid().ToString("N") + ".tmp";
+
+            if (Path.IsPathRooted(temporaryFileName))
+            {
+                throw new InvalidOperationException(
+                    "The temporary manifest file name must be relative.");
+            }
+
             var temporaryPath = Path.Combine(
                 manifestDirectory,
-                "." + Path.GetFileName(location.ManifestPath) +
-                "." + Guid.NewGuid().ToString("N") + ".tmp");
+                temporaryFileName);
 
             try
             {

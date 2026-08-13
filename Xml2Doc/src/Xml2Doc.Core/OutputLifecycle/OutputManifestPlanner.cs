@@ -159,14 +159,14 @@ namespace Xml2Doc.Core.OutputLifecycle
         {
             var normalizedEntries = new List<string>(entries.Count);
             var uniqueEntries = new HashSet<string>(GetPathComparer());
-
-            foreach (var entry in entries)
-            {
-                var normalizedEntry = NormalizeEntry(
+            var normalizedSequence = entries.Select(entry =>
+                NormalizeEntry(
                     canonicalOutputRoot,
                     entry,
-                    invalidEntryException);
+                    invalidEntryException));
 
+            foreach (var normalizedEntry in normalizedSequence)
+            {
                 if (!uniqueEntries.Add(normalizedEntry))
                 {
                     throw duplicateEntryException(normalizedEntry);
@@ -215,8 +215,10 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             try
             {
+                var rootWithSeparator = EnsureTrailingDirectorySeparator(
+                    canonicalOutputRoot);
                 fullPath = Path.GetFullPath(
-                    Path.Combine(canonicalOutputRoot, entry));
+                    rootWithSeparator + entry);
             }
             catch (Exception exception) when (
                 exception is ArgumentException ||

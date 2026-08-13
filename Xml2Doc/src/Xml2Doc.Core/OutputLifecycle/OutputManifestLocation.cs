@@ -94,11 +94,12 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
 
             var identityHash = ComputeIdentityHash(identity);
-            var manifestPath = Path.Combine(
+            var manifestFileName = identityHash + ".json";
+            var manifestPath = CombineRelativeSegments(
                 canonicalOutputRoot,
                 MetadataDirectoryName,
                 ManifestDirectoryName,
-                identityHash + ".json");
+                manifestFileName);
 
             return new OutputManifestLocation(
                 canonicalOutputRoot,
@@ -138,6 +139,28 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
 
             return hexadecimalHash.ToString();
+        }
+
+        private static string CombineRelativeSegments(
+            string root,
+            params string[] segments)
+        {
+            var path = root;
+
+            foreach (var segment in segments)
+            {
+                if (string.IsNullOrEmpty(segment) ||
+                    Path.IsPathRooted(segment))
+                {
+                    throw new ArgumentException(
+                        "Manifest path segments must be non-empty relative paths.",
+                        nameof(segments));
+                }
+
+                path = Path.Combine(path, segment);
+            }
+
+            return path;
         }
 
         private static string NormalizeRootPath(string path)

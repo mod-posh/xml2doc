@@ -120,9 +120,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenPreviousManifestContainsRootedEntry_ThrowsInvalidDataException()
         {
             var outputRoot = CreateOutputRoot();
-            var rootedEntry = Path.Combine(
-                Path.GetTempPath(),
-                Path.GetRandomFileName() + ".md");
+            var rootedEntry =
+                Path.GetTempPath() +
+                Path.GetRandomFileName() + ".md";
             var previousManifest = CreateManifest(outputRoot, rootedEntry);
 
             Should.Throw<InvalidDataException>(() =>
@@ -136,7 +136,8 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenPreviousManifestEntryEscapesOutputRoot_ThrowsInvalidDataException()
         {
             var outputRoot = CreateOutputRoot();
-            var escapingEntry = Path.Combine("..", "outside.md");
+            var escapingEntry =
+                ".." + Path.DirectorySeparatorChar + "outside.md";
             var previousManifest = CreateManifest(outputRoot, escapingEntry);
 
             Should.Throw<InvalidDataException>(() =>

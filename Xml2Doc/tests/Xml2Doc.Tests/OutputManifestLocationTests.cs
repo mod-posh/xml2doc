@@ -22,11 +22,11 @@ namespace Xml2Doc.Tests
             location.OutputRoot.ShouldBe(Path.GetFullPath(outputRoot));
             location.IdentityHash.ShouldBe(
                 "f04e14ea9a6660391a43a451467efd4372021aaf8806180f653481079d33fa16");
-            location.ManifestPath.ShouldBe(Path.Combine(
-                Path.GetFullPath(outputRoot),
-                ".xml2doc",
-                "manifests",
-                location.IdentityHash + ".json"));
+            location.ManifestPath.ShouldBe(
+                location.OutputRoot + Path.DirectorySeparatorChar +
+                ".xml2doc" + Path.DirectorySeparatorChar +
+                "manifests" + Path.DirectorySeparatorChar +
+                location.IdentityHash + ".json");
         }
 
         [Fact]
@@ -39,11 +39,13 @@ namespace Xml2Doc.Tests
 
             Path.GetFileName(location.ManifestPath)
                 .ShouldBe(location.IdentityHash + ".json");
+            var expectedManifestDirectory =
+                location.OutputRoot + Path.DirectorySeparatorChar +
+                ".xml2doc" + Path.DirectorySeparatorChar +
+                "manifests";
+
             Path.GetDirectoryName(location.ManifestPath)
-                .ShouldBe(Path.Combine(
-                    Path.GetFullPath(outputRoot),
-                    ".xml2doc",
-                    "manifests"));
+                .ShouldBe(expectedManifestDirectory);
         }
 
         [Fact]
@@ -124,9 +126,8 @@ namespace Xml2Doc.Tests
         }
 
         private static string CreateOutputRoot() =>
-            Path.Combine(
-                Path.GetTempPath(),
-                "xml2doc-tests",
-                Guid.NewGuid().ToString("N"));
+            Path.GetTempPath() +
+            "xml2doc-tests" + Path.DirectorySeparatorChar +
+            Guid.NewGuid().ToString("N");
     }
 }
