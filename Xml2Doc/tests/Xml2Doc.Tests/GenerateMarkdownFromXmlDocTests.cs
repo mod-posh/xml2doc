@@ -217,7 +217,7 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
-        public void BuildAssets_ExposeAndWirePruningProperties()
+        public void BuildAssets_ExposeAndWireLifecycleProperties()
         {
             var buildDirectory =
                 RepositoryRoot + Path.DirectorySeparatorChar +
@@ -243,6 +243,58 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_PruneStaleFiles)");
             taskElement.Attribute("ManifestIdentity")!.Value
                 .ShouldBe("$(Xml2Doc_ManifestIdentity)");
+            props.Descendants("Xml2Doc_LineEndings")
+                .Single().Value.ShouldBe("lf");
+            targets.Descendants("_Xml2Doc_NativeLineEndingToken")
+                .Single().Value.ShouldContain("Environment]::NewLine.Length");
+            targets.Descendants("_Xml2Doc_Options")
+                .Single().Value.ShouldContain("$(_Xml2Doc_NativeLineEndingToken)");
+            taskElement.Attribute("LineEndings")!.Value
+                .ShouldBe("$(Xml2Doc_LineEndings)");
+        }
+
+        [Fact]
+        public void LineEndings_WhenValueIsInvalid_FailsBeforeWriting()
+        {
+            var outDir = CreateOutputDirectory();
+            var task = CreateTask(outDir);
+            task.LineEndings = "invalid";
+
+            task.Execute().ShouldBeFalse();
+
+            task.DidWork.ShouldBeFalse();
+            Directory.Exists(outDir).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void PerType_WhenCrLfSelected_WritesCrLfMarkdown()
+        {
+            var outDir = CreateOutputDirectory();
+
+            try
+            {
+                var task = CreateTask(outDir);
+                task.LineEndings = "crlf";
+
+                task.Execute().ShouldBeTrue();
+
+                var markdown = Directory
+                    .GetFiles(outDir, "*.md")
+                    .Select(File.ReadAllText)
+                    .First();
+                markdown.ShouldContain("\r\n");
+                var withoutCrLf =
+                    markdown.Replace("\r\n", string.Empty);
+                withoutCrLf.ShouldNotContain("\r");
+                withoutCrLf.ShouldNotContain("\n");
+            }
+            finally
+            {
+                if (Directory.Exists(outDir))
+                {
+                    Directory.Delete(outDir, recursive: true);
+                }
+            }
         }
 
         private static GenerateMarkdownFromXmlDoc CreateTask(string outDir) =>

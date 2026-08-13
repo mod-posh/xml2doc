@@ -178,6 +178,81 @@ namespace Xml2Doc.Tests
             wouldDelete.ShouldBe(new[] { output.FullPath("stale.md") });
         }
 
+        [Fact]
+        public void Main_WhenLineEndingsValueIsInvalid_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--line-endings", "invalid"
+            });
+
+            exitCode.ShouldBe(1);
+            Directory.Exists(output.Path).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Main_WhenCrLfSelected_WritesCrLfMarkdown()
+        {
+            using var output = TemporaryOutput.Create();
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--line-endings", "crlf"
+            });
+
+            exitCode.ShouldBe(0);
+            var markdown = Directory
+                .GetFiles(output.Path, "*.md")
+                .Select(File.ReadAllText)
+                .First();
+            AssertUsesOnly(markdown, "\r\n");
+        }
+
+        [Fact]
+        public void Main_WhenCliOverridesConfigLineEndings_UsesCliValue()
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write(
+                "xml2doc.json",
+                JsonSerializer.Serialize(new CliConfig
+                {
+                    Xml = SampleXml,
+                    Out = output.Path,
+                    LineEndings = "crlf"
+                }));
+
+            var exitCode = Program.Main(new[]
+            {
+                "--config", configPath,
+                "--line-endings", "lf"
+            });
+
+            exitCode.ShouldBe(0);
+            var markdown = Directory
+                .GetFiles(output.Path, "*.md")
+                .Select(File.ReadAllText)
+                .First();
+            markdown.ShouldNotContain("\r");
+        }
+
+        private static void AssertUsesOnly(
+            string content,
+            string expectedLineEnding)
+        {
+            content.ShouldContain(expectedLineEnding);
+            var withoutExpected =
+                content.Replace(expectedLineEnding, string.Empty);
+            withoutExpected.ShouldNotContain("\r");
+            withoutExpected.ShouldNotContain("\n");
+        }
+
         private sealed class TemporaryOutput : IDisposable
         {
             private TemporaryOutput(string path)

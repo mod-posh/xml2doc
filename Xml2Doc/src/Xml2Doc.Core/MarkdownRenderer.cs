@@ -41,6 +41,8 @@ namespace Xml2Doc.Core;
 /// </remarks>
 public sealed class MarkdownRenderer
 {
+    private static readonly Encoding MarkdownEncoding =
+        new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
 
@@ -141,10 +143,16 @@ public sealed class MarkdownRenderer
             foreach (var t in types)
             {
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
-                File.WriteAllText(file, RenderType(t, includeHeader: true));
+                File.WriteAllText(
+                    file,
+                    NormalizeLineEndings(RenderType(t, includeHeader: true)),
+                    MarkdownEncoding);
             }
             if (_opt.GenerateIndex)
-                File.WriteAllText(Path.Combine(outDir, "index.md"), RenderIndex(types, useAnchors: false));
+                File.WriteAllText(
+                    CombineOutputPath(outDir, "index.md"),
+                    NormalizeLineEndings(RenderIndex(types, useAnchors: false)),
+                    MarkdownEncoding);
 
             if (_opt.EmitNamespaceIndex)
             {
@@ -174,7 +182,10 @@ public sealed class MarkdownRenderer
                         var perTypeFile = FileNameForPerType(t.Id);
                         sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
                     }
-                    File.WriteAllText(nsFile, sbNs.ToString());
+                    File.WriteAllText(
+                        nsFile,
+                        NormalizeLineEndings(sbNs.ToString()),
+                        MarkdownEncoding);
                 }
 
                 var nsIndex = new StringBuilder();
@@ -184,7 +195,10 @@ public sealed class MarkdownRenderer
                     var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
-                File.WriteAllText(Path.Combine(outDir, "namespaces.md"), nsIndex.ToString());
+                File.WriteAllText(
+                    CombineOutputPath(outDir, "namespaces.md"),
+                    NormalizeLineEndings(nsIndex.ToString()),
+                    MarkdownEncoding);
             }
 
             if (manifestLocation is not null &&
@@ -215,7 +229,10 @@ public sealed class MarkdownRenderer
         {
             _singleFileMode = true;
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-            File.WriteAllText(outPath, BuildSingleFileContent());
+            File.WriteAllText(
+                outPath,
+                NormalizeLineEndings(BuildSingleFileContent()),
+                MarkdownEncoding);
         }
         finally
         {
@@ -226,7 +243,45 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Returns the consolidated single‑file content (index + all types) without writing.
     /// </summary>
-    public string RenderToString() => BuildSingleFileContent();
+    public string RenderToString() =>
+        NormalizeLineEndings(BuildSingleFileContent());
+
+    private string NormalizeLineEndings(string content)
+    {
+        var normalized = content
+            .Replace("\r\n", "\n")
+            .Replace('\r', '\n');
+
+        var lineEnding = _opt.LineEndings switch
+        {
+            LineEndingStyle.CrLf => "\r\n",
+            LineEndingStyle.Native => Environment.NewLine,
+            _ => "\n"
+        };
+
+        return lineEnding == "\n"
+            ? normalized
+            : normalized.Replace("\n", lineEnding);
+    }
+
+    private static string CombineOutputPath(string outputDirectory, string fileName)
+    {
+        if (Path.IsPathRooted(fileName))
+            throw new ArgumentException("The output file name must be relative.", nameof(fileName));
+
+        var outputRoot = Path.GetFullPath(outputDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        var candidate = Path.GetFullPath(outputRoot + fileName);
+        var comparison = Path.DirectorySeparatorChar == '\\'
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (!candidate.StartsWith(outputRoot, comparison))
+            throw new ArgumentException("The output file name must remain within the output directory.", nameof(fileName));
+
+        return candidate;
+    }
 
     /// <summary>
     /// Builds single‑file content, temporarily switching link mode to in‑document anchors.

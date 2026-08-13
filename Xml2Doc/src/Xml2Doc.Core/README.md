@@ -25,6 +25,7 @@ Now multi-targeted and verified for consistent output across modern .NET TFMs.
   - `RootNamespaceToTrim` (display-only trimming)
   - Code block language (default `csharp`)
   - Per-type `index.md` generation (`GenerateIndex`, default `true`)
+  - Markdown line endings (`Lf` default, `CrLf`, or `Native`)
   - Output mode (single vs. multi-file)
 
 ## Supported Target Frameworks
@@ -35,8 +36,9 @@ Shipped TFMs:
 - `net8.0`
 - `net9.0`
 
-**Guarantee:** Markdown output is deterministic and equivalent across these TFMs.
-We test cross-TFM by rendering with multiple runtimes and asserting identical output (normalized line endings).
+**Guarantee:** Default Markdown output is deterministic and equivalent across these TFMs and hosts,
+including LF line endings. We test cross-TFM output directly without relying on post-render newline
+normalization.
 
 ### Language-version notes
 

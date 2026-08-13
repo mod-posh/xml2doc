@@ -51,6 +51,7 @@ That’s it—on successful build, docs are generated according to the propertie
 | `Xml2Doc_CodeBlockLanguage`   | Code block language for fenced blocks (default `csharp`).                  |
 | `Xml2Doc_PruneStaleFiles`     | Remove stale files owned by this invocation. Default: `false`.             |
 | `Xml2Doc_ManifestIdentity`    | Stable identity required when stale-output pruning is enabled.             |
+| `Xml2Doc_LineEndings`         | Markdown newlines: `lf` (default), `crlf`, or `native`.                    |
 
 ### Examples
 
@@ -100,6 +101,20 @@ and create the repository-level index in a separate aggregation step:
 Use an identity that remains stable for the same invocation. Only files recorded by that exact
 identity can be removed; hand-authored files and files owned by other builds are preserved.
 Pruning is supported only for per-type output.
+
+**Line-ending policy**
+
+Generated Markdown uses LF on every platform by default. Consumers that require another policy can
+select it explicitly:
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_LineEndings>crlf</Xml2Doc_LineEndings>
+</PropertyGroup>
+```
+
+Use `native` only for host-specific compatibility. A `.gitattributes` rule such as
+`*.md text eol=lf` can reinforce repository policy but is not required for deterministic output.
 
 **Only generate in Release**
 
