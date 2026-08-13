@@ -150,7 +150,7 @@ public sealed class MarkdownRenderer
             }
             if (_opt.GenerateIndex)
                 File.WriteAllText(
-                    Path.Combine(outDir, "index.md"),
+                    outDir + Path.DirectorySeparatorChar + "index.md",
                     NormalizeLineEndings(RenderIndex(types, useAnchors: false)),
                     MarkdownEncoding);
 
@@ -196,7 +196,7 @@ public sealed class MarkdownRenderer
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
                 File.WriteAllText(
-                    Path.Combine(outDir, "namespaces.md"),
+                    outDir + Path.DirectorySeparatorChar + "namespaces.md",
                     NormalizeLineEndings(nsIndex.ToString()),
                     MarkdownEncoding);
             }
