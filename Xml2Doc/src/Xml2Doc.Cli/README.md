@@ -54,6 +54,8 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
 | `--rootns <namespace>`           | Optional root namespace to trim                               |
 | `--lang <language>`              | Code block language (default: `csharp`)                       |
 | `--config <file>`                | Path to a JSON configuration file                             |
+| `--prune-stale`                 | Remove stale files previously owned by this invocation        |
+| `--manifest-id <identity>`      | Stable ownership identity required with `--prune-stale`       |
 | `--help`                         | Display help text                                             |
 
 ### Example Config File
@@ -70,6 +72,16 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
   "CodeLanguage": "csharp"
 }
 ```
+
+For safe stale-output pruning in directory mode, opt in with a stable identity:
+
+```bash
+Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs \
+  --prune-stale --manifest-id MyCompany.MyLib
+```
+
+Only files recorded in the manifest for that exact identity can be removed. Untracked files and
+files owned by other identities are preserved. Pruning is not available with `--single`.
 
 Run with:
 

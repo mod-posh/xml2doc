@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
+using Xml2Doc.Core.OutputLifecycle;
 
 namespace Xml2Doc.Cli
 {
@@ -29,6 +30,7 @@ namespace Xml2Doc.Cli
     ///   <item><description><c>--toc</c>: per‑type member TOC (multi‑file only).</description></item>
     ///   <item><description><c>--namespace-index</c>: emit namespace index + per‑namespace pages.</description></item>
     ///   <item><description><c>--parallel &lt;N&gt;</c>: cap generation concurrency.</description></item>
+    ///   <item><description><c>--prune-stale</c> / <c>--manifest-id</c>: remove only stale outputs owned by the same invocation.</description></item>
     ///   <item><description><c>--report</c>: write JSON execution report.</description></item>
     ///   <item><description><c>--dry-run</c>: plan (no writes); report includes <c>wouldWrite</c>/<c>wouldDelete</c>.</description></item>
     ///   <item><description><c>--diff</c>: reserved (currently no effect).</description></item>
@@ -37,7 +39,7 @@ namespace Xml2Doc.Cli
     /// <list type="bullet">
     ///   <item><description><c>files</c>: empty (no writes performed).</description></item>
     ///   <item><description><c>wouldWrite</c>: full absolute paths planned.</description></item>
-    ///   <item><description><c>wouldDelete</c>: existing <c>.md</c> not in plan (including namespace pages).</description></item>
+    ///   <item><description><c>wouldDelete</c>: stale files owned by the selected manifest identity; empty when pruning is disabled.</description></item>
     /// </list>
     /// Processing pipeline:
     /// <list type="number">
@@ -88,6 +90,8 @@ namespace Xml2Doc.Cli
             int? parallel = null;
             bool? basenameOnly = false;
             string? configPath = null;
+            bool pruneStaleFiles = false;
+            string? manifestIdentity = null;
 
             // Parse CLI
             for (int i = 0; i < args.Length; i++)
@@ -121,6 +125,8 @@ namespace Xml2Doc.Cli
                         if (int.TryParse(args[++i], out var p)) parallel = p;
                         break;
                     case "--config" when i + 1 < args.Length: configPath = args[++i]; break;
+                    case "--prune-stale": pruneStaleFiles = true; break;
+                    case "--manifest-id" when i + 1 < args.Length: manifestIdentity = args[++i]; break;
                     case "--help":
                     case "-h":
                         PrintHelp();
@@ -160,12 +166,27 @@ namespace Xml2Doc.Cli
                 if (cfg?.BasenameOnly is bool bo) basenameOnly = basenameOnly ?? bo;
                 if (cfg?.Parallel is int pi && parallel is null) parallel = pi;
                 if (cfg?.Diff is bool df) diff = df || diff;
+                if (cfg?.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
+                if (!string.IsNullOrWhiteSpace(cfg?.ManifestIdentity))
+                    manifestIdentity ??= cfg.ManifestIdentity;
             }
 
             if (string.IsNullOrWhiteSpace(xml) || string.IsNullOrWhiteSpace(outArg))
             {
                 Console.Error.WriteLine("Missing --xml or --out");
                 PrintHelp();
+                return 1;
+            }
+
+            if (pruneStaleFiles && single)
+            {
+                Console.Error.WriteLine("--prune-stale is only supported for directory output.");
+                return 1;
+            }
+
+            if (pruneStaleFiles && string.IsNullOrWhiteSpace(manifestIdentity))
+            {
+                Console.Error.WriteLine("--manifest-id is required when --prune-stale is enabled.");
                 return 1;
             }
 
@@ -197,7 +218,9 @@ namespace Xml2Doc.Cli
                     EmitNamespaceIndex: namespaceIndex,
                     BasenameOnly: basenameOnly ?? false,
                     ParallelDegree: parallel,
-                    GenerateIndex: generateIndex
+                    GenerateIndex: generateIndex,
+                    PruneStaleFiles: pruneStaleFiles,
+                    ManifestIdentity: manifestIdentity
                 );
 
                 var renderer = new MarkdownRenderer(model, options);
@@ -208,6 +231,30 @@ namespace Xml2Doc.Cli
                     : renderer.PlanOutputs(outDir: outArg!, singleFilePath: null);
 
                 List<string> produced = new();
+                var wouldDelete = Array.Empty<string>();
+
+                if (dryRun && pruneStaleFiles)
+                {
+                    var location = OutputManifestLocation.Create(
+                        outArg!,
+                        manifestIdentity!);
+                    var relativeFiles = plannedFiles
+                        .Select(path => Path.GetRelativePath(
+                            location.OutputRoot,
+                            Path.GetFullPath(path)))
+                        .ToArray();
+                    var lifecyclePlan =
+                        OutputLifecycleExecutor.ExecuteAfterSuccessfulGeneration(
+                            location,
+                            relativeFiles,
+                            dryRun: true);
+                    wouldDelete = lifecyclePlan.FilesToDelete
+                        .Select(path =>
+                            location.OutputRoot +
+                            Path.DirectorySeparatorChar +
+                            path)
+                        .ToArray();
+                }
 
                 // Execute or simulate
                 if (dryRun)
@@ -245,9 +292,7 @@ namespace Xml2Doc.Cli
                         outputDir = single ? null : Path.GetFullPath(outArg!),
                         files = produced.ToArray(),
                         wouldWrite = dryRun ? plannedFiles.ToArray() : null,
-                        wouldDelete = dryRun && !single
-                            ? ComputeWouldDelete(Path.GetFullPath(outArg!), plannedFiles)
-                            : null,
+                        wouldDelete = dryRun ? wouldDelete : null,
                         options = new
                         {
                             fileNameMode = fileNameMode.ToString(),
@@ -264,7 +309,9 @@ namespace Xml2Doc.Cli
                             namespaceIndex,
                             generateIndex,
                             basenameOnly = options.BasenameOnly,
-                            parallel
+                            parallel,
+                            pruneStaleFiles,
+                            manifestIdentity
                         },
                         dryRun,
                         diffRequested = diff,
@@ -286,39 +333,6 @@ namespace Xml2Doc.Cli
             {
                 Console.Error.WriteLine(ex.ToString());
                 return 2;
-            }
-        }
-
-        /// <summary>
-        /// Identifies existing Markdown files (incl. namespace pages) that are not part of the current plan (dry‑run only).
-        /// </summary>
-        /// <param name="outDir">Target output directory.</param>
-        /// <param name="plannedFiles">Planned output file set.</param>
-        /// <returns>Full paths of files that would become obsolete; empty on error.</returns>
-        private static string[] ComputeWouldDelete(string outDir, IReadOnlyList<string> plannedFiles)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(outDir) || !Directory.Exists(outDir))
-                    return Array.Empty<string>();
-
-                var planned = new HashSet<string>(plannedFiles.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
-
-                IEnumerable<string> existing = Directory
-                    .GetFiles(outDir, "*.md", SearchOption.TopDirectoryOnly)
-                    .Select(Path.GetFullPath);
-
-                var nsDir = Path.Combine(outDir, "namespaces");
-                if (Directory.Exists(nsDir))
-                    existing = existing.Concat(Directory
-                        .GetFiles(nsDir, "*.md", SearchOption.TopDirectoryOnly)
-                        .Select(Path.GetFullPath));
-
-                return existing.Where(p => !planned.Contains(p)).ToArray();
-            }
-            catch
-            {
-                return Array.Empty<string>();
             }
         }
 
@@ -350,6 +364,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--no-index]");
             Console.WriteLine("                   [--basename-only]");
             Console.WriteLine("                   [--parallel <N>]");
+            Console.WriteLine("                   [--prune-stale --manifest-id <identity>]");
             Console.WriteLine("                   [--config <file>]");
             Console.WriteLine();
         }
