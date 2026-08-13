@@ -212,11 +212,11 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
 
             string fullPath;
+            var rootWithSeparator = EnsureTrailingDirectorySeparator(
+                canonicalOutputRoot);
 
             try
             {
-                var rootWithSeparator = EnsureTrailingDirectorySeparator(
-                    canonicalOutputRoot);
                 fullPath = Path.GetFullPath(
                     rootWithSeparator + entry);
             }
@@ -229,8 +229,6 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
 
             var comparison = GetPathComparison();
-            var rootWithSeparator = EnsureTrailingDirectorySeparator(
-                canonicalOutputRoot);
 
             if (string.Equals(fullPath, canonicalOutputRoot, comparison) ||
                 !fullPath.StartsWith(rootWithSeparator, comparison))
