@@ -9,7 +9,7 @@
 
     <!-- Version: set once for all (override per project if needed) -->
     <!-- was: <Version>1.4.0</Version> -->
-    <VersionPrefix>1.4.0</VersionPrefix>
+    <VersionPrefix>2.0.0/VersionPrefix>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <!-- Licensing (metadata only; LICENSE lives in repo root) -->
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
