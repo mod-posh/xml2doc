@@ -272,7 +272,7 @@ public sealed class MarkdownRenderer
         var outputRoot = Path.GetFullPath(outputDirectory)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
             Path.DirectorySeparatorChar;
-        var candidate = Path.GetFullPath(Path.Combine(outputRoot, fileName));
+        var candidate = Path.GetFullPath(outputRoot + fileName);
         var comparison = Path.DirectorySeparatorChar == '\\'
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
