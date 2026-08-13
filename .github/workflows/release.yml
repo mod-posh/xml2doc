@@ -19,7 +19,7 @@ jobs:
           verbose: "verbose"
 
       - name: Create Release Notes
-        uses: mod-posh/Issue2ReleaseNotes@v0.0.3.3
+        uses: mod-posh/Issue2ReleaseNotes@v0.0.4.0
         with:
           milestone_number: ${{ github.event.milestone.number }}
           verbose: 'verbose'
