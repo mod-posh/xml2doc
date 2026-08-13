@@ -245,6 +245,10 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_ManifestIdentity)");
             props.Descendants("Xml2Doc_LineEndings")
                 .Single().Value.ShouldBe("lf");
+            targets.Descendants("_Xml2Doc_NativeLineEndingToken")
+                .Single().Value.ShouldContain("Environment]::NewLine.Length");
+            targets.Descendants("_Xml2Doc_Options")
+                .Single().Value.ShouldContain("$(_Xml2Doc_NativeLineEndingToken)");
             taskElement.Attribute("LineEndings")!.Value
                 .ShouldBe("$(Xml2Doc_LineEndings)");
         }

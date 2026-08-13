@@ -150,7 +150,7 @@ public sealed class MarkdownRenderer
             }
             if (_opt.GenerateIndex)
                 File.WriteAllText(
-                    outDir + Path.DirectorySeparatorChar + "index.md",
+                    CombineOutputPath(outDir, "index.md"),
                     NormalizeLineEndings(RenderIndex(types, useAnchors: false)),
                     MarkdownEncoding);
 
@@ -196,7 +196,7 @@ public sealed class MarkdownRenderer
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
                 File.WriteAllText(
-                    outDir + Path.DirectorySeparatorChar + "namespaces.md",
+                    CombineOutputPath(outDir, "namespaces.md"),
                     NormalizeLineEndings(nsIndex.ToString()),
                     MarkdownEncoding);
             }
@@ -262,6 +262,14 @@ public sealed class MarkdownRenderer
         return lineEnding == "\n"
             ? normalized
             : normalized.Replace("\n", lineEnding);
+    }
+
+    private static string CombineOutputPath(string outputDirectory, string fileName)
+    {
+        if (Path.IsPathRooted(fileName))
+            throw new ArgumentException("The output file name must be relative.", nameof(fileName));
+
+        return Path.Combine(outputDirectory, fileName);
     }
 
     /// <summary>

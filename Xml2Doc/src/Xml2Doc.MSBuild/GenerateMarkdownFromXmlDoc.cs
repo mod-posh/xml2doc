@@ -357,7 +357,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     lang: options.CodeBlockLanguage ?? "",
                     pruneStaleFiles: PruneStaleFiles,
                     manifestIdentity: ManifestIdentity ?? "",
-                    lineEndings: lineEndingStyle.ToString()
+                    lineEndings: GetLineEndingFingerprintToken(lineEndingStyle)
                 );
             }
 
@@ -476,6 +476,11 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         foreach (var b in hash) sb.Append(b.ToString("x2"));
         return sb.ToString();
     }
+
+    private static string GetLineEndingFingerprintToken(LineEndingStyle lineEndingStyle) =>
+        lineEndingStyle == LineEndingStyle.Native
+            ? $"Native:{Environment.NewLine.Length}"
+            : lineEndingStyle.ToString();
 
     /// <summary>
     /// Normalizes a path for hashing (full path, trimmed trailing separators). Returns empty string for blank or on failure.
