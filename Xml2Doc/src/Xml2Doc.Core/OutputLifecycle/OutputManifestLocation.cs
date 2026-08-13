@@ -157,10 +157,25 @@ namespace Xml2Doc.Core.OutputLifecycle
                         nameof(segments));
                 }
 
-                path = Path.Combine(path, segment);
+                path = EnsureTrailingDirectorySeparator(path) + segment;
             }
 
             return path;
+        }
+
+        private static string EnsureTrailingDirectorySeparator(string path)
+        {
+            if (path.EndsWith(
+                    Path.DirectorySeparatorChar.ToString(),
+                    StringComparison.Ordinal) ||
+                path.EndsWith(
+                    Path.AltDirectorySeparatorChar.ToString(),
+                    StringComparison.Ordinal))
+            {
+                return path;
+            }
+
+            return path + Path.DirectorySeparatorChar;
         }
 
         private static string NormalizeRootPath(string path)

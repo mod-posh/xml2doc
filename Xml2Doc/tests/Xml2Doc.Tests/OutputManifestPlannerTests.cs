@@ -184,9 +184,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenCurrentPlanContainsRootedEntry_ThrowsArgumentException()
         {
             var outputRoot = CreateOutputRoot();
-            var rootedEntry = Path.Combine(
-                Path.GetTempPath(),
-                Path.GetRandomFileName() + ".md");
+            var rootedEntry =
+                Path.GetTempPath() +
+                Path.GetRandomFileName() + ".md";
 
             Should.Throw<ArgumentException>(() =>
                 OutputManifestPlanner.CreatePlan(
@@ -199,7 +199,8 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenCurrentPlanEntryEscapesOutputRoot_ThrowsArgumentException()
         {
             var outputRoot = CreateOutputRoot();
-            var escapingEntry = Path.Combine("..", "outside.md");
+            var escapingEntry =
+                ".." + Path.DirectorySeparatorChar + "outside.md";
 
             Should.Throw<ArgumentException>(() =>
                 OutputManifestPlanner.CreatePlan(
@@ -263,10 +264,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenCurrentOutputContainsInternalTraversal_NormalizesRelativePath()
         {
             var outputRoot = CreateOutputRoot();
-            var unnormalizedPath = Path.Combine(
-                "folder",
-                "..",
-                "File.md");
+            var unnormalizedPath =
+                "folder" + Path.DirectorySeparatorChar +
+                ".." + Path.DirectorySeparatorChar + "File.md";
 
             var plan = OutputManifestPlanner.CreatePlan(
                 outputRoot,
@@ -281,10 +281,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenManifestEntryContainsInternalTraversal_NormalizesOwnedPath()
         {
             var outputRoot = CreateOutputRoot();
-            var unnormalizedPath = Path.Combine(
-                "folder",
-                "..",
-                "File.md");
+            var unnormalizedPath =
+                "folder" + Path.DirectorySeparatorChar +
+                ".." + Path.DirectorySeparatorChar + "File.md";
             var previousManifest = CreateManifest(
                 outputRoot,
                 unnormalizedPath);
@@ -302,10 +301,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenCurrentOutputsCollideAfterNormalization_ThrowsArgumentException()
         {
             var outputRoot = CreateOutputRoot();
-            var equivalentPath = Path.Combine(
-                "folder",
-                "..",
-                "File.md");
+            var equivalentPath =
+                "folder" + Path.DirectorySeparatorChar +
+                ".." + Path.DirectorySeparatorChar + "File.md";
 
             Should.Throw<ArgumentException>(() =>
                 OutputManifestPlanner.CreatePlan(
@@ -322,10 +320,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenManifestEntriesCollideAfterNormalization_ThrowsInvalidDataException()
         {
             var outputRoot = CreateOutputRoot();
-            var equivalentPath = Path.Combine(
-                "folder",
-                "..",
-                "File.md");
+            var equivalentPath =
+                "folder" + Path.DirectorySeparatorChar +
+                ".." + Path.DirectorySeparatorChar + "File.md";
             var previousManifest = CreateManifest(
                 outputRoot,
                 "File.md",
@@ -342,10 +339,9 @@ namespace Xml2Doc.Tests
         public void CreatePlan_WhenCurrentOutputIsNested_PreservesOutputRootRelativePath()
         {
             var outputRoot = CreateOutputRoot();
-            var nestedPath = Path.Combine(
-                "api",
-                "models",
-                "Widget.md");
+            var nestedPath =
+                "api" + Path.DirectorySeparatorChar +
+                "models" + Path.DirectorySeparatorChar + "Widget.md";
 
             var plan = OutputManifestPlanner.CreatePlan(
                 outputRoot,
@@ -463,10 +459,9 @@ namespace Xml2Doc.Tests
 
         private static string CreateOutputRoot() =>
             Path.GetFullPath(
-                Path.Combine(
-                    Path.GetTempPath(),
-                    "Xml2Doc.Tests",
-                    Path.GetRandomFileName()));
+                Path.GetTempPath() +
+                "Xml2Doc.Tests" + Path.DirectorySeparatorChar +
+                Path.GetRandomFileName());
 
         private static string EnsureTrailingDirectorySeparator(string path)
         {

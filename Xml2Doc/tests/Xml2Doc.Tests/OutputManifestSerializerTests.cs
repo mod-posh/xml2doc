@@ -55,7 +55,10 @@ namespace Xml2Doc.Tests
             Should.Throw<ArgumentException>(() =>
                 OutputManifestSerializer.Serialize(
                     location,
-                    new[] { Path.Combine("..", "outside.md") }));
+                    new[]
+                    {
+                        ".." + Path.DirectorySeparatorChar + "outside.md"
+                    }));
         }
 
         [Fact]
@@ -169,10 +172,9 @@ namespace Xml2Doc.Tests
 
         private static OutputManifestLocation CreateLocation(string identity) =>
             OutputManifestLocation.Create(
-                Path.Combine(
-                    Path.GetTempPath(),
-                    "Xml2Doc.Tests",
-                    Guid.NewGuid().ToString("N")),
+                Path.GetTempPath() +
+                "Xml2Doc.Tests" + Path.DirectorySeparatorChar +
+                Guid.NewGuid().ToString("N"),
                 identity);
 
         private static string SerializeJsonString(string value) =>

@@ -74,7 +74,10 @@ namespace Xml2Doc.Tests
             Should.Throw<ArgumentException>(() =>
                 OutputManifestStore.Save(
                     location,
-                    new[] { Path.Combine("..", "outside.md") }));
+                    new[]
+                    {
+                        ".." + Path.DirectorySeparatorChar + "outside.md"
+                    }));
 
             File.ReadAllBytes(location.ManifestPath)
                 .ShouldBe(previousBytes);
@@ -134,10 +137,9 @@ namespace Xml2Doc.Tests
 
             public static TemporaryOutput Create() =>
                 new TemporaryOutput(
-                    System.IO.Path.Combine(
-                        System.IO.Path.GetTempPath(),
-                        "Xml2Doc.Tests",
-                        Guid.NewGuid().ToString("N")));
+                    System.IO.Path.GetTempPath() +
+                    "Xml2Doc.Tests" + System.IO.Path.DirectorySeparatorChar +
+                    Guid.NewGuid().ToString("N"));
 
             public OutputManifestLocation CreateLocation(string identity) =>
                 OutputManifestLocation.Create(Path, identity);

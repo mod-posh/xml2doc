@@ -103,9 +103,9 @@ namespace Xml2Doc.Core.OutputLifecycle
                     "The temporary manifest file name must be relative.");
             }
 
-            var temporaryPath = Path.Combine(
-                manifestDirectory,
-                temporaryFileName);
+            var temporaryPath =
+                manifestDirectory + Path.DirectorySeparatorChar +
+                temporaryFileName;
 
             try
             {
