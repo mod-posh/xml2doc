@@ -18,14 +18,21 @@ namespace Xml2Doc.Core.OutputLifecycle
                 throwOnInvalidBytes: true);
 
         private OutputManifestLocation(
+            string outputRoot,
             string identity,
             string identityHash,
             string manifestPath)
         {
+            OutputRoot = outputRoot;
             Identity = identity;
             IdentityHash = identityHash;
             ManifestPath = manifestPath;
         }
+
+        /// <summary>
+        /// Gets the canonical absolute root containing the generated output.
+        /// </summary>
+        public string OutputRoot { get; }
 
         /// <summary>
         /// Gets the exact opaque identity supplied by the caller.
@@ -94,6 +101,7 @@ namespace Xml2Doc.Core.OutputLifecycle
                 identityHash + ".json");
 
             return new OutputManifestLocation(
+                canonicalOutputRoot,
                 identity,
                 identityHash,
                 manifestPath);

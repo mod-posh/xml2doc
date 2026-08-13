@@ -168,6 +168,7 @@ namespace Xml2Doc.Tests
             var outputRoot = CreateOutputRoot();
             var previousManifest = new OutputManifest(
                 OutputManifest.CurrentSchemaVersion + 1,
+                "test-invocation",
                 outputRoot,
                 new[] { "Owned.md" });
 
@@ -244,6 +245,7 @@ namespace Xml2Doc.Tests
             var outputRoot = CreateOutputRoot();
             var previousManifest = new OutputManifest(
                 OutputManifest.CurrentSchemaVersion,
+                "test-invocation",
                 EnsureTrailingDirectorySeparator(outputRoot),
                 new[] { "Owned.md" });
 
@@ -487,6 +489,7 @@ namespace Xml2Doc.Tests
             params string[] files) =>
             new(
                 OutputManifest.CurrentSchemaVersion,
+                "test-invocation",
                 Path.GetFullPath(outputRoot),
                 files);
     }

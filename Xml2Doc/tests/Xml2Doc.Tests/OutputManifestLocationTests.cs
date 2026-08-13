@@ -19,6 +19,7 @@ namespace Xml2Doc.Tests
                 "sample-project");
 
             location.Identity.ShouldBe("sample-project");
+            location.OutputRoot.ShouldBe(Path.GetFullPath(outputRoot));
             location.IdentityHash.ShouldBe(
                 "f04e14ea9a6660391a43a451467efd4372021aaf8806180f653481079d33fa16");
             location.ManifestPath.ShouldBe(Path.Combine(
