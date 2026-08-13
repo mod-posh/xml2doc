@@ -48,7 +48,9 @@ namespace Xml2Doc.Core.OutputLifecycle
                 location.OutputRoot,
                 normalizedFiles);
 
-            return JsonSerializer.Serialize(manifest, SerializerOptions);
+            return JsonSerializer
+                .Serialize(manifest, SerializerOptions)
+                .Replace("\r\n", "\n");
         }
 
         /// <summary>

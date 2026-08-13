@@ -80,7 +80,7 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             try
             {
-                canonicalOutputRoot = Path.GetFullPath(outputRoot);
+                canonicalOutputRoot = NormalizeRootPath(outputRoot);
             }
             catch (Exception exception) when (
                 exception is ArgumentException ||
@@ -138,6 +138,28 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
 
             return hexadecimalHash.ToString();
+        }
+
+        private static string NormalizeRootPath(string path)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var pathRoot = Path.GetPathRoot(fullPath);
+
+            if (string.IsNullOrEmpty(pathRoot))
+            {
+                throw new ArgumentException(
+                    "The path does not contain a valid filesystem root.",
+                    nameof(path));
+            }
+
+            while (fullPath.Length > pathRoot.Length &&
+                   (fullPath[fullPath.Length - 1] == Path.DirectorySeparatorChar ||
+                    fullPath[fullPath.Length - 1] == Path.AltDirectorySeparatorChar))
+            {
+                fullPath = fullPath.Substring(0, fullPath.Length - 1);
+            }
+
+            return fullPath;
         }
     }
 }
