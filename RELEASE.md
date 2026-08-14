@@ -1,53 +1,25 @@
-# Version 2.0.0 — Deterministic Cross-Platform Output
+# BUGFIX 2.0.1
 
-## Goal
+## Issue description:
 
-Make Xml2Doc output deterministic across operating systems by introducing explicit line-ending configuration and adopting LF as the default. This is a major release because changing the default from platform-native line endings may alter generated files, snapshots, hashes, and downstream automation on Windows.
+- The Xml2Doc.MSBuild NuGet package was shipping the MSBuild task assembly, but not reliably shipping its runtime dependency Xml2Doc.Core.dll in the package layout that MSBuild loads at build time.
+- When the task executes during dotnet build, the task assembly loads successfully, but as soon as it tries to instantiate or use the core engine it throws:
+System.IO.FileNotFoundException: Could not load file or assembly 'Xml2Doc.Core'
+- This shows up as a build failure even though the package was restored successfully and the project otherwise compiles.
 
-## Scope (themes)
+## What the fix should accomplish:
 
-* Add configurable `LF`, `CRLF`, and `Native` line-ending styles
-* Use LF as the default for deterministic cross-platform output
-* Normalize final generated Markdown consistently
-* Write UTF-8 output without a byte-order mark
-* Expose line-ending configuration through the Core API
-* Add the `--line-endings` CLI option
-* Add the `Xml2Doc_LineEndings` MSBuild property
-* Validate output across Windows, Linux, and macOS
-* Document the breaking change and migration options
-* Preserve `Native` mode for consumers requiring previous platform-specific behavior
+- Ensure the NuGet package contains the required task dependency binaries beside the task assembly under the correct lib/<tfm>/ folder.
+- Make the MSBuild targets resolve the task from the packaged location without missing dependencies.
+- Allow the GenerateMarkdownFromXmlDoc task to load and execute correctly in both:
+  - dotnet build (net8.0 task host)
+  - Visual Studio/MSBuild (net472 task host)
+- Prevent the build from failing when XML documentation generation runs.
+- Preserve the task as a build-time-only dependency while keeping the runtime assembly graph complete for the task to operate.
 
-## Acceptance checks
+### In short: the fix is a packaging/runtime integrity fix for the MSBuild task, not a problem with the consumer project itself.
 
-* Default output uses LF on all supported operating systems.
-* Selecting `CRLF` produces CRLF-only output.
-* Selecting `Native` preserves platform-native line-ending behavior.
-* Generated files use UTF-8 without a byte-order mark.
-* Core, CLI, and MSBuild configuration paths produce equivalent results.
-* Invalid line-ending values produce actionable errors.
-* Tests pass on Windows, Linux, and macOS.
-* Existing renderer behaviour remains unchanged apart from the documented line-ending and encoding changes.
-* Release documentation clearly explains how Windows consumers can restore the previous behaviour.
+## BUG, AREA:MSBUILD
 
-## Breaking changes
-
-* The default generated line ending changes from platform-native to LF.
-* Generated Markdown may differ byte-for-byte on Windows.
-* Snapshot tests, checksums, source-control diffs, and downstream tools that depend on CRLF output may require updates.
-* Consumers can select `Native` or `CRLF` explicitly when compatibility with previous Windows output is required.
-
-## Issues and pull requests
-
-* Issue #67 — deterministic line endings
-* PR #71 — implementation, tests, CLI/MSBuild integration, and documentation
-
-## Notes / References
-
-* Version 1.4.0 is the compatibility baseline.
-* ADR-013 documents the deterministic line-ending decision.
-* This milestone intentionally uses a major version because the default output format changes for existing Windows consumers.
-
-## NO LABEL
-
-* issue-67: Preserve deterministic line endings in generated Markdown output
+* issue-73: System.IO.FileNotFoundException: Could not load file or assembly 'Xml2Doc.Core, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null'. The system cannot find the file specified
 
