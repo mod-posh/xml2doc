@@ -13,6 +13,9 @@ on:
       - "Directory.Build.props"
       - "global.json"
 
+permissions:
+  contents: read
+
 jobs:
   verify_package:
     strategy:
