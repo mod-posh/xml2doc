@@ -2,7 +2,7 @@ name: New Release
 
 permissions:
   contents: write
-
+  issues: read
 on:
   milestone:
     types: [closed]
