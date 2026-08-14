@@ -15,6 +15,10 @@
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_PackTaskDependencies</TargetsForTfmSpecificBuildOutput>
+
+    <!-- The task package embeds its runtime dependencies, so dependency groups are intentionally absent. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
     
     <!-- NuGet metadata -->
     <PackageId>Xml2Doc.MSBuild</PackageId>
@@ -69,20 +73,26 @@
           Condition="Exists('build\Xml2Doc.MSBuild.props')" />
   </ItemGroup>
 
-  <Target Name="_PackTaskDeps" AfterTargets="Build">
+  <Target Name="_PackTaskDependencies">
     <ItemGroup>
-      <!-- Take everything we built next to the task -->
-      <_TaskFiles Include="$(TargetDir)*.dll;$(TargetDir)*.pdb;$(TargetDir)*.xml" />
+      <!-- Include task-local dependencies when NuGet gathers each TFM's build output. -->
+      <_TaskDependency Include="$(TargetDir)*.dll;$(TargetDir)*.pdb;$(TargetDir)*.xml" />
+
+      <!-- The SDK already includes the task assembly and its symbols/docs. -->
+      <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.dll" />
+      <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.pdb" />
+      <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.xml" />
 
       <!-- But exclude MSBuild toolset binaries; let MSBuild provide those -->
-      <_TaskFiles Remove="$(TargetDir)Microsoft.Build.*.dll" />
-      <_TaskFiles Remove="$(TargetDir)Microsoft.NET.StringTools.dll" />
-      <_TaskFiles Remove="$(TargetDir)Microsoft.IO.Redist.dll" />
+      <_TaskDependency Remove="$(TargetDir)Microsoft.Build.*.dll" />
+      <_TaskDependency Remove="$(TargetDir)Microsoft.NET.StringTools.dll" />
+      <_TaskDependency Remove="$(TargetDir)Microsoft.IO.Redist.dll" />
 
-      <!-- Map them into the lib/<tfm>/ area in the package -->
-      <TfmSpecificPackageFile Include="@(_TaskFiles)">
-        <PackagePath>lib\$(TargetFramework)\%(Filename)%(Extension)</PackagePath>
-      </TfmSpecificPackageFile>
+      <!-- NuGet places BuildOutputInPackage items under lib/<tfm>/. -->
+      <BuildOutputInPackage Include="@(_TaskDependency)">
+        <FinalOutputPath>%(FullPath)</FinalOutputPath>
+        <TargetPath>%(Filename)%(Extension)</TargetPath>
+      </BuildOutputInPackage>
     </ItemGroup>
   </Target>
 </Project>

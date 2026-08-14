@@ -1,0 +1,37 @@
+name: MSBuild Package Integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "Xml2Doc/src/Xml2Doc.Core/**"
+      - "Xml2Doc/src/Xml2Doc.MSBuild/**"
+      - "scripts/test-msbuild-package.ps1"
+      - ".github/workflows/msbuild-package-integration.yml"
+      - ".github/workflows/release.yml"
+      - "Directory.Build.props"
+      - "global.json"
+
+permissions:
+  contents: read
+
+jobs:
+  verify_package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./global.json
+
+      - name: Verify package layout and clean consumer
+        shell: pwsh
+        run: ./scripts/test-msbuild-package.ps1 -Configuration Release
+
