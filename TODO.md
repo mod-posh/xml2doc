@@ -16,6 +16,7 @@ Deliver focused correctness fixes after the current `2.0.2` release.
 - [ ] [#69 — Render `<see langword="..."/>` correctly in generated Markdown](https://github.com/mod-posh/xml2doc/issues/69)
 - [ ] [#68 — Resolve `/// <inheritdoc />` content when generating Markdown](https://github.com/mod-posh/xml2doc/issues/68)
 - [ ] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
+- [ ] [#79 — MSBuild incremental state does not regenerate a missing generated Markdown file](https://github.com/mod-posh/xml2doc/issues/79)
 
 Completion criteria:
 
