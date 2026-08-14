@@ -28,6 +28,7 @@ Completion criteria:
 Make stale-output ownership portable across repository checkout locations while preserving safe deletion boundaries.
 
 - [ ] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
+- [ ] [#79 — Regenerate missing Markdown outputs when MSBuild incremental state is current](https://github.com/mod-posh/xml2doc/issues/79)
 
 Completion criteria:
 
@@ -37,6 +38,7 @@ Completion criteria:
 - Existing manifests migrate safely or fail with an actionable compatibility message.
 - Tests cover Windows and Unix checkout roots, repository relocation, and multiple projects sharing one output directory.
 - Documentation defines which lifecycle metadata is portable and which files should remain ignored.
+- Missing generated Markdown files invalidate incremental state and are restored by the next build.
 
 ## 2.1.0 — Rendering Extensibility
 
