@@ -16,6 +16,9 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_PackTaskDependencies</TargetsForTfmSpecificBuildOutput>
+
+    <!-- The task package embeds its runtime dependencies, so dependency groups are intentionally absent. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
     
     <!-- NuGet metadata -->
     <PackageId>Xml2Doc.MSBuild</PackageId>
