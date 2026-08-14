@@ -68,6 +68,15 @@ jobs:
           # Pack MSBuild Package
           dotnet pack ${{ github.workspace }}/Xml2Doc/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj --configuration Release --output ./publish --no-build
 
+      - name: Verify MSBuild package
+        shell: pwsh
+        run: >
+          ./scripts/test-msbuild-package.ps1
+          -Configuration Release
+          -UseExistingPackage
+          -PackageDirectory "${{ github.workspace }}/publish"
+          -PackageVersion "${{ env.VERSION }}"
+
       - name: Push to NuGet
         run: dotnet nuget push ./publish/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
