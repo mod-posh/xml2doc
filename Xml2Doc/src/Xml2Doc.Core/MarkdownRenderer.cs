@@ -1169,10 +1169,16 @@ public sealed class MarkdownRenderer
                         text.Append(CrefToMarkdown(cref));
                     else
                     {
-                        var href = (string?)e.Attribute("href");
-                        text.Append(!string.IsNullOrWhiteSpace(href)
-                            ? $"[{e.Value}]({href})"
-                            : e.Value);
+                        var langword = (string?)e.Attribute("langword");
+                        if (!string.IsNullOrWhiteSpace(langword))
+                            text.Append($"`{langword}`");
+                        else
+                        {
+                            var href = (string?)e.Attribute("href");
+                            text.Append(!string.IsNullOrWhiteSpace(href)
+                                ? $"[{e.Value}]({href})"
+                                : e.Value);
+                        }
                     }
                     break;
                 case XElement e when e.Name.LocalName == "paramref":
