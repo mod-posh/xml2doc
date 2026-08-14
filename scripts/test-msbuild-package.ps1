@@ -102,7 +102,15 @@ try
   Assert-True (Test-Path -LiteralPath $packagePath -PathType Leaf) "Expected package was not found: $packagePath"
 
   Write-Step "Inspecting package contents"
-  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  try
+  {
+    Add-Type -AssemblyName System.IO.Compression.ZipFile -ErrorAction Stop
+  }
+  catch
+  {
+    # Windows PowerShell on .NET Framework exposes ZipFile through this assembly.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+  }
   $archive = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
   try
   {
