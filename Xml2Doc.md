@@ -312,7 +312,7 @@ Temporarily enable:
 
 See [TODO.md](TODO.md) and [the ADR index](docs/adr/README.md). Notable planned work includes:
 
-- `2.0.3`: portable output lifecycle state ([#77](https://github.com/mod-posh/xml2doc/issues/77)).
+- `2.0.3`: documentation and lifecycle correctness ([#68](https://github.com/mod-posh/xml2doc/issues/68), [#69](https://github.com/mod-posh/xml2doc/issues/69), and [#77](https://github.com/mod-posh/xml2doc/issues/77)).
 - `2.1.0`: rendering extensibility.
 - `2.2.0`: diagnostics and pipeline improvements.
 - `2.3.0`: deterministic multi-project aggregation and a unified index.
