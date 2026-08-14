@@ -21,35 +21,39 @@ public class NormalizationTests
                         Values may be <see langword="null"/>, <see langword="true"/>,
                         <see langword="false"/>, or accessed through <see langword="this"/>.
                         See <see cref="T:System.String"/> for an existing cref link.
+                        <see href="https://example.com" langword="ignored">Example</see> keeps href precedence.
                       </summary>
                     </member>
                   </members>
                 </doc>
                 """;
 
-        var tmpDir = Path.Combine(Path.GetTempPath(), "Xml2Doc.Tests", Path.GetRandomFileName());
+        var tmpRoot = Path.Join(Path.GetTempPath(), "Xml2Doc.Tests");
+        var tmpDir = Path.Join(tmpRoot, Path.GetRandomFileName());
         Directory.CreateDirectory(tmpDir);
 
         try
         {
-            var xmlPath = Path.Combine(tmpDir, "temp.xml");
+            var xmlPath = Path.Join(tmpDir, "temp.xml");
             await File.WriteAllTextAsync(xmlPath, xml, new UTF8Encoding(false));
 
             var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
             var renderer = new MarkdownRenderer(model, new RendererOptions(
                 FileNameMode: FileNameMode.CleanGenerics));
-            var outDir = Path.Combine(tmpDir, "out");
+            var outDir = Path.Join(tmpDir, "out");
 
             renderer.RenderToDirectory(outDir);
 
             var markdown = await File.ReadAllTextAsync(
-                Path.Combine(outDir, "Temp.Keywords.md"));
+                Path.Join(outDir, "Temp.Keywords.md"));
 
             markdown.ShouldContain("`null`");
             markdown.ShouldContain("`true`");
             markdown.ShouldContain("`false`");
             markdown.ShouldContain("`this`");
             markdown.ShouldContain("[String](System.String.md)");
+            markdown.ShouldContain("[Example](https://example.com)");
+            markdown.ShouldNotContain("`ignored`");
         }
         finally
         {

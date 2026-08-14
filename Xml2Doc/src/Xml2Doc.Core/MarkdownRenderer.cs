@@ -1169,14 +1169,14 @@ public sealed class MarkdownRenderer
                         text.Append(CrefToMarkdown(cref));
                     else
                     {
-                        var langword = (string?)e.Attribute("langword");
-                        if (!string.IsNullOrWhiteSpace(langword))
-                            text.Append($"`{langword}`");
+                        var href = (string?)e.Attribute("href");
+                        if (!string.IsNullOrWhiteSpace(href))
+                            text.Append($"[{e.Value}]({href})");
                         else
                         {
-                            var href = (string?)e.Attribute("href");
-                            text.Append(!string.IsNullOrWhiteSpace(href)
-                                ? $"[{e.Value}]({href})"
+                            var langword = (string?)e.Attribute("langword");
+                            text.Append(!string.IsNullOrWhiteSpace(langword)
+                                ? $"`{langword}`"
                                 : e.Value);
                         }
                     }
