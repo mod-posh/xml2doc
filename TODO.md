@@ -1,44 +1,33 @@
 # Xml2Doc Roadmap
 
-This roadmap groups the current open issues into focused release milestones. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
+This roadmap groups the current open issues into focused release milestones. The current stable release is `2.0.2`. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
 
 ## Release sequence
 
-1. `2.0.1` — Documentation Correctness
-2. `2.0.3` — Portable Output Lifecycle State
-3. `2.1.0` — Rendering Extensibility
-4. `2.2.0` — Diagnostics and Pipeline
-5. `2.3.0` — Multi-project Aggregation
+1. `2.0.3` — Documentation and Lifecycle Correctness
+2. `2.1.0` — Rendering Extensibility
+3. `2.2.0` — Diagnostics and Pipeline
+4. `2.3.0` — Multi-project Aggregation
 
-## 2.0.1 — Documentation Correctness
+## 2.0.3 — Documentation and Lifecycle Correctness
 
-Deliver focused correctness fixes after the `2.0.0` deterministic-output release.
+Deliver focused correctness fixes after the current `2.0.2` release.
 
 - [ ] [#69 — Render `<see langword="..."/>` correctly in generated Markdown](https://github.com/mod-posh/xml2doc/issues/69)
 - [ ] [#68 — Resolve `/// <inheritdoc />` content when generating Markdown](https://github.com/mod-posh/xml2doc/issues/68)
+- [ ] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
 
 Completion criteria:
 
 - Valid XML documentation constructs no longer produce missing or incomplete Markdown.
 - Regression tests cover language keywords, explicit inheritance references, interface implementations, and overloaded members.
 - Existing `<see cref="..."/>` rendering remains unchanged.
-
-## 2.0.3 — Portable Output Lifecycle State
-
-Make stale-output ownership portable across repository checkout locations while preserving safe deletion boundaries.
-
-- [ ] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
-- [ ] [#79 — Regenerate missing Markdown outputs when MSBuild incremental state is current](https://github.com/mod-posh/xml2doc/issues/79)
-
-Completion criteria:
-
 - Repository-relative output ownership can survive different absolute checkout locations.
 - Manifest paths remain deterministic for stable project identities.
 - A manifest cannot authorize traversal or deletion outside the current output root.
 - Existing manifests migrate safely or fail with an actionable compatibility message.
 - Tests cover Windows and Unix checkout roots, repository relocation, and multiple projects sharing one output directory.
 - Documentation defines which lifecycle metadata is portable and which files should remain ignored.
-- Missing generated Markdown files invalidate incremental state and are restored by the next build.
 
 ## 2.1.0 — Rendering Extensibility
 
