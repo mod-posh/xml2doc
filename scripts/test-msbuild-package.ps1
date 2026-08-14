@@ -33,10 +33,19 @@ function Invoke-DotNet
   )
 
   Write-Host "    dotnet $($Arguments -join ' ')"
-  & dotnet @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
-  if ($LASTEXITCODE -ne 0)
+  Push-Location -LiteralPath $WorkingDirectory
+  try
   {
-    throw "dotnet $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    & dotnet @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0)
+    {
+      throw "dotnet $($Arguments -join ' ') failed with exit code $exitCode."
+    }
+  }
+  finally
+  {
+    Pop-Location
   }
 }
 
