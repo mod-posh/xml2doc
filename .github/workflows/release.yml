@@ -1,11 +1,15 @@
 name: New Release
 
+permissions:
+  contents: write
+  issues: read
 on:
   milestone:
     types: [closed]
 
 jobs:
   create-release:
+    if: ${{ github.event_name == 'milestone' && github.event.action == 'closed' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
