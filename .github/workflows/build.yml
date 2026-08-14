@@ -1,4 +1,7 @@
-name: Build and Package
+name: Build and Validate
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -50,9 +53,5 @@ jobs:
             Write-Host "Packaged: $($_.FullName)"
           }
 
-      - name: Push to NuGet
-        run: |
-          foreach ($package in Get-ChildItem -Path "${{ github.workspace }}\publish") {
-            Write-Host "Pushing package: $($package.FullName)"
-            dotnet nuget push $package.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-          }
+      # Preview packages are built for validation only. Official NuGet publication is gated
+      # to the milestone-closed release workflow so ordinary commits do not create release noise.
