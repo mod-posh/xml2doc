@@ -73,6 +73,28 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void ExecuteAfterSuccessfulGeneration_WithRelocatedManifest_DeletesOnlyUnderCurrentRoot()
+        {
+            using var original = TemporaryOutput.Create();
+            using var relocated = TemporaryOutput.Create();
+            var originalLocation = original.CreateLocation("project");
+            var relocatedLocation = relocated.CreateLocation("project");
+            original.Write("Stale.md");
+            relocated.Write("Stale.md");
+            OutputManifestStore.Save(originalLocation, new[] { "Stale.md" });
+            Directory.CreateDirectory(
+                System.IO.Path.GetDirectoryName(relocatedLocation.ManifestPath)!);
+            File.Copy(originalLocation.ManifestPath, relocatedLocation.ManifestPath);
+
+            OutputLifecycleExecutor.ExecuteAfterSuccessfulGeneration(
+                relocatedLocation,
+                Array.Empty<string>());
+
+            original.Exists("Stale.md").ShouldBeTrue();
+            relocated.Exists("Stale.md").ShouldBeFalse();
+        }
+
+        [Fact]
         public void ExecuteAfterSuccessfulGeneration_InDryRun_DoesNotMutateFilesOrManifest()
         {
             using var output = TemporaryOutput.Create();
