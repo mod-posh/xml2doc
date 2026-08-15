@@ -62,7 +62,7 @@
           Condition="
             '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
             and '$(GenerateDocumentationFile)' == 'true'
-            and '$(Xml2Doc_DryRun)' != 'true'
+            and '$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'
             and Exists('$(Xml2Doc_OutputStamp)')">
     <ItemGroup>
       <_Xml2Doc_RecordedOutput Remove="@(_Xml2Doc_RecordedOutput)" />
@@ -217,7 +217,7 @@
                       Lines="@(Xml2Doc_GeneratedFiles)"
                       Overwrite="true"
                       Encoding="UTF-8"
-                      Condition="'$(Xml2Doc_DryRun)' != 'true'" />
+                      Condition="'$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />
   </Target>
 
 </Project>
