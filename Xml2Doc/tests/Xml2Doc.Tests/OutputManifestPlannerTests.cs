@@ -242,11 +242,11 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
-        public void CreatePlan_WhenManifestOutputRootHasTrailingSeparator_MatchesCurrentRootWithoutTrailingSeparator()
+        public void CreatePlan_WhenLegacyManifestOutputRootHasTrailingSeparator_MigratesOwnership()
         {
             var outputRoot = CreateOutputRoot();
             var previousManifest = new OutputManifest(
-                OutputManifest.CurrentSchemaVersion,
+                1,
                 "test-invocation",
                 EnsureTrailingDirectorySeparator(outputRoot),
                 new[] { "Owned.md" });
@@ -486,7 +486,7 @@ namespace Xml2Doc.Tests
             new(
                 OutputManifest.CurrentSchemaVersion,
                 "test-invocation",
-                Path.GetFullPath(outputRoot),
+                OutputManifest.PortableOutputRoot,
                 files);
     }
 }
