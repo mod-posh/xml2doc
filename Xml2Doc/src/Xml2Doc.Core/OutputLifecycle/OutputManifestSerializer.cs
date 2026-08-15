@@ -49,6 +49,7 @@ namespace Xml2Doc.Core.OutputLifecycle
                 OutputManifest.PortableOutputRoot,
                 normalizedFiles
                     .Select(path => path.Replace('\\', '/'))
+                    .OrderBy(path => path, StringComparer.Ordinal)
                     .ToArray());
 
             return JsonSerializer
