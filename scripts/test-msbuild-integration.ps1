@@ -206,6 +206,7 @@ function Show-PathState([string] $label, [string] $path)
 $bin1 = Join-Path $runRoot "build1.binlog"
 $bin2 = Join-Path $runRoot "build2.binlog"
 $bin3 = Join-Path $runRoot "build3.binlog"
+$bin4 = Join-Path $runRoot "build4.binlog"
 
 Write-Step "Build 1: per-type output"
 $r1 = Invoke-SampleBuild -SingleFile:$false -BinLogPath $bin1
@@ -244,18 +245,32 @@ Assert-True ($t2 -eq $t1) ("Expected incremental no-op build (stamp unchanged).`
 
 Start-Sleep -Milliseconds 600
 
-Write-Step "Build 3: switch to single-file mode, expect re-run"
-$r3 = Invoke-SampleBuild -SingleFile:$true -BinLogPath $bin3
+Write-Step "Build 3: delete one recorded output, expect regeneration"
+$missingOutput = Join-Path $outDir "index.md"
+Remove-Item -LiteralPath $missingOutput -Force
+Assert-True (-not (Test-Path $missingOutput)) "Expected recorded output to be deleted before recovery build"
+$r3 = Invoke-SampleBuild -SingleFile:$false -BinLogPath $bin3
 
 $t3 = (Get-Item $stampDefault).LastWriteTimeUtc
-Write-Detail "Stamp after build 3: $t3"
+Write-Detail "Stamp after missing-output recovery: $t3"
 
-Assert-True ($t3 -gt $t2) ("Expected stamp to update after option change.`n`t2=$t2`n`t3=$t3")
+Assert-True ($t3 -gt $t2) ("Expected stamp to update after a recorded output was deleted.`n`t2=$t2`n`t3=$t3")
+Assert-True (Test-Path $missingOutput) "Expected missing generated output to be restored at $missingOutput"
+
+Start-Sleep -Milliseconds 600
+
+Write-Step "Build 4: switch to single-file mode, expect re-run"
+$r4 = Invoke-SampleBuild -SingleFile:$true -BinLogPath $bin4
+
+$t4 = (Get-Item $stampDefault).LastWriteTimeUtc
+Write-Detail "Stamp after build 4: $t4"
+
+Assert-True ($t4 -gt $t3) ("Expected stamp to update after option change.`n`t3=$t3`n`t4=$t4")
 Assert-True (Test-Path $outFile) "Expected single-file output at $outFile"
 Assert-True (Test-Path $report) "Expected report to exist at $report"
 
-$rep3 = Get-Content $report -Raw | ConvertFrom-Json
-Assert-True ($rep3.single -eq $true) "Expected report.single=true after single-file build"
+$rep4 = Get-Content $report -Raw | ConvertFrom-Json
+Assert-True ($rep4.single -eq $true) "Expected report.single=true after single-file build"
 
 Write-Detail "Final output tree:"
 (Get-Tree $runRoot).Split([Environment]::NewLine) | ForEach-Object {
