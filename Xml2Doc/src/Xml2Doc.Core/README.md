@@ -13,6 +13,7 @@ Now multi-targeted and verified for consistent output across modern .NET TFMs.
 - Converts `<see>`, `<paramref>` into inline Markdown links and code spans.
 - Cleans namespaces and shortens generics (`List<T>` vs `System.Collections.Generic.List<T>`).
 - Built-in type aliasing (`System.String` → `string`, etc.) without breaking identifiers (`StringComparer` remains intact).
+- Optional `IAliasProvider` injection for consumer-defined signature, label, and anchor aliases.
 - Overload grouping for cleaner member sections.
 - Two output modes:
   - **Per-type** (`RenderToDirectory`) → `TypeName.md` with in-file member anchors.
@@ -90,6 +91,19 @@ renderer.RenderToDirectory("./docs");
 // Single-file output
 renderer.RenderToSingleFile("./docs/api.md");
 ````
+
+Custom aliasing is opt-in and uses the same provider for visible signatures, link labels, and member
+anchors so link targets remain aligned:
+
+```csharp
+using Xml2Doc.Core.Aliasing;
+
+var options = new RendererOptions(
+    AliasProvider: new MyAliasProvider());
+```
+
+Implement `IAliasProvider.ApplyAliases` with token-aware replacements. Omitting the provider uses
+`DefaultAliasProvider.Instance` and preserves the existing C# keyword mappings.
 
 ## Tests & Snapshots
 
