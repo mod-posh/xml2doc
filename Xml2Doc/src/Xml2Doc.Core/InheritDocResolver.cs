@@ -17,6 +17,10 @@ namespace Xml2Doc.Core
                 var key = cref!;
                 if (model.Members.TryGetValue(key, out var target))
                     return target.Element;
+
+                // An explicit target is authoritative. If it is not present in the
+                // loaded documentation, do not guess a different member by signature.
+                return null;
             }
             // Case 2: XML documentation does not record the implemented interface or base member.
             // Match the complete member suffix (including parameter types) only when one documented
