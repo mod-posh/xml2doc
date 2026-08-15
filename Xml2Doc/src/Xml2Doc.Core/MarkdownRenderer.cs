@@ -421,7 +421,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine(BuildMemberToc(members));
         }
 
-        static string GroupKey(XMember mm)
+        string GroupKey(XMember mm)
         {
             var id = mm.Id;
             var parenIdx = id.IndexOf('(');
