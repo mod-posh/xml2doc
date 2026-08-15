@@ -156,6 +156,7 @@ These are advanced settings; most consumers should retain the defaults.
 | --- | --- | --- |
 | `Xml2Doc_OutputStamp` | `$(IntermediateOutputPath)xml2doc.stamp` | Successful-generation stamp used by MSBuild input/output tracking. Relative paths are rooted under `IntermediateOutputPath`. |
 | `Xml2Doc_FingerprintFile` | `$(IntermediateOutputPath)xml2doc.fingerprint.txt` | Stores a fingerprint of XML content and significant options. Relative paths are rooted under `IntermediateOutputPath`. |
+| `Xml2Doc_OutputLedger` | `$(IntermediateOutputPath)xml2doc.outputs.txt` | Records generated files so a missing output invalidates the incremental stamp. Keep this under the project/configuration-specific intermediate directory. |
 
 Do not add an `Xml2Doc_WriteFingerprint` target. The imported targets already manage fingerprinting and generation.
 
