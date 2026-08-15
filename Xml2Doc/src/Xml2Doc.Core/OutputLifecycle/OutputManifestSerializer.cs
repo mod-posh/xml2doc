@@ -121,7 +121,7 @@ namespace Xml2Doc.Core.OutputLifecycle
                 manifest);
 
             return new OutputManifest(
-                manifest.SchemaVersion,
+                OutputManifest.CurrentSchemaVersion,
                 manifest.Identity,
                 OutputManifest.PortableOutputRoot,
                 validatedPlan.FilesToDelete);
