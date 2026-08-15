@@ -1314,6 +1314,19 @@ public sealed class MarkdownRenderer
         if (!string.IsNullOrWhiteSpace(ms))
             sb.AppendLine(ms);
 
+        var typeParameters = m.Element.Elements("typeparam").ToList();
+        if (typeParameters.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Type parameters**");
+            foreach (var typeParameter in typeParameters)
+            {
+                var name = (string?)typeParameter.Attribute("name") ?? "";
+                var text = NormalizeXmlToMarkdown(typeParameter);
+                sb.AppendLine($"- `{name}` — {text}");
+            }
+        }
+
         var ps = m.Element.Elements("param").ToList();
         if (ps.Count > 0)
         {
@@ -1334,6 +1347,15 @@ public sealed class MarkdownRenderer
             sb.AppendLine("**Returns**");
             sb.AppendLine();
             sb.AppendLine(NormalizeXmlToMarkdown(ret));
+        }
+
+        var value = m.Element.Element("value");
+        if (value != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Value**");
+            sb.AppendLine();
+            sb.AppendLine(NormalizeXmlToMarkdown(value));
         }
 
         var exTags = m.Element.Elements("exception").ToList();
