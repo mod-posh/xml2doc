@@ -24,9 +24,9 @@ namespace Xml2Doc.Tests
 
             json.ShouldBe(
                 "{\n" +
-                "  \"schemaVersion\": 1,\n" +
+                "  \"schemaVersion\": 2,\n" +
                 "  \"identity\": \"sample-project\",\n" +
-                $"  \"outputRoot\": {SerializeJsonString(location.OutputRoot)},\n" +
+                "  \"outputRoot\": \".\",\n" +
                 "  \"files\": [\n" +
                 "    \"Alpha.md\",\n" +
                 "    \"beta.md\",\n" +
@@ -45,6 +45,17 @@ namespace Xml2Doc.Tests
             var second = OutputManifestSerializer.Serialize(location, files);
 
             first.ShouldBe(second);
+        }
+
+        [Fact]
+        public void Serialize_UsesPortableForwardSlashesForNestedFiles()
+        {
+            var location = CreateLocation("project");
+            var nested = "api" + Path.DirectorySeparatorChar + "Widget.md";
+
+            var json = OutputManifestSerializer.Serialize(location, new[] { nested });
+
+            json.ShouldContain("\"api/Widget.md\"");
         }
 
         [Fact]
@@ -73,7 +84,7 @@ namespace Xml2Doc.Tests
 
             manifest.SchemaVersion.ShouldBe(OutputManifest.CurrentSchemaVersion);
             manifest.Identity.ShouldBe("project");
-            manifest.OutputRoot.ShouldBe(location.OutputRoot);
+            manifest.OutputRoot.ShouldBe(OutputManifest.PortableOutputRoot);
             manifest.Files.ShouldBe(new[] { "Widget.md", "index.md" });
         }
 
@@ -102,7 +113,7 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
-        public void Deserialize_WhenManifestOutputRootDoesNotMatch_ThrowsInvalidDataException()
+        public void Deserialize_WhenManifestIsMovedToAnotherOutputRoot_LoadsPortableOwnership()
         {
             var storedLocation = CreateLocation("project");
             var requestedLocation = CreateLocation("project");
@@ -110,8 +121,10 @@ namespace Xml2Doc.Tests
                 storedLocation,
                 new[] { "Widget.md" });
 
-            Should.Throw<InvalidDataException>(() =>
-                OutputManifestSerializer.Deserialize(json, requestedLocation));
+            var manifest = OutputManifestSerializer.Deserialize(json, requestedLocation);
+
+            manifest.Files.ShouldBe(new[] { "Widget.md" });
+            manifest.OutputRoot.ShouldBe(OutputManifest.PortableOutputRoot);
         }
 
         [Fact]
@@ -122,8 +135,8 @@ namespace Xml2Doc.Tests
                     location,
                     new[] { "Widget.md" })
                 .Replace(
-                    "\"schemaVersion\": 1",
-                    "\"schemaVersion\": 2");
+                    "\"schemaVersion\": 2",
+                    "\"schemaVersion\": 3");
 
             Should.Throw<InvalidDataException>(() =>
                 OutputManifestSerializer.Deserialize(json, location));
@@ -139,6 +152,41 @@ namespace Xml2Doc.Tests
                 .Replace(
                     "\"Widget.md\"",
                     "\"../outside.md\"");
+
+            Should.Throw<InvalidDataException>(() =>
+                OutputManifestSerializer.Deserialize(json, location));
+        }
+
+        [Fact]
+        public void Deserialize_WhenLegacyManifestMovesAcrossWindowsAndUnixRoots_MigratesSafely()
+        {
+            var location = CreateLocation("project");
+            var json =
+                "{" +
+                "\"schemaVersion\":1," +
+                "\"identity\":\"project\"," +
+                "\"outputRoot\":\"D:\\\\old-checkout\\\\docs\"," +
+                "\"files\":[\"nested\\\\Widget.md\"]" +
+                "}";
+
+            var manifest = OutputManifestSerializer.Deserialize(json, location);
+
+            manifest.SchemaVersion.ShouldBe(OutputManifest.CurrentSchemaVersion);
+            manifest.OutputRoot.ShouldBe(OutputManifest.PortableOutputRoot);
+            manifest.Files.ShouldBe(new[]
+            {
+                "nested" + Path.DirectorySeparatorChar + "Widget.md"
+            });
+        }
+
+        [Fact]
+        public void Deserialize_WhenPortableRootMarkerIsInvalid_ThrowsInvalidDataException()
+        {
+            var location = CreateLocation("project");
+            var json = OutputManifestSerializer.Serialize(
+                    location,
+                    new[] { "Widget.md" })
+                .Replace("\"outputRoot\": \".\"", "\"outputRoot\": \"../outside\"");
 
             Should.Throw<InvalidDataException>(() =>
                 OutputManifestSerializer.Deserialize(json, location));
