@@ -32,6 +32,8 @@ public class InheritDocResolverTests
                     <member name="T:Temp.ExampleService"><summary>Implementation.</summary></member>
                     <member name="M:Temp.ExampleService.ExecuteAsync(Temp.Request)"><inheritdoc/></member>
                     <member name="M:Temp.ExampleService.ExecuteAsync(Temp.Request,System.Threading.CancellationToken)"><inheritdoc/></member>
+                    <member name="T:Temp.AnotherExampleService"><summary>Another implementation.</summary></member>
+                    <member name="M:Temp.AnotherExampleService.ExecuteAsync(Temp.Request)"><inheritdoc/></member>
 
                     <member name="T:Temp.ExplicitService"><summary>Explicit implementation.</summary></member>
                     <member name="M:Temp.ExplicitService.Run(Temp.Request)">
@@ -39,6 +41,14 @@ public class InheritDocResolverTests
                     </member>
                     <member name="M:Temp.IExplicitService.Run(Temp.Request)">
                       <summary>Runs through an explicit cref.</summary>
+                    </member>
+
+                    <member name="M:Temp.IOtherService.Remove(Temp.Request)">
+                      <summary>Unrelated removal guidance.</summary>
+                    </member>
+                    <member name="T:Temp.MissingExplicitService"><summary>Missing explicit target.</summary></member>
+                    <member name="M:Temp.MissingExplicitService.Remove(Temp.Request)">
+                      <inheritdoc cref="M:Temp.IMissingContract.Remove(Temp.Request)"/>
                     </member>
 
                     <member name="M:Temp.IGenericService.Map``1(``0)">
@@ -92,9 +102,18 @@ public class InheritDocResolverTests
             implementation.ShouldContain("Executes the cancellable request.");
             implementation.ShouldContain("The cancellation token.");
 
+            var anotherImplementation = await File.ReadAllTextAsync(
+                Path.Join(outDir, "Temp.AnotherExampleService.md"));
+            anotherImplementation.ShouldContain("Executes the single-argument request.");
+            anotherImplementation.ShouldContain("Single-argument guidance.");
+
             var explicitImplementation = await File.ReadAllTextAsync(
                 Path.Join(outDir, "Temp.ExplicitService.md"));
             explicitImplementation.ShouldContain("Runs through an explicit cref.");
+
+            var missingExplicitImplementation = await File.ReadAllTextAsync(
+                Path.Join(outDir, "Temp.MissingExplicitService.md"));
+            missingExplicitImplementation.ShouldNotContain("Unrelated removal guidance.");
 
             var genericImplementation = await File.ReadAllTextAsync(
                 Path.Join(outDir, "Temp.GenericService.md"));
