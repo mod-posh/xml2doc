@@ -9,6 +9,60 @@ using Xunit;
 public class NormalizationTests
 {
     [Fact]
+    public async Task Normalize_RendersSeeLangwordAsInlineCode_WithoutChangingCrefLinks()
+    {
+        var xml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <assembly><name>Temp</name></assembly>
+                  <members>
+                    <member name="T:Temp.Keywords">
+                      <summary>
+                        Values may be <see langword="null"/>, <see langword="true"/>,
+                        <see langword="false"/>, or accessed through <see langword="this"/>.
+                        See <see cref="T:System.String"/> for an existing cref link.
+                        <see href="https://example.com" langword="ignored">Example</see> keeps href precedence.
+                      </summary>
+                    </member>
+                  </members>
+                </doc>
+                """;
+
+        var tmpRoot = Path.Join(Path.GetTempPath(), "Xml2Doc.Tests");
+        var tmpDir = Path.Join(tmpRoot, Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var xmlPath = Path.Join(tmpDir, "temp.xml");
+            await File.WriteAllTextAsync(xmlPath, xml, new UTF8Encoding(false));
+
+            var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
+            var renderer = new MarkdownRenderer(model, new RendererOptions(
+                FileNameMode: FileNameMode.CleanGenerics));
+            var outDir = Path.Join(tmpDir, "out");
+
+            renderer.RenderToDirectory(outDir);
+
+            var markdown = await File.ReadAllTextAsync(
+                Path.Join(outDir, "Temp.Keywords.md"));
+
+            markdown.ShouldContain("`null`");
+            markdown.ShouldContain("`true`");
+            markdown.ShouldContain("`false`");
+            markdown.ShouldContain("`this`");
+            markdown.ShouldContain("[String](System.String.md)");
+            markdown.ShouldContain("[Example](https://example.com)");
+            markdown.ShouldNotContain("`ignored`");
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Normalize_PreservesParagraphs_TrimsIntraLine_ProtectsCodeBlocks()
     {
         // Build a synthetic XML doc file
