@@ -2,6 +2,7 @@
 using Shouldly;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -16,13 +17,14 @@ namespace Xml2Doc.Tests
     {
         private sealed class TestBuildEngine : IBuildEngine
         {
+            public List<BuildWarningEventArgs> Warnings { get; } = new();
             public bool ContinueOnError => false;
             public int LineNumberOfTaskNode => 0;
             public int ColumnNumberOfTaskNode => 0;
             public string ProjectFileOfTaskNode => string.Empty;
 
             public void LogErrorEvent(BuildErrorEventArgs e) { }
-            public void LogWarningEvent(BuildWarningEventArgs e) { }
+            public void LogWarningEvent(BuildWarningEventArgs e) => Warnings.Add(e);
             public void LogMessageEvent(BuildMessageEventArgs e) { }
             public void LogCustomEvent(CustomBuildEventArgs e) { }
 
@@ -251,6 +253,61 @@ namespace Xml2Doc.Tests
                 .Single().Value.ShouldContain("$(_Xml2Doc_NativeLineEndingToken)");
             taskElement.Attribute("LineEndings")!.Value
                 .ShouldBe("$(Xml2Doc_LineEndings)");
+            taskElement.Attribute("ReferenceXmlPaths")!.Value
+                .ShouldBe("@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)");
+        }
+
+        [Fact]
+        public void ReferenceXmlPaths_ResolveInheritedDocumentationAndLogMissingTargets()
+        {
+            var root = CreateOutputDirectory();
+            var outDir = Path.Combine(root, "docs");
+            Directory.CreateDirectory(root);
+            var primaryPath = Path.Combine(root, "Consumer.xml");
+            var referencePath = Path.Combine(root, "Contracts.xml");
+            File.WriteAllText(primaryPath, """
+                <doc><members>
+                  <member name="T:Consumer.Service"><summary>Service.</summary></member>
+                  <member name="M:Consumer.Service.Run">
+                    <inheritdoc cref="M:Contracts.IService.Run"/>
+                  </member>
+                  <member name="M:Consumer.Service.Missing">
+                    <inheritdoc cref="M:Contracts.IService.Missing"/>
+                  </member>
+                </members></doc>
+                """);
+            File.WriteAllText(referencePath, """
+                <doc><members>
+                  <member name="M:Contracts.IService.Run">
+                    <summary>Runs from the referenced project.</summary>
+                  </member>
+                </members></doc>
+                """);
+            var buildEngine = new TestBuildEngine();
+
+            try
+            {
+                var task = new GenerateMarkdownFromXmlDoc
+                {
+                    BuildEngine = buildEngine,
+                    XmlPath = primaryPath,
+                    ReferenceXmlPaths = new ITaskItem[] { new TaskItem(referencePath) },
+                    OutputDirectory = outDir,
+                    FileNameMode = "clean"
+                };
+
+                task.Execute().ShouldBeTrue();
+
+                File.ReadAllText(Path.Combine(outDir, "Consumer.Service.md"))
+                    .ShouldContain("Runs from the referenced project.");
+                buildEngine.Warnings.Count.ShouldBe(1);
+                buildEngine.Warnings[0].Message.ShouldContain("M:Consumer.Service.Missing");
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                    Directory.Delete(root, recursive: true);
+            }
         }
 
         [Fact]
