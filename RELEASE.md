@@ -1,39 +1,32 @@
-# Version 2.0.2 — MSBuild Packaging Fix
+# 2.0.3 — Documentation and Lifecycle Correctness
 
-## Goal
+Deliver focused documentation and output-lifecycle correctness fixes after the current 2.0.2 release.
 
-Restore the published `Xml2Doc.MSBuild` package so it can execute from a clean NuGet installation without requiring consumers to install or manually copy task dependencies.
+Included issues:
 
-## Scope
+- #68 — Resolve `/// <inheritdoc />` content when generating Markdown
+- #69 — Render `<see langword="..."/>` correctly in generated Markdown
+- #77 — Make stale-output ownership manifests portable across checkout paths
+- #79 — Regenerate missing Markdown during incremental builds
 
-* Package `Xml2Doc.Core.dll` beside `Xml2Doc.MSBuild.dll`.
-* Include dependencies required by both the `net472` and `net8.0` task assemblies.
-* Use NuGet’s supported target-framework-specific pack extension point.
-* Preserve the self-contained MSBuild task package design.
-* Add package-layout regression tests.
-* Add a clean-consumer integration test.
-* Validate the same build-and-pack sequence used by the release workflow.
+Completion criteria:
 
-## Issues
+- Valid XML documentation constructs render complete Markdown.
+- Regression coverage includes language keywords, inherited documentation, interfaces, and overloads.
+- Output ownership works across checkout locations without unsafe deletion.
+- Missing generated files are recreated during incremental builds.
+- Documentation clearly defines portable and local lifecycle metadata.
 
-* #75 — MSBuild package omits `Xml2Doc.Core` task dependency
+## BUG, GOOD FIRST ISSUE, AREA:CORE
 
-## Acceptance checks
+* issue-69: Render <see langword="..."/> correctly in generated Markdown
 
-* `lib/net472/Xml2Doc.Core.dll` is present in the package.
-* `lib/net8.0/Xml2Doc.Core.dll` is present in the package.
-* Required non-MSBuild runtime dependencies are packaged beside the task.
-* A clean .NET 9 consumer referencing only `Xml2Doc.MSBuild` builds successfully.
-* The MSBuild task executes and generates Markdown.
-* CI inspects the generated package before publication.
-* Existing Core and CLI packages remain unaffected.
-* All test and integration workflows pass.
+## BUG, AREA:MSBUILD, AREA:TESTS
 
-## Release notes
+* issue-79: MSBuild incremental state does not regenerate a missing generated Markdown file
 
-Version 2.0.1 published an incomplete `Xml2Doc.MSBuild` package containing the task assembly but not its required `Xml2Doc.Core` dependency. Version 2.0.2 corrects the package layout and adds clean-consumer validation to prevent recurrence.
+## BUG, AREA:CORE
 
-## BUG, AREA:MSBUILD
-
-* issue-75: MSBuild package omits Xml2Doc.Core task dependency
+* issue-77: Make stale-output ownership manifests portable across checkout paths
+* issue-68: Resolve /// <inheritdoc /> content when generating Markdown
 
