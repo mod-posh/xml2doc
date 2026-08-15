@@ -26,15 +26,15 @@ namespace Xml2Doc.Tests
             AnchorAlgorithm algorithm,
             bool singleFile)
         {
-            var root = Path.Combine(
-                Path.GetTempPath(),
-                "Xml2Doc.Tests",
-                Path.GetRandomFileName());
+            var tempTestRoot = ChildPath(Path.GetTempPath(), "Xml2Doc.Tests");
+            var root = ChildPath(
+                tempTestRoot,
+                Path.GetFileName(Path.GetRandomFileName()));
 
             try
             {
                 Directory.CreateDirectory(root);
-                var xmlPath = Path.Combine(root, "matrix.xml");
+                var xmlPath = ChildPath(root, "matrix.xml");
                 await File.WriteAllTextAsync(xmlPath, FixtureXml, new UTF8Encoding(false));
                 var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
                 var renderer = new MarkdownRenderer(
@@ -47,7 +47,7 @@ namespace Xml2Doc.Tests
 
                 if (singleFile)
                 {
-                    var output = Path.Combine(root, "api.md");
+                    var output = ChildPath(root, "api.md");
                     renderer.RenderToSingleFile(output);
                     var markdown = Normalize(await File.ReadAllTextAsync(output));
 
@@ -61,11 +61,11 @@ namespace Xml2Doc.Tests
                 }
                 else
                 {
-                    var output = Path.Combine(root, "docs");
+                    var output = ChildPath(root, "docs");
                     renderer.RenderToDirectory(output);
                     var consumer = Normalize(await File.ReadAllTextAsync(
-                        Path.Combine(output, "Temp.Consumer.md")));
-                    var targetPath = Path.Combine(output, "Temp.HTTP_Parser_v2.md");
+                        ChildPath(output, "Temp.Consumer.md")));
+                    var targetPath = ChildPath(output, "Temp.HTTP_Parser_v2.md");
                     var target = Normalize(await File.ReadAllTextAsync(targetPath));
 
                     ExtractHref(consumer, "HTTP_Parser_v2")
@@ -117,6 +117,34 @@ namespace Xml2Doc.Tests
 
         private static void AssertAnchorExists(string markdown, string anchor) =>
             markdown.ShouldContain($"<a id=\"{anchor}\"></a>");
+
+        private static string ChildPath(string root, string relativePath)
+        {
+            if (Path.IsPathRooted(relativePath))
+            {
+                throw new ArgumentException(
+                    "The child path must be relative.",
+                    nameof(relativePath));
+            }
+
+            var canonicalRoot = Path.GetFullPath(root);
+            var candidate = Path.GetFullPath(Path.Join(canonicalRoot, relativePath));
+            var rootWithSeparator =
+                Path.TrimEndingDirectorySeparator(canonicalRoot) +
+                Path.DirectorySeparatorChar;
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            if (!candidate.StartsWith(rootWithSeparator, comparison))
+            {
+                throw new ArgumentException(
+                    "The child path must remain under the requested root.",
+                    nameof(relativePath));
+            }
+
+            return candidate;
+        }
 
         private static string Normalize(string markdown) =>
             markdown.Replace("\r\n", "\n");
