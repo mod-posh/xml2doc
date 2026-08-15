@@ -1,4 +1,5 @@
 ﻿using System;
+using Xml2Doc.Core.Aliasing;
 
 namespace Xml2Doc.Core
 {
@@ -127,6 +128,10 @@ namespace Xml2Doc.Core
     /// Optional callback invoked for non-fatal rendering warnings, including unresolved
     /// <c>&lt;inheritdoc /&gt;</c> members.
     /// </param>
+    /// <param name="AliasProvider">
+    /// Optional alias provider. When omitted, <see cref="DefaultAliasProvider"/> preserves the
+    /// built-in C# keyword mappings.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -173,6 +178,7 @@ namespace Xml2Doc.Core
         bool PruneStaleFiles = false,
         string? ManifestIdentity = null,
         LineEndingStyle LineEndings = LineEndingStyle.Lf,
-        Action<string>? WarningSink = null
+        Action<string>? WarningSink = null,
+        IAliasProvider? AliasProvider = null
     );
 }
