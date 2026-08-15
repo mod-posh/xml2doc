@@ -13,7 +13,8 @@ The current stable package line is `2.0.2`:
 - Markdown uses LF on every platform by default.
 - Multiple projects can safely share an output directory when they have distinct manifest identities and disable their project-owned indexes.
 - Unified multi-project index aggregation is planned for `2.3.0`. Until then, maintain or generate the repository index separately.
-- Ownership manifests are local workspace state in 2.0.2. Portable manifests are tracked by [issue #77](https://github.com/mod-posh/xml2doc/issues/77) for the proposed `2.0.3` milestone.
+- Portable ownership manifests are implemented for the upcoming `2.0.3` release and migrate safe
+  2.0.x manifests when they are next saved.
 
 ## Supported frameworks
 
@@ -124,7 +125,10 @@ Lifecycle metadata is stored under:
 └── transactions/
 ```
 
-The transactions directory is normally empty after a successful build. Temporary child directories stage stale files while the manifest is replaced and are then removed. In 2.0.2, ignore `.xml2doc` because its manifests record an absolute output root and are not portable between checkout paths; see issue #77.
+The transactions directory is normally empty after a successful build. Temporary child directories
+stage stale files while the manifest is replaced and are then removed. Starting in 2.0.3, commit
+`.xml2doc/manifests` when generated Markdown is versioned so a clean checkout retains ownership
+history. Always ignore `.xml2doc/transactions`; it is local, best-effort staging state.
 
 ### Reports and diagnostics
 
@@ -137,11 +141,11 @@ The transactions directory is normally empty after a successful build. Temporary
 | `Xml2Doc_LogChosenTask` | `false` | `true`, `false` | Logs the selected task TFM and assembly path. |
 | `Xml2Doc_Diff` | `false` | Reserved | Has no effect in 2.0.2. |
 
-Reports and local lifecycle state may be ignored:
+Reports and transaction staging may be ignored:
 
 ```gitignore
 docs/xml2doc-report*.json
-docs/.xml2doc/
+docs/.xml2doc/transactions/
 ```
 
 ### Incremental-build controls
