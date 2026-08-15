@@ -192,9 +192,13 @@ public class RenderSnapshots
 
         var md = await File.ReadAllTextAsync(mdPath);
 
-        md = md.Replace("\r\n", "\n");
-        md = md.Replace("`", "");
-        md = Regex.Replace(md, @"\s+", " ");
+        var methodHeadings = string.Join(
+            " ",
+            md.Replace("\r\n", "\n")
+                .Split('\n')
+                .Where(line => line.StartsWith("## Method:", StringComparison.Ordinal)));
+        methodHeadings = methodHeadings.Replace("`", "");
+        methodHeadings = Regex.Replace(methodHeadings, @"\s+", " ");
 
         string xitem = @"(?:Xml2Doc\.Sample\.)?XItem";
         string ident = @"(?:\s+[A-Za-z_][A-Za-z0-9_]*)?";
@@ -208,12 +212,12 @@ public class RenderSnapshots
         var transformPattern =
             $@"(?i)Method:\s*Transform<\s*T1\s*,\s*T2\s*>\s*\(\s*List<\s*Dictionary<\s*T1\s*,\s*List<\s*T2\s*>\s*>\s*>\s*{ident}\s*\)";
 
-        Regex.IsMatch(md, flattenPattern).ShouldBeTrue("Expected Flatten(IEnumerable<IEnumerable<XItem>>) signature.");
-        Regex.IsMatch(md, indexPattern).ShouldBeTrue("Expected Index(Dictionary<string, List<XItem>>) signature.");
-        Regex.IsMatch(md, transformPattern).ShouldBeTrue("Expected Transform<T1,T2>(List<Dictionary<T1, List<T2>>>) signature.");
+        Regex.IsMatch(methodHeadings, flattenPattern).ShouldBeTrue("Expected Flatten(IEnumerable<IEnumerable<XItem>>) signature.");
+        Regex.IsMatch(methodHeadings, indexPattern).ShouldBeTrue("Expected Index(Dictionary<string, List<XItem>>) signature.");
+        Regex.IsMatch(methodHeadings, transformPattern).ShouldBeTrue("Expected Transform<T1,T2>(List<Dictionary<T1, List<T2>>>) signature.");
 
-        md.ShouldNotContain("})");
-        md.ShouldNotContain("Int32)");
+        methodHeadings.ShouldNotContain("})");
+        methodHeadings.ShouldNotContain("Int32)");
     }
 
     private static string Normalize(string s) =>
