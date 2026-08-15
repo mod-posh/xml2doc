@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
 
 namespace Xml2Doc.Core.Models
@@ -17,6 +18,13 @@ namespace Xml2Doc.Core.Models
         /// Examples: <c>T:MyNamespace.MyType</c>, <c>M:MyNamespace.MyType.MyMethod(System.String)</c>.
         /// </remarks>
         public Dictionary<string, XMember> Members { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Gets documented members loaded from reference XML files. These members are
+        /// available for inheritance lookup but are not rendered as output pages.
+        /// </summary>
+        public Dictionary<string, XMember> ReferenceMembers { get; } =
+            new(StringComparer.Ordinal);
 
         /// <summary>
         /// Loads an XML documentation file and builds the <see cref="Xml2Doc"/> model.
@@ -41,6 +49,29 @@ namespace Xml2Doc.Core.Models
             }
 
             return model;
+        }
+
+        /// <summary>
+        /// Loads additional XML documentation for inheritance lookup without adding
+        /// referenced types to the set of rendered output pages.
+        /// </summary>
+        /// <param name="xmlPaths">Reference XML documentation paths.</param>
+        public void LoadReferences(IEnumerable<string> xmlPaths)
+        {
+            foreach (var xmlPath in xmlPaths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var doc = XDocument.Load(xmlPath, LoadOptions.PreserveWhitespace);
+                foreach (var element in doc.Descendants("member"))
+                {
+                    var name = (string?)element.Attribute("name");
+                    if (string.IsNullOrWhiteSpace(name) || Members.ContainsKey(name!))
+                        continue;
+
+                    ReferenceMembers[name!] = new XMember(name!, element);
+                }
+            }
         }
     }
 
