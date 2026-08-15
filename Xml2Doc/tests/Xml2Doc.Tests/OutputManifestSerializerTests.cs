@@ -59,6 +59,21 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void Serialize_SortsAfterConvertingToPortableSeparators()
+        {
+            var location = CreateLocation("project");
+            var nested = "api" + Path.DirectorySeparatorChar + "Widget.md";
+
+            var json = OutputManifestSerializer.Serialize(
+                location,
+                new[] { "api0.md", nested });
+
+            json.IndexOf("\"api/Widget.md\"", StringComparison.Ordinal)
+                .ShouldBeLessThan(
+                    json.IndexOf("\"api0.md\"", StringComparison.Ordinal));
+        }
+
+        [Fact]
         public void Serialize_WhenOwnedPathIsUnsafe_ThrowsArgumentException()
         {
             var location = CreateLocation("project");
