@@ -262,10 +262,10 @@ namespace Xml2Doc.Tests
         public void ReferenceXmlPaths_ResolveInheritedDocumentationAndLogMissingTargets()
         {
             var root = CreateOutputDirectory();
-            var outDir = Path.Combine(root, "docs");
+            var outDir = root + Path.DirectorySeparatorChar + "docs";
             Directory.CreateDirectory(root);
-            var primaryPath = Path.Combine(root, "Consumer.xml");
-            var referencePath = Path.Combine(root, "Contracts.xml");
+            var primaryPath = root + Path.DirectorySeparatorChar + "Consumer.xml";
+            var referencePath = root + Path.DirectorySeparatorChar + "Contracts.xml";
             File.WriteAllText(primaryPath, """
                 <doc><members>
                   <member name="T:Consumer.Service"><summary>Service.</summary></member>
@@ -299,7 +299,8 @@ namespace Xml2Doc.Tests
 
                 task.Execute().ShouldBeTrue();
 
-                File.ReadAllText(Path.Combine(outDir, "Consumer.Service.md"))
+                File.ReadAllText(
+                        outDir + Path.DirectorySeparatorChar + "Consumer.Service.md")
                     .ShouldContain("Runs from the referenced project.");
                 buildEngine.Warnings.Count.ShouldBe(1);
                 buildEngine.Warnings[0].Message!
