@@ -238,6 +238,8 @@ namespace Xml2Doc.Tests
                 .Single().Value.ShouldBe("false");
             props.Descendants("Xml2Doc_ManifestIdentity")
                 .Single().Value.ShouldBeEmpty();
+            props.Descendants("Xml2Doc_OutputLedger")
+                .Single().Value.ShouldBe("$(IntermediateOutputPath)xml2doc.outputs.txt");
 
             var taskElement = targets
                 .Descendants("GenerateMarkdownFromXmlDoc")
@@ -256,6 +258,24 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_LineEndings)");
             taskElement.Attribute("ReferenceXmlPaths")!.Value
                 .ShouldBe("@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)");
+            var generateTarget = targets.Descendants("Target")
+                .Single(element =>
+                    element.Attribute("Name")?.Value == "Xml2Doc_Generate");
+            var validateOutputsTarget = targets.Descendants("Target")
+                .Single(element =>
+                    element.Attribute("Name")?.Value == "Xml2Doc_ValidateOutputs");
+            generateTarget.Attribute("DependsOnTargets")!.Value
+                .ShouldContain("Xml2Doc_ValidateOutputs");
+            validateOutputsTarget.Descendants("Delete")
+                .Single().Attribute("Files")!.Value
+                .ShouldBe("$(Xml2Doc_OutputStamp)");
+            validateOutputsTarget.Attribute("Condition")!.Value
+                .ShouldContain("'$(Xml2Doc_DryRun)' != 'True'");
+            generateTarget.Descendants("WriteLinesToFile")
+                .Single(element =>
+                    element.Attribute("File")?.Value == "$(Xml2Doc_OutputLedger)")
+                .Attribute("Condition")!.Value
+                .ShouldContain("'$(Xml2Doc_DryRun)' != 'True'");
         }
 
         [Fact]

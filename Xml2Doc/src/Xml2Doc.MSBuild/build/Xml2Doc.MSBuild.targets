@@ -39,11 +39,14 @@
   <PropertyGroup>
     <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)' == ''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
     <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)' == ''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
+    <Xml2Doc_OutputLedger Condition="'$(Xml2Doc_OutputLedger)' == ''">$(IntermediateOutputPath)xml2doc.outputs.txt</Xml2Doc_OutputLedger>
 
     <Xml2Doc_OutputStamp Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_OutputStamp)'))">$(IntermediateOutputPath)$(Xml2Doc_OutputStamp)</Xml2Doc_OutputStamp>
     <Xml2Doc_FingerprintFile Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_FingerprintFile)'))">$(IntermediateOutputPath)$(Xml2Doc_FingerprintFile)</Xml2Doc_FingerprintFile>
+    <Xml2Doc_OutputLedger Condition="!$([System.IO.Path]::IsPathRooted('$(Xml2Doc_OutputLedger)'))">$(IntermediateOutputPath)$(Xml2Doc_OutputLedger)</Xml2Doc_OutputLedger>
 
     <_Xml2Doc_OutputStampDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputStamp)'))</_Xml2Doc_OutputStampDir>
+    <_Xml2Doc_OutputLedgerDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputLedger)'))</_Xml2Doc_OutputLedgerDir>
     <_Xml2Doc_OutputFileDir Condition="'$(Xml2Doc_OutputFile)' != ''">$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))</_Xml2Doc_OutputFileDir>
   </PropertyGroup>
 
@@ -53,6 +56,31 @@
           BeforeTargets="Xml2Doc_Generate"
           Condition="!Exists('$(_Xml2Doc_TaskPath)')">
     <Warning Text="Xml2Doc task assembly not found at $(_Xml2Doc_TaskPath). Package layout mismatch?" />
+  </Target>
+
+  <Target Name="Xml2Doc_ValidateOutputs"
+          Condition="
+            '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
+            and '$(GenerateDocumentationFile)' == 'true'
+            and '$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'
+            and Exists('$(Xml2Doc_OutputStamp)')">
+    <ItemGroup>
+      <_Xml2Doc_RecordedOutput Remove="@(_Xml2Doc_RecordedOutput)" />
+      <_Xml2Doc_MissingOutput Remove="@(_Xml2Doc_MissingOutput)" />
+    </ItemGroup>
+
+    <ReadLinesFromFile File="$(Xml2Doc_OutputLedger)"
+                       Condition="Exists('$(Xml2Doc_OutputLedger)')">
+      <Output TaskParameter="Lines" ItemName="_Xml2Doc_RecordedOutput" />
+    </ReadLinesFromFile>
+
+    <ItemGroup>
+      <_Xml2Doc_MissingOutput Include="@(_Xml2Doc_RecordedOutput)"
+                              Condition="!Exists('%(_Xml2Doc_RecordedOutput.Identity)')" />
+    </ItemGroup>
+
+    <Delete Files="$(Xml2Doc_OutputStamp)"
+            Condition="!Exists('$(Xml2Doc_OutputLedger)') or '@(_Xml2Doc_MissingOutput)' != ''" />
   </Target>
 
   <Target Name="_Xml2Doc_LogChosenTask"
@@ -129,7 +157,7 @@
 
   <Target Name="Xml2Doc_Generate"
           AfterTargets="CoreCompile"
-          DependsOnTargets="Xml2Doc_ComputeFingerprint"
+          DependsOnTargets="Xml2Doc_ComputeFingerprint;Xml2Doc_ValidateOutputs"
           Condition="
             '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
             and '$(GenerateDocumentationFile)' == 'true'
@@ -145,6 +173,8 @@
              Condition="'$(Xml2Doc_SingleFile)'=='true' and '$(_Xml2Doc_OutputFileDir)'!='' and !Exists('$(_Xml2Doc_OutputFileDir)')" />
     <MakeDir Directories="$(_Xml2Doc_OutputStampDir)"
              Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_OutputLedgerDir)"
+             Condition="'$(_Xml2Doc_OutputLedgerDir)' != '' and !Exists('$(_Xml2Doc_OutputLedgerDir)')" />
 
     <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)"
                                 ReferenceXmlPaths="@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)"
@@ -182,6 +212,12 @@
                       Overwrite="true"
                       Encoding="UTF-8"
                       Condition="'$(Xml2Doc_DidWork)'=='true' or !Exists('$(Xml2Doc_OutputStamp)')" />
+
+    <WriteLinesToFile File="$(Xml2Doc_OutputLedger)"
+                      Lines="@(Xml2Doc_GeneratedFiles)"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="'$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />
   </Target>
 
 </Project>

@@ -31,6 +31,7 @@
     <Xml2Doc_OutputStamp Condition="'$(Xml2Doc_OutputStamp)'==''">$(IntermediateOutputPath)xml2doc.stamp</Xml2Doc_OutputStamp>
 
     <Xml2Doc_FingerprintFile Condition="'$(Xml2Doc_FingerprintFile)'==''">$(IntermediateOutputPath)xml2doc.fingerprint.txt</Xml2Doc_FingerprintFile>
+    <Xml2Doc_OutputLedger Condition="'$(Xml2Doc_OutputLedger)'==''">$(IntermediateOutputPath)xml2doc.outputs.txt</Xml2Doc_OutputLedger>
 
     <!-- Optional behavior switches -->
     <Xml2Doc_DryRun Condition="'$(Xml2Doc_DryRun)'==''">false</Xml2Doc_DryRun>
