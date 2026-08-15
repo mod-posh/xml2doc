@@ -1,4 +1,5 @@
 ﻿using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
 using Shouldly;
 using System;
 using System.Collections;
@@ -301,7 +302,8 @@ namespace Xml2Doc.Tests
                 File.ReadAllText(Path.Combine(outDir, "Consumer.Service.md"))
                     .ShouldContain("Runs from the referenced project.");
                 buildEngine.Warnings.Count.ShouldBe(1);
-                buildEngine.Warnings[0].Message.ShouldContain("M:Consumer.Service.Missing");
+                buildEngine.Warnings[0].Message!
+                    .ShouldContain("M:Consumer.Service.Missing");
             }
             finally
             {
