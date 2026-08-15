@@ -258,11 +258,15 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_LineEndings)");
             taskElement.Attribute("ReferenceXmlPaths")!.Value
                 .ShouldBe("@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)");
-            targets.Descendants("Xml2Doc_Generate")
-                .Single().Attribute("DependsOnTargets")!.Value
+            var generateTarget = targets.Descendants("Target")
+                .Single(element =>
+                    element.Attribute("Name")?.Value == "Xml2Doc_Generate");
+            var validateOutputsTarget = targets.Descendants("Target")
+                .Single(element =>
+                    element.Attribute("Name")?.Value == "Xml2Doc_ValidateOutputs");
+            generateTarget.Attribute("DependsOnTargets")!.Value
                 .ShouldContain("Xml2Doc_ValidateOutputs");
-            targets.Descendants("Xml2Doc_ValidateOutputs")
-                .Single().Descendants("Delete")
+            validateOutputsTarget.Descendants("Delete")
                 .Single().Attribute("Files")!.Value
                 .ShouldBe("$(Xml2Doc_OutputStamp)");
         }
