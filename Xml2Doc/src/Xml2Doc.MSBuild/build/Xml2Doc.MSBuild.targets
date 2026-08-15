@@ -77,8 +77,22 @@
             and '$(DocumentationFile)' != ''
             and Exists('$(DocumentationFile)')">
 
+    <ItemGroup>
+      <_Xml2Doc_AutomaticReferenceXml Include="@(_ResolvedProjectReferencePaths->'%(RootDir)%(Directory)%(Filename).xml')"
+                                      Condition="Exists('%(_ResolvedProjectReferencePaths.RootDir)%(_ResolvedProjectReferencePaths.Directory)%(_ResolvedProjectReferencePaths.Filename).xml')" />
+      <_Xml2Doc_ExistingExplicitReferenceXml Include="@(Xml2Doc_ReferenceXml)"
+                                              Condition="Exists('%(Xml2Doc_ReferenceXml.FullPath)')" />
+      <_Xml2Doc_ReferenceXml Include="@(_Xml2Doc_AutomaticReferenceXml);@(_Xml2Doc_ExistingExplicitReferenceXml)" />
+    </ItemGroup>
+
     <GetFileHash Files="$(DocumentationFile)" Algorithm="SHA256">
       <Output TaskParameter="Items" ItemName="_Xml2Doc_HashItem" />
+    </GetFileHash>
+
+    <GetFileHash Files="@(_Xml2Doc_ReferenceXml)"
+                 Algorithm="SHA256"
+                 Condition="'@(_Xml2Doc_ReferenceXml)' != ''">
+      <Output TaskParameter="Items" ItemName="_Xml2Doc_ReferenceHashItem" />
     </GetFileHash>
 
     <PropertyGroup>
@@ -88,11 +102,13 @@
 
     <ItemGroup>
       <_Xml2Doc_HashValue Include="@(_Xml2Doc_HashItem->'%(Hash)')" />
+      <_Xml2Doc_ReferenceHashValue Include="@(_Xml2Doc_ReferenceHashItem->'%(Hash)')" />
     </ItemGroup>
 
     <PropertyGroup>
       <_Xml2Doc_Hash>@(_Xml2Doc_HashValue)</_Xml2Doc_Hash>
-      <_Xml2Doc_Fingerprint>$(_Xml2Doc_Hash)|$(_Xml2Doc_Options)</_Xml2Doc_Fingerprint>
+      <_Xml2Doc_ReferenceHash>@(_Xml2Doc_ReferenceHashValue, ',')</_Xml2Doc_ReferenceHash>
+      <_Xml2Doc_Fingerprint>$(_Xml2Doc_Hash)|$(_Xml2Doc_ReferenceHash)|$(_Xml2Doc_Options)</_Xml2Doc_Fingerprint>
     </PropertyGroup>
 
     <ReadLinesFromFile File="$(Xml2Doc_FingerprintFile)"
@@ -131,6 +147,7 @@
              Condition="'$(_Xml2Doc_OutputStampDir)' != '' and !Exists('$(_Xml2Doc_OutputStampDir)')" />
 
     <GenerateMarkdownFromXmlDoc XmlPath="$(DocumentationFile)"
+                                ReferenceXmlPaths="@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)"
                                 SingleFile="$(Xml2Doc_SingleFile)"
                                 OutputFile="$(Xml2Doc_OutputFile)"
                                 OutputDirectory="$(Xml2Doc_OutputDir)"
