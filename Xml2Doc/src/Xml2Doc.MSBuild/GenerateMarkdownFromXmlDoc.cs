@@ -272,7 +272,13 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             }
 
             var referenceXmlPaths = ReferenceXmlPaths
-                .Select(item => item.ItemSpec)
+                .Select(item =>
+                {
+                    var fullPath = item.GetMetadata("FullPath");
+                    return string.IsNullOrWhiteSpace(fullPath)
+                        ? item.ItemSpec
+                        : fullPath;
+                })
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Select(Path.GetFullPath)
                 .Where(path => !string.Equals(path, xmlFull, StringComparison.OrdinalIgnoreCase))
