@@ -103,17 +103,19 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
-        public void CreatePlan_WhenPreviousManifestOutputRootDoesNotMatchCurrentCanonicalRoot_ThrowsInvalidDataException()
+        public void CreatePlan_WhenPortableManifestMovesToAnotherOutputRoot_PreservesOwnership()
         {
             var outputRoot = CreateOutputRoot();
             var otherOutputRoot = CreateOutputRoot();
             var previousManifest = CreateManifest(otherOutputRoot, "Owned.md");
 
-            Should.Throw<InvalidDataException>(() =>
-                OutputManifestPlanner.CreatePlan(
-                    outputRoot,
-                    new[] { "Owned.md" },
-                    previousManifest));
+            var plan = OutputManifestPlanner.CreatePlan(
+                outputRoot,
+                new[] { "Owned.md" },
+                previousManifest);
+
+            plan.FilesToWrite.ShouldBe(new[] { "Owned.md" });
+            plan.FilesToDelete.ShouldBeEmpty();
         }
 
         [Fact]
