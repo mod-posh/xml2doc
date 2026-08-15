@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Sample;
 using Xunit;
 
@@ -12,6 +13,50 @@ public class AliasingTests
     // Resolve project directory from the test's bin folder
     private static string ProjectDir =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+
+    [Fact]
+    public void DefaultProvider_AppliesOnlyCompleteTypeTokens()
+    {
+        DefaultAliasProvider.Instance
+            .ApplyAliases("System.String StringComparer Int32 System.UInt32")
+            .ShouldBe("string StringComparer int uint");
+    }
+
+    [Fact]
+    public void CustomProvider_IsUsedForSignaturesLinksAndAnchors()
+    {
+        var xml = """
+            <doc><members>
+              <member name="T:Temp.Widget">
+                <summary>Calls <see cref="M:Temp.Widget.Run(System.Int32)"/>.</summary>
+              </member>
+              <member name="M:Temp.Widget.Run(System.Int32)">
+                <summary>Runs the widget.</summary>
+                <param name="value">Input value.</param>
+              </member>
+            </members></doc>
+            """;
+        var xmlPath = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(xmlPath, xml);
+            var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
+            var renderer = new MarkdownRenderer(
+                model,
+                new RendererOptions(AliasProvider: new IntegerAliasProvider()));
+
+            var markdown = renderer.RenderToString();
+
+            markdown.ShouldContain("[Run(integer)](#temp.widget.run(integer))");
+            markdown.ShouldContain("## Method: Run(integer)");
+            markdown.ShouldContain("<a id=\"temp.widget.run(integer)\"></a>");
+        }
+        finally
+        {
+            File.Delete(xmlPath);
+        }
+    }
 
     [Fact]
     public async Task TokenAwareAliasing_DoesNotCorruptIdentifiers()
@@ -60,5 +105,14 @@ public class AliasingTests
         Regex.IsMatch(mdNoAnchors, pattern).ShouldBeTrue(
             "Expected Mix(string, int, uint) signature (header or bullet) with aliases applied."
         );
+    }
+
+    private sealed class IntegerAliasProvider : IAliasProvider
+    {
+        public string ApplyAliases(string value) =>
+            Regex.Replace(
+                value,
+                @"(?<![A-Za-z0-9_])(?:System\.Int32|Int32)(?![A-Za-z0-9_])",
+                "integer");
     }
 }
