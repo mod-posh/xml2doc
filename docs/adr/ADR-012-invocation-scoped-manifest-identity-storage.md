@@ -33,9 +33,11 @@ also introduce invalid-character, traversal, length, and collision risks.
    Hashing makes the storage path deterministic and prevents identity text from becoming path
    syntax. The `.xml2doc` directory is reserved for Xml2Doc lifecycle metadata and is not part of
    the generated Markdown output set.
-4. The manifest records its original identity as well as its schema version, canonical output root,
-   and normalized output-root-relative owned paths. Loading verifies that the stored identity
-   ordinally matches the requested identity in addition to the existing schema and output-root
+4. The manifest records its original identity, schema version, a portable current-root marker, and
+   normalized output-root-relative owned paths. Loading verifies that the stored identity ordinally
+   matches the requested identity. The caller's current output root is always the deletion boundary;
+   a manifest never supplies an absolute deletion root. Schema 1 manifests containing an absolute
+   root migrate on their next successful save after their relative entries pass current safety
    validation.
 5. CLI and MSBuild expose the same explicit Core identity concept. A shared output directory uses a
    distinct stable identity for each independent invocation. Reusing an identity intentionally
@@ -49,6 +51,9 @@ also introduce invalid-character, traversal, length, and collision risks.
 - Independent projects can share an output root while maintaining disjoint ownership histories.
 - Manifest locations are stable across checkout directories, machines, configurations, and target
   frameworks when callers retain the same identity.
+- The `manifests` directory may be versioned when generated Markdown is versioned so clean checkouts
+  retain stale-file ownership. The `transactions` directory is local staging state and must be
+  ignored.
 - Identity values cannot escape the metadata directory or create platform-specific filenames.
 - A hash collision is cryptographically improbable, and the identity stored in the manifest allows
   a mismatch to fail safely instead of authorizing deletion.

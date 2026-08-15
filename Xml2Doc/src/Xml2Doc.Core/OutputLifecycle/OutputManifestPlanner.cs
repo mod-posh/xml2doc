@@ -79,11 +79,11 @@ namespace Xml2Doc.Core.OutputLifecycle
                     Array.Empty<string>());
             }
 
-            ValidateManifest(canonicalOutputRoot, previousManifest);
+            ValidateManifest(previousManifest);
 
             var previouslyOwnedFiles = ValidateAndNormalizeEntries(
                 canonicalOutputRoot,
-                previousManifest.Files,
+                NormalizeManifestSeparators(previousManifest),
                 entry => new InvalidDataException(
                     $"The manifest file entry '{entry}' is invalid."),
                 duplicate => new InvalidDataException(
@@ -103,14 +103,28 @@ namespace Xml2Doc.Core.OutputLifecycle
                 filesToDelete);
         }
 
-        private static void ValidateManifest(
-            string canonicalOutputRoot,
+        private static IReadOnlyList<string> NormalizeManifestSeparators(
             OutputManifest manifest)
         {
-            if (manifest.SchemaVersion != OutputManifest.CurrentSchemaVersion)
+            if (manifest.SchemaVersion != 1 ||
+                manifest.OutputRoot.IndexOf('\\') < 0)
+            {
+                return manifest.Files;
+            }
+
+            return manifest.Files
+                .Select(path => path.Replace('\\', Path.DirectorySeparatorChar))
+                .ToArray();
+        }
+
+        private static void ValidateManifest(OutputManifest manifest)
+        {
+            if (manifest.SchemaVersion != 1 &&
+                manifest.SchemaVersion != OutputManifest.CurrentSchemaVersion)
             {
                 throw new InvalidDataException(
-                    $"Manifest schema version {manifest.SchemaVersion} is not supported.");
+                    $"Manifest schema version {manifest.SchemaVersion} is not supported. " +
+                    $"Regenerate it with a version of Xml2Doc that supports schema {OutputManifest.CurrentSchemaVersion}.");
             }
 
             if (string.IsNullOrWhiteSpace(manifest.OutputRoot))
@@ -119,29 +133,14 @@ namespace Xml2Doc.Core.OutputLifecycle
                     "The manifest output root is missing.");
             }
 
-            string manifestOutputRoot;
-
-            try
-            {
-                manifestOutputRoot = NormalizeRootPath(manifest.OutputRoot);
-            }
-            catch (Exception exception) when (
-                exception is ArgumentException ||
-                exception is NotSupportedException ||
-                exception is PathTooLongException)
+            if (manifest.SchemaVersion == OutputManifest.CurrentSchemaVersion &&
+                !string.Equals(
+                    manifest.OutputRoot,
+                    OutputManifest.PortableOutputRoot,
+                    StringComparison.Ordinal))
             {
                 throw new InvalidDataException(
-                    "The manifest output root is invalid.",
-                    exception);
-            }
-
-            if (!string.Equals(
-                    canonicalOutputRoot,
-                    manifestOutputRoot,
-                    GetPathComparison()))
-            {
-                throw new InvalidDataException(
-                    "The manifest output root does not match the current output root.");
+                    "The portable manifest output root marker is invalid.");
             }
 
             if (manifest.Files is null)
