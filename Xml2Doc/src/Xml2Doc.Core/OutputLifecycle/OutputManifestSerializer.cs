@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace Xml2Doc.Core.OutputLifecycle
@@ -45,8 +46,10 @@ namespace Xml2Doc.Core.OutputLifecycle
             var manifest = new OutputManifest(
                 OutputManifest.CurrentSchemaVersion,
                 location.Identity,
-                location.OutputRoot,
-                normalizedFiles);
+                OutputManifest.PortableOutputRoot,
+                normalizedFiles
+                    .Select(path => path.Replace('\\', '/'))
+                    .ToArray());
 
             return JsonSerializer
                 .Serialize(manifest, SerializerOptions)
@@ -120,7 +123,7 @@ namespace Xml2Doc.Core.OutputLifecycle
             return new OutputManifest(
                 manifest.SchemaVersion,
                 manifest.Identity,
-                location.OutputRoot,
+                OutputManifest.PortableOutputRoot,
                 validatedPlan.FilesToDelete);
         }
     }
