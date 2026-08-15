@@ -58,11 +58,13 @@ namespace Xml2Doc.Core.Models
         /// <param name="xmlPaths">Reference XML documentation paths.</param>
         public void LoadReferences(IEnumerable<string> xmlPaths)
         {
-            foreach (var xmlPath in xmlPaths
+            foreach (var doc in xmlPaths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(StringComparer.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(path => XDocument.Load(
+                    path,
+                    LoadOptions.PreserveWhitespace)))
             {
-                var doc = XDocument.Load(xmlPath, LoadOptions.PreserveWhitespace);
                 foreach (var element in doc.Descendants("member"))
                 {
                     var name = (string?)element.Attribute("name");
