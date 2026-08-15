@@ -49,7 +49,7 @@ namespace Xml2Doc.Tests
                 {
                     var output = ChildPath(root, "api.md");
                     renderer.RenderToSingleFile(output);
-                    var markdown = Normalize(await File.ReadAllTextAsync(output));
+                    var markdown = await ReadRequiredMarkdownAsync(output);
 
                     var typeHref = ExtractHref(markdown, "HTTP_Parser_v2");
                     typeHref.ShouldStartWith("#");
@@ -63,10 +63,10 @@ namespace Xml2Doc.Tests
                 {
                     var output = ChildPath(root, "docs");
                     renderer.RenderToDirectory(output);
-                    var consumer = Normalize(await File.ReadAllTextAsync(
-                        ChildPath(output, "Temp.Consumer.md")));
+                    var consumer = await ReadRequiredMarkdownAsync(
+                        ChildPath(output, "Temp.Consumer.md"));
                     var targetPath = ChildPath(output, "Temp.HTTP_Parser_v2.md");
-                    var target = Normalize(await File.ReadAllTextAsync(targetPath));
+                    var target = await ReadRequiredMarkdownAsync(targetPath);
 
                     ExtractHref(consumer, "HTTP_Parser_v2")
                         .ShouldBe("Temp.HTTP_Parser_v2.md");
@@ -117,6 +117,12 @@ namespace Xml2Doc.Tests
 
         private static void AssertAnchorExists(string markdown, string anchor) =>
             markdown.ShouldContain($"<a id=\"{anchor}\"></a>");
+
+        private static async Task<string> ReadRequiredMarkdownAsync(string path)
+        {
+            File.Exists(path).ShouldBeTrue($"Missing expected Markdown output: {path}");
+            return Normalize(await File.ReadAllTextAsync(path));
+        }
 
         private static string ChildPath(string root, string relativePath)
         {
