@@ -269,6 +269,13 @@ namespace Xml2Doc.Tests
             validateOutputsTarget.Descendants("Delete")
                 .Single().Attribute("Files")!.Value
                 .ShouldBe("$(Xml2Doc_OutputStamp)");
+            validateOutputsTarget.Attribute("Condition")!.Value
+                .ShouldContain("'$(Xml2Doc_DryRun)' != 'True'");
+            generateTarget.Descendants("WriteLinesToFile")
+                .Single(element =>
+                    element.Attribute("File")?.Value == "$(Xml2Doc_OutputLedger)")
+                .Attribute("Condition")!.Value
+                .ShouldContain("'$(Xml2Doc_DryRun)' != 'True'");
         }
 
         [Fact]
