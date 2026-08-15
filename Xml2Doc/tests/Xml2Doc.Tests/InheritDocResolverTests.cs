@@ -1,4 +1,5 @@
 using Shouldly;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,113 @@ using Xunit;
 
 public class InheritDocResolverTests
 {
+    [Fact]
+    public async Task Render_UsesReferenceXmlForInheritanceWithoutRenderingReferenceTypes()
+    {
+        var primaryXml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <members>
+                    <member name="T:Consumer.ExampleService"><summary>Implementation.</summary></member>
+                    <member name="M:Consumer.ExampleService.Run(Contracts.Request)">
+                      <inheritdoc cref="M:Contracts.IExampleService.Run(Contracts.Request)"/>
+                    </member>
+                    <member name="M:Consumer.ExampleService.Save(Contracts.Request)"><inheritdoc/></member>
+                  </members>
+                </doc>
+                """;
+        var referenceXml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <members>
+                    <member name="T:Contracts.IExampleService"><summary>Contract.</summary></member>
+                    <member name="M:Contracts.IExampleService.Run(Contracts.Request)">
+                      <summary>Runs from referenced documentation.</summary>
+                    </member>
+                    <member name="M:Contracts.IExampleService.Save(Contracts.Request)">
+                      <summary>Saves from referenced documentation.</summary>
+                    </member>
+                  </members>
+                </doc>
+                """;
+
+        var tmpDir = Path.Join(
+            Path.GetTempPath(),
+            "Xml2Doc.Tests",
+            Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var primaryPath = Path.Join(tmpDir, "Consumer.xml");
+            var referencePath = Path.Join(tmpDir, "Contracts.xml");
+            await File.WriteAllTextAsync(primaryPath, primaryXml, new UTF8Encoding(false));
+            await File.WriteAllTextAsync(referencePath, referenceXml, new UTF8Encoding(false));
+
+            var warnings = new List<string>();
+            var model = Xml2Doc.Core.Models.Xml2Doc.Load(primaryPath);
+            model.LoadReferences(new[] { referencePath });
+            var renderer = new MarkdownRenderer(
+                model,
+                new RendererOptions(
+                    FileNameMode: FileNameMode.CleanGenerics,
+                    WarningSink: warnings.Add));
+            var outDir = Path.Join(tmpDir, "out");
+
+            renderer.RenderToDirectory(outDir);
+
+            var implementation = await File.ReadAllTextAsync(
+                Path.Join(outDir, "Consumer.ExampleService.md"));
+            implementation.ShouldContain("Runs from referenced documentation.");
+            implementation.ShouldContain("Saves from referenced documentation.");
+            File.Exists(Path.Join(outDir, "Contracts.IExampleService.md"))
+                .ShouldBeFalse();
+            warnings.ShouldBeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Render_WhenInheritDocCannotBeResolved_EmitsWarning()
+    {
+        var xml = """
+                <?xml version="1.0"?>
+                <doc><members>
+                  <member name="T:Temp.Service"><summary>Service.</summary></member>
+                  <member name="M:Temp.Service.Run"><inheritdoc cref="M:Missing.Contract.Run"/></member>
+                </members></doc>
+                """;
+        var tmpDir = Path.Join(
+            Path.GetTempPath(),
+            "Xml2Doc.Tests",
+            Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var xmlPath = Path.Join(tmpDir, "Temp.xml");
+            await File.WriteAllTextAsync(xmlPath, xml, new UTF8Encoding(false));
+            var warnings = new List<string>();
+            var renderer = new MarkdownRenderer(
+                Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath),
+                new RendererOptions(WarningSink: warnings.Add));
+
+            renderer.RenderToDirectory(Path.Join(tmpDir, "out"));
+
+            warnings.Count.ShouldBe(1);
+            warnings[0].ShouldContain("M:Temp.Service.Run");
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Render_ResolvesUniqueFullSignatureAndExplicitCref_ButNotAmbiguousMatches()
     {

@@ -17,6 +17,8 @@ namespace Xml2Doc.Core
                 var key = cref!;
                 if (model.Members.TryGetValue(key, out var target))
                     return target.Element;
+                if (model.ReferenceMembers.TryGetValue(key, out target))
+                    return target.Element;
 
                 // An explicit target is authoritative. If it is not present in the
                 // loaded documentation, do not guess a different member by signature.
@@ -30,6 +32,7 @@ namespace Xml2Doc.Core
                 return null;
 
             var candidates = model.Members.Values
+                .Concat(model.ReferenceMembers.Values)
                 .Where(candidate =>
                     !ReferenceEquals(candidate, member) &&
                     string.Equals(candidate.Kind, member.Kind, StringComparison.Ordinal) &&

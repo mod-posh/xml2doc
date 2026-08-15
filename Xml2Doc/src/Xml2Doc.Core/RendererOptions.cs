@@ -123,6 +123,10 @@ namespace Xml2Doc.Core
     /// <param name="LineEndings">
     /// Line-ending policy for all rendered Markdown. Defaults to deterministic LF on every host.
     /// </param>
+    /// <param name="WarningSink">
+    /// Optional callback invoked for non-fatal rendering warnings, including unresolved
+    /// <c>&lt;inheritdoc /&gt;</c> members.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -168,6 +172,7 @@ namespace Xml2Doc.Core
         bool GenerateIndex = true,
         bool PruneStaleFiles = false,
         string? ManifestIdentity = null,
-        LineEndingStyle LineEndings = LineEndingStyle.Lf
+        LineEndingStyle LineEndings = LineEndingStyle.Lf,
+        Action<string>? WarningSink = null
     );
 }

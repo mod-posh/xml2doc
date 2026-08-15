@@ -68,6 +68,12 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     [Required] public string XmlPath { get; set; } = string.Empty;
 
     /// <summary>
+    /// XML documentation files from referenced projects or assemblies. Their members
+    /// participate in inheritance lookup but do not produce Markdown pages.
+    /// </summary>
+    public ITaskItem[] ReferenceXmlPaths { get; set; } = Array.Empty<ITaskItem>();
+
+    /// <summary>
     /// Directory for per‑type Markdown output (ignored in single‑file mode). Required when <see cref="SingleFile"/> is <see langword="false"/>.
     /// </summary>
     public string? OutputDirectory { get; set; }
@@ -265,7 +271,32 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 }
             }
 
+            var referenceXmlPaths = ReferenceXmlPaths
+                .Select(item =>
+                {
+                    var fullPath = item.GetMetadata("FullPath");
+                    return string.IsNullOrWhiteSpace(fullPath)
+                        ? item.ItemSpec
+                        : fullPath;
+                })
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(Path.GetFullPath)
+                .Where(path => !string.Equals(path, xmlFull, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var existingReferenceXmlPaths = referenceXmlPaths
+                .Where(File.Exists)
+                .ToArray();
+
+            foreach (var missingPath in referenceXmlPaths.Except(
+                existingReferenceXmlPaths,
+                StringComparer.OrdinalIgnoreCase))
+            {
+                Log.LogWarning($"Xml2Doc: reference XML not found at '{missingPath}'.");
+            }
+
             var model = Core.Models.Xml2Doc.Load(xmlFull);
+            model.LoadReferences(existingReferenceXmlPaths);
 
             var fnMode = FileNameMode.Equals("clean", StringComparison.OrdinalIgnoreCase)
                 ? Core.FileNameMode.CleanGenerics
@@ -291,7 +322,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 GenerateIndex: GenerateIndex,
                 PruneStaleFiles: PruneStaleFiles,
                 ManifestIdentity: ManifestIdentity,
-                LineEndings: lineEndingStyle
+                LineEndings: lineEndingStyle,
+                WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}")
             );
 
             var renderer = new MarkdownRenderer(model, options);

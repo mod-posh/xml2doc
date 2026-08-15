@@ -1305,6 +1305,9 @@ public sealed class MarkdownRenderer
             var target = InheritDocResolver.ResolveInheritedMember(_model, m);
             if (target != null)
                 InheritDocResolver.MergeInheritedContent(memberElement, target);
+            else
+                _opt.WarningSink?.Invoke(
+                    $"Unable to resolve <inheritdoc /> for '{m.Name}'.");
         }
 
         sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");

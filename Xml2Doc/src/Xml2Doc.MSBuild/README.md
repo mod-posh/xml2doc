@@ -53,6 +53,16 @@ That’s it—on successful build, docs are generated according to the propertie
 | `Xml2Doc_ManifestIdentity`    | Stable identity required when stale-output pruning is enabled.             |
 | `Xml2Doc_LineEndings`         | Markdown newlines: `lf` (default), `crlf`, or `native`.                    |
 
+Referenced-project XML documentation found beside project output assemblies is loaded
+automatically for `<inheritdoc />` resolution without generating pages for referenced
+types. Additional documentation files can be supplied as items:
+
+```xml
+<ItemGroup>
+  <Xml2Doc_ReferenceXml Include="path\to\Contracts.xml" />
+</ItemGroup>
+```
+
 ### Examples
 
 **Single file (good for READMEs / wikis)**

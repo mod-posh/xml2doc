@@ -76,6 +76,20 @@ The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2
 
 Stale-file pruning is supported only in per-type mode. Single-file mode replaces its configured output directly.
 
+Xml2Doc automatically loads XML documentation found beside referenced project
+assemblies for `<inheritdoc />` resolution. Referenced members participate only in
+inheritance lookup and do not generate additional Markdown pages. Extra XML files can
+be supplied explicitly when an assembly and its documentation are not colocated:
+
+```xml
+<ItemGroup>
+  <Xml2Doc_ReferenceXml Include="$(BaseOutputPath)Contracts\Contracts.xml" />
+</ItemGroup>
+```
+
+Missing explicit files and unresolved `<inheritdoc />` targets produce MSBuild warnings.
+Reference XML contents are included in incremental fingerprinting.
+
 ### Naming, links, and rendering
 
 | Property | Default | Values | Behavior |
