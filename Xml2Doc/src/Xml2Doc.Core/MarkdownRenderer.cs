@@ -1295,12 +1295,16 @@ public sealed class MarkdownRenderer
     /// <param name="asOverload">True to render as a bullet under an overload group; false for a full section.</param>
     private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
     {
-        var inherit = m.Element.Element("inheritdoc");
+        // Resolve inheritance into a per-render copy. Mutating the source model would
+        // make an implementation rendered earlier eligible as a later inheritance
+        // candidate, causing output to depend on member ordering.
+        var memberElement = new XElement(m.Element);
+        var inherit = memberElement.Element("inheritdoc");
         if (inherit != null)
         {
             var target = InheritDocResolver.ResolveInheritedMember(_model, m);
             if (target != null)
-                InheritDocResolver.MergeInheritedContent(m.Element, target);
+                InheritDocResolver.MergeInheritedContent(memberElement, target);
         }
 
         sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");
@@ -1310,11 +1314,20 @@ public sealed class MarkdownRenderer
         else
             sb.AppendLine($"## {MemberHeader(m)}");
 
-        var ms = NormalizeXmlToMarkdown(m.Element.Element("summary"));
+        var ms = NormalizeXmlToMarkdown(memberElement.Element("summary"));
         if (!string.IsNullOrWhiteSpace(ms))
             sb.AppendLine(ms);
 
-        var typeParameters = m.Element.Elements("typeparam").ToList();
+        var remarks = NormalizeXmlToMarkdown(memberElement.Element("remarks"));
+        if (!string.IsNullOrWhiteSpace(remarks))
+        {
+            sb.AppendLine();
+            sb.AppendLine("**Remarks**");
+            sb.AppendLine();
+            sb.AppendLine(remarks);
+        }
+
+        var typeParameters = memberElement.Elements("typeparam").ToList();
         if (typeParameters.Count > 0)
         {
             sb.AppendLine();
@@ -1327,7 +1340,7 @@ public sealed class MarkdownRenderer
             }
         }
 
-        var ps = m.Element.Elements("param").ToList();
+        var ps = memberElement.Elements("param").ToList();
         if (ps.Count > 0)
         {
             sb.AppendLine();
@@ -1340,7 +1353,7 @@ public sealed class MarkdownRenderer
             }
         }
 
-        var ret = m.Element.Element("returns");
+        var ret = memberElement.Element("returns");
         if (ret != null)
         {
             sb.AppendLine();
@@ -1349,7 +1362,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine(NormalizeXmlToMarkdown(ret));
         }
 
-        var value = m.Element.Element("value");
+        var value = memberElement.Element("value");
         if (value != null)
         {
             sb.AppendLine();
@@ -1358,7 +1371,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine(NormalizeXmlToMarkdown(value));
         }
 
-        var exTags = m.Element.Elements("exception").ToList();
+        var exTags = memberElement.Elements("exception").ToList();
         if (exTags.Count > 0)
         {
             sb.AppendLine();
@@ -1372,7 +1385,7 @@ public sealed class MarkdownRenderer
             }
         }
 
-        var examples = m.Element.Elements("example").ToList();
+        var examples = memberElement.Elements("example").ToList();
         if (examples.Count > 0)
         {
             sb.AppendLine();
@@ -1388,7 +1401,7 @@ public sealed class MarkdownRenderer
             }
         }
 
-        var memberSeeAlsos = m.Element.Elements("seealso").ToList();
+        var memberSeeAlsos = memberElement.Elements("seealso").ToList();
         if (memberSeeAlsos.Count > 0)
         {
             sb.AppendLine();
