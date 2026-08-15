@@ -18,6 +18,9 @@ on:
 jobs:
   msbuild_integration:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
     env:
       MSBUILDDISABLENODEREUSE: "1"
     steps:
@@ -37,30 +40,30 @@ jobs:
         run: dotnet build-server shutdown
 
       - name: Clean
-        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --disable-build-servers
+        run: dotnet clean ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration ${{ matrix.configuration }} --disable-build-servers
 
       - name: Restore
         run: dotnet restore ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --disable-build-servers
 
       - name: Build (no servers)
-        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration Release --no-restore --disable-build-servers
+        run: dotnet build ${{ github.workspace }}/${{ vars.PROJECT_NAME }}/${{ vars.PROJECT_NAME }}.sln --configuration ${{ matrix.configuration }} --no-restore --disable-build-servers
 
       - name: MSBuild integration (script)
         shell: pwsh
-        run: ./scripts/test-msbuild-integration.ps1 -Configuration Release -KeepArtifacts
+        run: ./scripts/test-msbuild-integration.ps1 -Configuration ${{ matrix.configuration }} -KeepArtifacts
 
       - name: Upload MSBuild integration artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: msbuild-integration-artifacts
+          name: msbuild-integration-artifacts-${{ matrix.configuration }}
           path: |
-            Xml2Doc/tests/Xml2Doc.Sample/obj/Release/xml2doc-it/**
-            Xml2Doc/tests/Xml2Doc.Sample/obj/Release/net9.0/xml2doc.stamp
+            Xml2Doc/tests/Xml2Doc.Sample/obj/${{ matrix.configuration }}/xml2doc-it/**
+            Xml2Doc/tests/Xml2Doc.Sample/obj/${{ matrix.configuration }}/net9.0/xml2doc.stamp
 
       - name: Upload integration test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MSBuild Integration Test Results
+          name: MSBuild Integration Test Results (${{ matrix.configuration }})
           path: '**/TestResults/*.trx'
