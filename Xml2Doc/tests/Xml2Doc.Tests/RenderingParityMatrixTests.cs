@@ -1,0 +1,146 @@
+using Shouldly;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using Xml2Doc.Core;
+using Xunit;
+
+namespace Xml2Doc.Tests
+{
+    public class RenderingParityMatrixTests
+    {
+        public static IEnumerable<object[]> LinkRoutingMatrix()
+        {
+            foreach (var algorithm in Enum.GetValues<AnchorAlgorithm>())
+            {
+                yield return new object[] { algorithm, false };
+                yield return new object[] { algorithm, true };
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(LinkRoutingMatrix))]
+        public async Task InternalLinks_ResolveForEveryModeAndAnchorAlgorithm(
+            AnchorAlgorithm algorithm,
+            bool singleFile)
+        {
+            var root = Path.Combine(
+                Path.GetTempPath(),
+                "Xml2Doc.Tests",
+                Path.GetRandomFileName());
+
+            try
+            {
+                Directory.CreateDirectory(root);
+                var xmlPath = Path.Combine(root, "matrix.xml");
+                await File.WriteAllTextAsync(xmlPath, FixtureXml, new UTF8Encoding(false));
+                var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
+                var renderer = new MarkdownRenderer(
+                    model,
+                    new RendererOptions(
+                        FileNameMode: FileNameMode.CleanGenerics,
+                        RootNamespaceToTrim: null,
+                        CodeBlockLanguage: "csharp",
+                        AnchorAlgorithm: algorithm));
+
+                if (singleFile)
+                {
+                    var output = Path.Combine(root, "api.md");
+                    renderer.RenderToSingleFile(output);
+                    var markdown = Normalize(await File.ReadAllTextAsync(output));
+
+                    var typeHref = ExtractHref(markdown, "HTTP_Parser_v2");
+                    typeHref.ShouldStartWith("#");
+                    AssertAnchorExists(markdown, typeHref.Substring(1));
+
+                    var memberHref = ExtractHref(markdown, "Do(string)");
+                    memberHref.ShouldStartWith("#");
+                    AssertAnchorExists(markdown, memberHref.Substring(1));
+                }
+                else
+                {
+                    var output = Path.Combine(root, "docs");
+                    renderer.RenderToDirectory(output);
+                    var consumer = Normalize(await File.ReadAllTextAsync(
+                        Path.Combine(output, "Temp.Consumer.md")));
+                    var targetPath = Path.Combine(output, "Temp.HTTP_Parser_v2.md");
+                    var target = Normalize(await File.ReadAllTextAsync(targetPath));
+
+                    ExtractHref(consumer, "HTTP_Parser_v2")
+                        .ShouldBe("Temp.HTTP_Parser_v2.md");
+
+                    var memberHref = ExtractHref(consumer, "Do(string)");
+                    memberHref.ShouldStartWith("Temp.HTTP_Parser_v2.md#");
+                    AssertAnchorExists(
+                        target,
+                        memberHref.Substring(memberHref.IndexOf('#') + 1));
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        private static string ExtractHref(string markdown, string label)
+        {
+            var marker = $"[{label}](";
+            var start = markdown.IndexOf(marker, StringComparison.Ordinal);
+            start.ShouldBeGreaterThanOrEqualTo(0, $"Missing link label '{label}'.");
+            start += marker.Length;
+            var depth = 1;
+            var end = start;
+
+            while (end < markdown.Length && depth > 0)
+            {
+                if (markdown[end] == '(')
+                {
+                    depth++;
+                }
+                else if (markdown[end] == ')')
+                {
+                    depth--;
+                }
+
+                end++;
+            }
+
+            end--;
+            end.ShouldBeGreaterThan(start, $"Missing link destination for '{label}'.");
+            return markdown.Substring(start, end - start);
+        }
+
+        private static void AssertAnchorExists(string markdown, string anchor) =>
+            markdown.ShouldContain($"<a id=\"{anchor}\"></a>");
+
+        private static string Normalize(string markdown) =>
+            markdown.Replace("\r\n", "\n");
+
+        private const string FixtureXml = """
+            <?xml version="1.0"?>
+            <doc>
+              <assembly><name>Temp</name></assembly>
+              <members>
+                <member name="T:Temp.Consumer">
+                  <summary>
+                    See <see cref="T:Temp.HTTP_Parser_v2"/> and
+                    <see cref="M:Temp.HTTP_Parser_v2.Do(System.String)"/>.
+                  </summary>
+                </member>
+                <member name="T:Temp.HTTP_Parser_v2">
+                  <summary>Parses HTTP values.</summary>
+                </member>
+                <member name="M:Temp.HTTP_Parser_v2.Do(System.String)">
+                  <summary>Does work.</summary>
+                  <param name="value">Input value.</param>
+                </member>
+              </members>
+            </doc>
+            """;
+    }
+}
