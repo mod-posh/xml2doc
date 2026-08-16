@@ -15,8 +15,8 @@ namespace Xml2Doc.Cli
     /// <c>--xml</c>, <c>--out</c>, <c>--single</c>, <c>--file-names</c>, <c>--rootns</c>, <c>--lang</c>,
     /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>,
     /// <c>--anchor-algorithm</c>, <c>--template</c>, <c>--front-matter</c>, <c>--auto-link</c>,
-    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--parallel</c>,
-    /// <c>--prune-stale</c>, <c>--manifest-id</c>.
+    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--basename-only</c>,
+    /// <c>--parallel</c>, <c>--prune-stale</c>, <c>--manifest-id</c>, <c>--line-endings</c>.
     /// </remarks>
     public sealed class CliConfig
     {
@@ -77,11 +77,11 @@ namespace Xml2Doc.Cli
         /// <summary>Emit the per-type <c>index.md</c>. Defaults to true. Maps inversely to <c>--no-index</c>.</summary>
         public bool? GenerateIndex { get; set; }
 
-        /// <summary>Max parallelism (less than or equal to 0 or null uses default heuristic). Maps to --parallel option.</summary>
+        /// <summary>Positive maximum parallelism; null uses the compatible serial default. Maps to <c>--parallel</c>.</summary>
         public int? Parallel { get; set; }
 
-        /// <summary>When true, only the basename of output files is used for links.</summary>
-        public bool BasenameOnly { get; init; }
+        /// <summary>When true, only the basename of output files is used for links. Maps to <c>--basename-only</c>.</summary>
+        public bool? BasenameOnly { get; set; }
 
         /// <summary>Remove stale files owned by this invocation. Maps to <c>--prune-stale</c>.</summary>
         public bool? PruneStaleFiles { get; set; }

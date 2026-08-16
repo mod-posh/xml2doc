@@ -117,14 +117,18 @@ namespace Xml2Doc.Cli
             string? xml = null;
             string? outArg = null;
             bool single = false;
+            bool singleSpecified = false;
             FileNameMode fileNameMode = FileNameMode.Verbatim;
+            bool fileNameModeSpecified = false;
             string? rootns = null;
             bool trimRootNsInFileNames = false;
             string codeLang = "csharp";
+            bool codeLangSpecified = false;
             string? reportPath = null;
             bool dryRun = false;
             bool diff = false;
             string anchorAlgorithm = "default";
+            bool anchorAlgorithmSpecified = false;
             string? templatePath = null;
             string? frontMatterPath = null;
             bool autoLink = false;
@@ -134,7 +138,7 @@ namespace Xml2Doc.Cli
             bool namespaceIndex = false;
             bool generateIndex = true;
             int? parallel = null;
-            bool? basenameOnly = false;
+            bool basenameOnly = false;
             string? configPath = null;
             bool pruneStaleFiles = false;
             string? manifestIdentity = null;
@@ -148,18 +152,28 @@ namespace Xml2Doc.Cli
                 {
                     case "--xml" when i + 1 < args.Length: xml = args[++i]; break;
                     case "--out" when i + 1 < args.Length: outArg = args[++i]; break;
-                    case "--single": single = true; break;
+                    case "--single":
+                        single = true;
+                        singleSpecified = true;
+                        break;
                     case "--file-names" when i + 1 < args.Length:
                         fileNameMode = args[++i].Equals("clean", StringComparison.OrdinalIgnoreCase)
                             ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
+                        fileNameModeSpecified = true;
                         break;
                     case "--rootns" when i + 1 < args.Length: rootns = args[++i]; break;
                     case "--trim-rootns-filenames": trimRootNsInFileNames = true; break;
-                    case "--lang" when i + 1 < args.Length: codeLang = args[++i]; break;
+                    case "--lang" when i + 1 < args.Length:
+                        codeLang = args[++i];
+                        codeLangSpecified = true;
+                        break;
                     case "--report" when i + 1 < args.Length: reportPath = args[++i]; break;
                     case "--dry-run": dryRun = true; break;
                     case "--diff": diff = true; break;
-                    case "--anchor-algorithm" when i + 1 < args.Length: anchorAlgorithm = args[++i]; break;
+                    case "--anchor-algorithm" when i + 1 < args.Length:
+                        anchorAlgorithm = args[++i];
+                        anchorAlgorithmSpecified = true;
+                        break;
                     case "--template" when i + 1 < args.Length: templatePath = args[++i]; break;
                     case "--front-matter" when i + 1 < args.Length: frontMatterPath = args[++i]; break;
                     case "--auto-link": autoLink = true; break;
@@ -227,12 +241,14 @@ namespace Xml2Doc.Cli
                     return 1;
                 }
 
-                xml ??= cfg?.Xml;
-                outArg ??= cfg?.Out;
-                if (cfg?.Single is bool s) single = s;
+                var config = cfg!;
+                xml ??= config.Xml;
+                outArg ??= config.Out;
+                if (!singleSpecified && config.Single is bool s) single = s;
 
-                var cfgNames = cfg?.FileNames;
-                if (!string.IsNullOrWhiteSpace(cfgNames))
+                var cfgNames = config.FileNames;
+                if (!fileNameModeSpecified &&
+                    !string.IsNullOrWhiteSpace(cfgNames))
                 {
                     if (!IsFileNameMode(cfgNames))
                     {
@@ -244,30 +260,39 @@ namespace Xml2Doc.Cli
                         ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
                 }
 
-                rootns ??= cfg?.RootNamespace;
-                if (cfg?.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
-                if (!string.IsNullOrWhiteSpace(cfg?.CodeLanguage)) codeLang = cfg.CodeLanguage!;
-                reportPath ??= cfg?.Report;
-                if (cfg?.DryRun is bool dr) dryRun = dr || dryRun;
-                if (!string.IsNullOrWhiteSpace(cfg?.AnchorAlgorithm)) anchorAlgorithm = cfg.AnchorAlgorithm!;
-                if (!string.IsNullOrWhiteSpace(cfg?.Template)) templatePath = templatePath ?? cfg.Template!;
-                if (!string.IsNullOrWhiteSpace(cfg?.FrontMatter)) frontMatterPath = frontMatterPath ?? cfg.FrontMatter!;
-                if (cfg?.AutoLink is bool al) autoLink = al || autoLink;
-                if (!string.IsNullOrWhiteSpace(cfg?.AliasMap)) aliasMapPath = aliasMapPath ?? cfg.AliasMap!;
-                if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg.ExternalDocs!;
-                if (cfg?.Toc is bool tc) toc = tc || toc;
-                if (cfg?.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
-                if (cfg?.GenerateIndex is bool gi && generateIndex) generateIndex = gi;
-                if (cfg?.BasenameOnly is bool bo) basenameOnly = basenameOnly ?? bo;
-                if (cfg?.Parallel is int pi && parallel is null) parallel = pi;
-                if (cfg?.Diff is bool df) diff = df || diff;
-                if (cfg?.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
-                if (!string.IsNullOrWhiteSpace(cfg?.ManifestIdentity))
-                    manifestIdentity ??= cfg.ManifestIdentity;
-                if (!lineEndingsSpecified &&
-                    !string.IsNullOrWhiteSpace(cfg?.LineEndings))
+                rootns ??= config.RootNamespace;
+                if (config.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
+                if (!codeLangSpecified &&
+                    !string.IsNullOrWhiteSpace(config.CodeLanguage))
                 {
-                    lineEndings = cfg.LineEndings!;
+                    codeLang = config.CodeLanguage;
+                }
+                reportPath ??= config.Report;
+                if (config.DryRun is bool dr) dryRun = dr || dryRun;
+                if (!anchorAlgorithmSpecified &&
+                    !string.IsNullOrWhiteSpace(config.AnchorAlgorithm))
+                {
+                    anchorAlgorithm = config.AnchorAlgorithm;
+                }
+                if (!string.IsNullOrWhiteSpace(config.Template)) templatePath ??= config.Template;
+                if (!string.IsNullOrWhiteSpace(config.FrontMatter)) frontMatterPath ??= config.FrontMatter;
+                if (config.AutoLink is bool al) autoLink = al || autoLink;
+                if (!string.IsNullOrWhiteSpace(config.AliasMap)) aliasMapPath ??= config.AliasMap;
+                if (!string.IsNullOrWhiteSpace(config.ExternalDocs)) externalDocs ??= config.ExternalDocs;
+                if (config.Toc is bool tc) toc = tc || toc;
+                if (config.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
+                if (config.GenerateIndex is bool gi && generateIndex) generateIndex = gi;
+                if (config.BasenameOnly is bool bo)
+                    basenameOnly = bo || basenameOnly;
+                if (config.Parallel is int pi && parallel is null) parallel = pi;
+                if (config.Diff is bool df) diff = df || diff;
+                if (config.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
+                if (!string.IsNullOrWhiteSpace(config.ManifestIdentity))
+                    manifestIdentity ??= config.ManifestIdentity;
+                if (!lineEndingsSpecified &&
+                    !string.IsNullOrWhiteSpace(config.LineEndings))
+                {
+                    lineEndings = config.LineEndings;
                 }
             }
 
@@ -375,7 +400,7 @@ namespace Xml2Doc.Cli
                         : LinkPolicy.PreferExternalForUnknown,
                     EmitToc: toc,
                     EmitNamespaceIndex: namespaceIndex,
-                    BasenameOnly: basenameOnly ?? false,
+                    BasenameOnly: basenameOnly,
                     ParallelDegree: parallel,
                     GenerateIndex: generateIndex,
                     PruneStaleFiles: pruneStaleFiles,
