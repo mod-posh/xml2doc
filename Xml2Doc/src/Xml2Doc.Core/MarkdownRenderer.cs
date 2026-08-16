@@ -13,6 +13,7 @@ using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Signatures;
+using Xml2Doc.Core.Diagnostics;
 
 namespace Xml2Doc.Core;
 
@@ -55,6 +56,8 @@ public sealed class MarkdownRenderer
     private readonly IAutoLinker _autoLinker;
     private readonly ISignatureRenderer _signatureRenderer;
     private readonly SignatureStyle _signatureStyle;
+    private readonly HashSet<string> _reportedDiagnostics =
+        new(StringComparer.Ordinal);
     private readonly AutoLinkContext _perTypeAutoLinkContext;
     private readonly AutoLinkContext _singleFileAutoLinkContext;
 
@@ -117,9 +120,10 @@ public sealed class MarkdownRenderer
             idToAnchor: IdToAnchor,
             typeFileName: TypeFileNameForResolver,
             headingSlug: HeadingSlug,
-            isKnownCref: cref => _model.Members.ContainsKey(cref),
+            isKnownCref: IsKnownCref,
             linkPolicy: _opt.LinkPolicy,
-            externalSymbolResolver: externalSymbolResolver);
+            externalSymbolResolver: externalSymbolResolver,
+            unresolvedCref: ReportUnresolvedCref);
         _perTypeAutoLinkContext = BuildAutoLinkContext(singleFile: false);
         _singleFileAutoLinkContext = BuildAutoLinkContext(singleFile: true);
     }
@@ -143,6 +147,7 @@ public sealed class MarkdownRenderer
     /// <exception cref="UnauthorizedAccessException">Insufficient permissions for the target directory.</exception>
     public void RenderToDirectory(string outDir)
     {
+        ValidateAnchors(singleFile: false);
         var __prev = _singleFileMode;
         OutputManifestLocation? manifestLocation = null;
         IReadOnlyList<string>? generatedFiles = null;
@@ -329,6 +334,7 @@ public sealed class MarkdownRenderer
     /// <returns>Markdown string containing index + all types.</returns>
     private string BuildSingleFileContent()
     {
+        ValidateAnchors(singleFile: true);
         var prev = _linkMode;
         _linkMode = LinkMode.InDocumentAnchors;
         try
@@ -424,6 +430,8 @@ public sealed class MarkdownRenderer
         }
 
         var summary = NormalizeXmlToMarkdown(type.Element.Element("summary"));
+        if (string.IsNullOrWhiteSpace(summary))
+            ReportMissingSummary(type);
         if (!string.IsNullOrWhiteSpace(summary))
         {
             sb.AppendLine(summary);
@@ -671,6 +679,81 @@ public sealed class MarkdownRenderer
                 BasePath: null));
 
         sb.Append('[').Append(link.Label).Append("](").Append(link.Href).Append(')');
+    }
+
+    private bool IsKnownCref(string cref) =>
+        _model.Members.ContainsKey(cref);
+
+    private void ReportUnresolvedCref(string cref)
+    {
+        if (string.IsNullOrWhiteSpace(cref))
+            return;
+
+        ReportDiagnostic(new Xml2DocDiagnostic(
+            DiagnosticIds.UnresolvedCref,
+            DiagnosticSeverity.Warning,
+            $"Unable to resolve cref '{cref}'.",
+            MemberId: cref));
+    }
+
+    private void ReportMissingSummary(XMember member) =>
+        ReportDiagnostic(new Xml2DocDiagnostic(
+            DiagnosticIds.MissingSummary,
+            DiagnosticSeverity.Warning,
+            $"Documentation member '{member.Name}' does not contain a summary.",
+            MemberId: member.Name));
+
+    private void ReportDiagnostic(Xml2DocDiagnostic diagnostic)
+    {
+        var key = string.Join(
+            "|",
+            diagnostic.Code,
+            diagnostic.MemberId ?? string.Empty,
+            diagnostic.Message);
+        if (_reportedDiagnostics.Add(key))
+            _opt.DiagnosticSink?.Report(diagnostic);
+    }
+
+    private void ValidateAnchors(bool singleFile)
+    {
+        if (_opt.DiagnosticSink is null)
+            return;
+
+        var anchors = _model.Members.Values
+            .Where(member => member.Kind is "M" or "P" or "F" or "E")
+            .Select(member => new
+            {
+                Anchor = IdToAnchor(member.Id),
+                member.Name
+            });
+
+        if (singleFile)
+        {
+            anchors = anchors.Concat(
+                GetTypes().Select(member => new
+                {
+                    Anchor = HeadingSlug(
+                        _signatureRenderer.RenderTypeName(member.Id)),
+                    member.Name
+                }));
+        }
+
+        foreach (var group in anchors
+            .GroupBy(item => item.Anchor, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            var members = group
+                .Select(item => item.Name)
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            ReportDiagnostic(new Xml2DocDiagnostic(
+                DiagnosticIds.DuplicateAnchor,
+                DiagnosticSeverity.Warning,
+                $"Anchor '{group.Key}' is generated by multiple members: " +
+                string.Join(", ", members) + ".",
+                MemberId: members[0]));
+        }
     }
 
     private AutoLinkContext BuildAutoLinkContext(bool singleFile)
@@ -969,8 +1052,15 @@ public sealed class MarkdownRenderer
             if (target != null)
                 InheritDocResolver.MergeInheritedContent(memberElement, target);
             else
-                _opt.WarningSink?.Invoke(
-                    $"Unable to resolve <inheritdoc /> for '{m.Name}'.");
+            {
+                var message = $"Unable to resolve <inheritdoc /> for '{m.Name}'.";
+                ReportDiagnostic(new Xml2DocDiagnostic(
+                    DiagnosticIds.UnresolvedInheritDoc,
+                    DiagnosticSeverity.Warning,
+                    message,
+                    MemberId: m.Name));
+                _opt.WarningSink?.Invoke(message);
+            }
         }
 
         sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");
@@ -981,6 +1071,8 @@ public sealed class MarkdownRenderer
             sb.AppendLine($"## {_signatureRenderer.RenderMemberHeader(m, _signatureStyle)}");
 
         var ms = NormalizeXmlToMarkdown(memberElement.Element("summary"));
+        if (string.IsNullOrWhiteSpace(ms))
+            ReportMissingSummary(m);
         if (!string.IsNullOrWhiteSpace(ms))
             sb.AppendLine(ms);
 
