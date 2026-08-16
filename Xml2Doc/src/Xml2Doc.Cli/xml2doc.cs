@@ -412,14 +412,14 @@ namespace Xml2Doc.Cli
                         DryRun: true));
             var temporaryDirectoryName = Path.GetFileName(
                 "xml2doc-diff-" + Guid.NewGuid().ToString("N"));
-            var temporaryRoot = Path.Combine(
+            var temporaryRoot = Path.Join(
                 Path.GetTempPath(),
                 temporaryDirectoryName);
             var temporaryFileName = Path.GetFileName("output.md");
             var temporaryOutputDirectoryName = Path.GetFileName("output");
             var temporaryOutput = mode == RendererRunMode.SingleFile
-                ? Path.Combine(temporaryRoot, temporaryFileName)
-                : Path.Combine(
+                ? Path.Join(temporaryRoot, temporaryFileName)
+                : Path.Join(
                     temporaryRoot,
                     temporaryOutputDirectoryName);
 
@@ -454,8 +454,7 @@ namespace Xml2Doc.Cli
 
                     if (!File.Exists(destination))
                         addedFiles.Add(destination);
-                    else if (File.ReadAllBytes(destination)
-                        .SequenceEqual(File.ReadAllBytes(preview)))
+                    else if (FilesHaveSameContent(destination, preview))
                         unchangedFiles.Add(destination);
                     else
                         changedFiles.Add(destination);
@@ -470,8 +469,70 @@ namespace Xml2Doc.Cli
             }
             finally
             {
-                if (Directory.Exists(temporaryRoot))
-                    Directory.Delete(temporaryRoot, recursive: true);
+                DeleteDirectoryBestEffort(temporaryRoot);
+            }
+        }
+
+        private static bool FilesHaveSameContent(
+            string firstPath,
+            string secondPath)
+        {
+            using var first = File.OpenRead(firstPath);
+            using var second = File.OpenRead(secondPath);
+
+            if (first.Length != second.Length)
+                return false;
+
+            const int bufferSize = 81920;
+            var firstBuffer = new byte[bufferSize];
+            var secondBuffer = new byte[bufferSize];
+
+            while (true)
+            {
+                var firstCount = ReadBlock(first, firstBuffer);
+                var secondCount = ReadBlock(second, secondBuffer);
+
+                if (firstCount != secondCount)
+                    return false;
+                if (firstCount == 0)
+                    return true;
+                if (!firstBuffer.AsSpan(0, firstCount)
+                    .SequenceEqual(secondBuffer.AsSpan(0, secondCount)))
+                    return false;
+            }
+        }
+
+        private static int ReadBlock(Stream stream, byte[] buffer)
+        {
+            var totalRead = 0;
+            while (totalRead < buffer.Length)
+            {
+                var read = stream.Read(
+                    buffer,
+                    totalRead,
+                    buffer.Length - totalRead);
+                if (read == 0)
+                    break;
+                totalRead += read;
+            }
+
+            return totalRead;
+        }
+
+        private static void DeleteDirectoryBestEffort(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Temporary cleanup must not replace a successful diff result.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Antivirus or indexing can briefly retain Windows file handles.
             }
         }
 
