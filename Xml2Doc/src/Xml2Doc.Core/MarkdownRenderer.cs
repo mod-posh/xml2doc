@@ -478,7 +478,7 @@ public sealed class MarkdownRenderer
         var members = _symbolIndex.Members.Values
             .Where(m => m.Kind is "M" or "P" or "F" or "E")
             .Where(m => m.Id.StartsWith(type.Id + ".", StringComparison.Ordinal))
-            .OrderBy(m => m.Id)
+            .OrderBy(m => m.Id, StringComparer.Ordinal)
             .ToList();
 
         // Insert per‑type member TOC (multi‑file mode only).
