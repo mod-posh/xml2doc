@@ -51,7 +51,7 @@ Completion criteria:
 
 Dependencies:
 
-- #43 supplies regression coverage for #34 and #36 and should be developed alongside those issues.
+- #43 supplies regression coverage for #34 and #36.
 - CLI exposure for these services is tracked in #44 and completes in `2.2.0`.
 
 ## 2.2.0 — Diagnostics and Pipeline
