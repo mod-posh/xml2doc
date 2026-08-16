@@ -15,6 +15,9 @@ on:
       - "global.json"
       - "Directory.Build.props"
 
+permissions:
+  contents: read
+
 jobs:
   msbuild_integration:
     runs-on: windows-latest
