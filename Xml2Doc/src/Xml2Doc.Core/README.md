@@ -151,6 +151,17 @@ Keys are ordered ordinally for deterministic output. Supported values include st
 numbers, dates, enums, nulls, and scalar sequences. The delegate cannot be combined with
 `FrontMatterPath`.
 
+Free-text auto-linking is opt-in:
+
+```csharp
+var options = new RendererOptions(AutoLink: true);
+```
+
+The built-in `SimpleAutoLinker` links unambiguous type and member labels using the same
+mode-specific destinations as explicit `cref` links. It does not modify fenced code, inline code,
+existing Markdown links, `paramref`, or `typeparamref` output. To customize the policy, implement
+`IAutoLinker.Apply` and supply `AutoLinker`; the `AutoLink` switch must still be enabled.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
