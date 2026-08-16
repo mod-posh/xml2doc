@@ -57,6 +57,43 @@ namespace Xml2Doc.Cli
     /// </remarks>
     internal static class Program
     {
+        private static readonly HashSet<string> OptionsWithValues = new(
+            StringComparer.Ordinal)
+        {
+            "--xml",
+            "--out",
+            "--file-names",
+            "--rootns",
+            "--lang",
+            "--report",
+            "--anchor-algorithm",
+            "--template",
+            "--front-matter",
+            "--alias-map",
+            "--external-docs",
+            "--parallel",
+            "--config",
+            "--manifest-id",
+            "--line-endings"
+        };
+
+        private static readonly HashSet<string> FlagOptions = new(
+            StringComparer.Ordinal)
+        {
+            "--single",
+            "--trim-rootns-filenames",
+            "--dry-run",
+            "--diff",
+            "--auto-link",
+            "--toc",
+            "--namespace-index",
+            "--no-index",
+            "--basename-only",
+            "--prune-stale",
+            "--help",
+            "-h"
+        };
+
         /// <summary>
         /// Application entry point for the Xml2Doc CLI.
         /// </summary>
@@ -68,6 +105,13 @@ namespace Xml2Doc.Cli
             {
                 PrintHelp();
                 return 0;
+            }
+
+            var argumentError = ValidateArgumentSyntax(args);
+            if (argumentError is not null)
+            {
+                Console.Error.WriteLine(argumentError);
+                return 1;
             }
 
             string? xml = null;
@@ -143,10 +187,45 @@ namespace Xml2Doc.Cli
             }
 
             // Merge config (CLI wins)
-            if (!string.IsNullOrWhiteSpace(configPath) && File.Exists(configPath))
+            if (!string.IsNullOrWhiteSpace(configPath))
             {
-                var json = File.ReadAllText(configPath);
-                var cfg = JsonSerializer.Deserialize<CliConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (!File.Exists(configPath))
+                {
+                    Console.Error.WriteLine(
+                        $"Configuration file was not found: {configPath}");
+                    return 1;
+                }
+
+                CliConfig? cfg;
+                try
+                {
+                    var json = File.ReadAllText(configPath);
+                    cfg = JsonSerializer.Deserialize<CliConfig>(
+                        json,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true,
+                            UnmappedMemberHandling = System.Text.Json.Serialization
+                                .JsonUnmappedMemberHandling.Disallow
+                        });
+                }
+                catch (Exception ex) when (
+                    ex is JsonException ||
+                    ex is IOException ||
+                    ex is UnauthorizedAccessException)
+                {
+                    Console.Error.WriteLine(
+                        $"Invalid configuration file '{configPath}': " +
+                        ex.Message);
+                    return 1;
+                }
+
+                if (cfg is null)
+                {
+                    Console.Error.WriteLine(
+                        $"Configuration file is empty: {configPath}");
+                    return 1;
+                }
 
                 xml ??= cfg?.Xml;
                 outArg ??= cfg?.Out;
@@ -154,8 +233,16 @@ namespace Xml2Doc.Cli
 
                 var cfgNames = cfg?.FileNames;
                 if (!string.IsNullOrWhiteSpace(cfgNames))
+                {
+                    if (!IsFileNameMode(cfgNames))
+                    {
+                        Console.Error.WriteLine(
+                            "FileNames must be one of: verbatim, clean.");
+                        return 1;
+                    }
                     fileNameMode = cfgNames.Equals("clean", StringComparison.OrdinalIgnoreCase)
                         ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
+                }
 
                 rootns ??= cfg?.RootNamespace;
                 if (cfg?.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
@@ -188,6 +275,39 @@ namespace Xml2Doc.Cli
             {
                 Console.Error.WriteLine("Missing --xml or --out");
                 PrintHelp();
+                return 1;
+            }
+
+            if (!IsAnchorAlgorithm(anchorAlgorithm))
+            {
+                Console.Error.WriteLine(
+                    "--anchor-algorithm must be one of: default, github, gfm, kramdown.");
+                return 1;
+            }
+
+            if (parallel is <= 0)
+            {
+                Console.Error.WriteLine("--parallel must be an integer greater than zero.");
+                return 1;
+            }
+
+            if (single && toc)
+            {
+                Console.Error.WriteLine("--toc is only supported for directory output.");
+                return 1;
+            }
+
+            if (single && namespaceIndex)
+            {
+                Console.Error.WriteLine(
+                    "--namespace-index is only supported for directory output.");
+                return 1;
+            }
+
+            if (dryRun && diff)
+            {
+                Console.Error.WriteLine(
+                    "--dry-run and --diff cannot be used together; --diff already performs a non-mutating comparison.");
                 return 1;
             }
 
@@ -397,6 +517,47 @@ namespace Xml2Doc.Cli
                 return 2;
             }
         }
+
+        private static string? ValidateArgumentSyntax(string[] args)
+        {
+            for (var index = 0; index < args.Length; index++)
+            {
+                var option = args[index];
+                if (FlagOptions.Contains(option))
+                    continue;
+
+                if (!OptionsWithValues.Contains(option))
+                    return $"Unknown option: {option}";
+
+                if (index + 1 >= args.Length ||
+                    args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    return $"Option {option} requires a value.";
+                }
+
+                var value = args[++index];
+                if (option == "--file-names" && !IsFileNameMode(value))
+                    return "--file-names must be one of: verbatim, clean.";
+
+                if (option == "--parallel" &&
+                    (!int.TryParse(value, out var parallel) || parallel <= 0))
+                {
+                    return "--parallel must be an integer greater than zero.";
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsFileNameMode(string value) =>
+            value.Equals("verbatim", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("clean", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsAnchorAlgorithm(string value) =>
+            value.Equals("default", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("github", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("gfm", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("kramdown", StringComparison.OrdinalIgnoreCase);
 
         private static CliDiffResult RunDiff(
             Xml2Doc.Core.Models.Xml2Doc model,
