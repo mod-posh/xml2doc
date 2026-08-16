@@ -7,7 +7,126 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.4.0] - Unreleased
+## [2.1.0] - Unreleased
+
+### Added
+
+- Pluggable rendering services for Core consumers:
+  - `IAnchorGenerator` for custom heading and member anchors.
+  - `IAliasProvider` for configurable type-name aliases.
+  - `ITemplateRenderer` and a per-document front-matter callback.
+  - `IAutoLinker` for safe free-text symbol linking.
+  - `IExternalSymbolResolver` and `LinkPolicy` for unresolved cref targets.
+  - `ISignatureRenderer` and `SignatureStyle` for parameter names, generic constraints,
+    default values, and indexer formatting.
+- Built-in file templates and deterministic YAML front matter.
+- Optional auto-linking that protects fenced code, inline code, existing links, and partial
+  identifiers.
+- External documentation fallback using a configurable base URL.
+
+### Changed
+
+- Rendering now routes anchors, aliases, links, templates, and signatures through the same
+  replaceable services used by the built-in implementations.
+- Default rendering remains compatible with the `2.0.x` baseline unless a new option or custom
+  service is explicitly selected.
+
+### Tests
+
+- Added a per-type/single-file link-routing matrix for every built-in anchor algorithm.
+- Added parity coverage for emitted anchors and generated link targets.
+- Added integration coverage for every custom rendering service and auto-link safety boundaries.
+
+---
+
+## [2.0.3](https://github.com/mod-posh/Xml2Doc/releases/tag/2.0.3) - 2026-08-15
+
+### Added
+
+- Cross-project XML documentation discovery for `<inheritdoc />`, including automatic project
+  reference XML loading and explicit `Xml2Doc_ReferenceXml` items.
+- Portable output-ownership manifests that remain valid when a repository is moved to a different
+  checkout path.
+- Output ledgers that allow incremental MSBuild execution to detect and regenerate missing
+  Markdown files.
+
+### Fixed
+
+- `<see langword="..."/>` now renders its language keyword correctly while preserving attribute
+  precedence for existing `<see cref="..."/>` behavior.
+- `<inheritdoc />` now resolves inherited documentation for unique members, overloads, interfaces,
+  and referenced projects without mutating the source model.
+- Missing generated Markdown invalidates the MSBuild output stamp and is recreated on the next
+  build.
+- Ownership manifests migrate safe `2.0.x` entries without authorizing traversal or deletion
+  outside the current output root.
+
+### Changed
+
+- Manifest files are deterministic and portable; transaction directories remain local staging
+  state and are removed after successful cleanup.
+- Unresolved inheritance targets and missing explicitly configured reference XML files are reported
+  as non-fatal MSBuild warnings.
+
+---
+
+## [2.0.2](https://github.com/mod-posh/Xml2Doc/releases/tag/2.0.2) - 2026-08-14
+
+### Fixed
+
+- Corrected the `Xml2Doc.MSBuild` NuGet layout so `Xml2Doc.Core.dll` and other required runtime
+  dependencies are packaged beside the `net472` and `net8.0` task assemblies.
+- Fixed clean-consumer builds that previously failed with `FileNotFoundException` when MSBuild
+  loaded `Xml2Doc.Core`.
+- Fixed package integration commands so they execute from the generated consumer project directory.
+- Added the cross-platform `ZipFile` assembly loading required by package inspection.
+
+### Tests
+
+- Added package-layout assertions for both task target frameworks.
+- Added a clean .NET 9 consumer integration test that restores only the local
+  `Xml2Doc.MSBuild` package and verifies Markdown generation.
+- Suppressed the expected NuGet dependency-group warning after validating the self-contained task
+  package layout.
+
+---
+
+## [2.0.1](https://github.com/mod-posh/Xml2Doc/releases/tag/2.0.1) - 2026-08-14
+
+### Changed
+
+- Restricted NuGet publishing to milestone releases and tightened release-workflow permissions.
+- Updated package versions to `2.0.1`.
+
+### Known issue
+
+- The published `Xml2Doc.MSBuild` package did not include `Xml2Doc.Core.dll` beside its task
+  assemblies. Clean consumers could restore successfully but fail during `dotnet build`.
+  This packaging defect was corrected in `2.0.2`.
+
+---
+
+## [2.0.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.0.0) - 2026-08-13
+
+### Added
+
+- Explicit `lf`, `crlf`, and `native` line-ending policies across Core, CLI, and MSBuild.
+- `--line-endings` for the CLI and `Xml2Doc_LineEndings` for MSBuild consumers.
+- Cross-platform tests covering line endings and UTF-8 output without a byte-order mark.
+
+### Changed
+
+- Generated Markdown now uses LF on every platform by default for deterministic output.
+- Final output normalization is applied consistently across per-type and single-file modes.
+
+### Breaking
+
+- The default changed from platform-native line endings to LF. Windows consumers that require the
+  previous byte-level behavior must select `crlf` or `native` explicitly.
+
+---
+
+## [1.4.0](https://github.com/mod-posh/Xml2Doc/releases/tag/1.4.0) - 2026-08-13
 
 ### Added
 
