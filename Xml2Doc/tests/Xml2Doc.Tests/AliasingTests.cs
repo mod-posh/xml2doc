@@ -48,7 +48,7 @@ public class AliasingTests
 
             var markdown = renderer.RenderToString();
 
-            markdown.ShouldContain("[Run(integer)](#temp.widget.run(integer))");
+            markdown.ShouldContain("[Run(integer)](Temp.Widget.md#temp.widget.run(integer))");
             markdown.ShouldContain("## Method: Run(integer)");
             markdown.ShouldContain("<a id=\"temp.widget.run(integer)\"></a>");
         }
