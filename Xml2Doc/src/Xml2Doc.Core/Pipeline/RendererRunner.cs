@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 
 namespace Xml2Doc.Core.Pipeline;
 
@@ -54,18 +56,44 @@ public sealed class RendererRunner
                 stopwatch.Elapsed);
         }
 
+        var previousContent = plannedFiles.ToDictionary(
+            path => path,
+            path => File.Exists(path)
+                ? File.ReadAllBytes(path)
+                : null,
+            StringComparer.Ordinal);
+
         if (request.Mode == RendererRunMode.SingleFile)
             _renderer.RenderToSingleFile(plannedFiles[0]);
         else
             _renderer.RenderToDirectory(
                 System.IO.Path.GetFullPath(request.OutputPath));
 
+        var writtenFiles = new List<string>();
+        var skippedFiles = new List<string>();
+        foreach (var path in plannedFiles)
+        {
+            var previousBytes = previousContent[path];
+            if (previousBytes is not null &&
+                File.Exists(path) &&
+                previousBytes.SequenceEqual(File.ReadAllBytes(path)))
+            {
+                skippedFiles.Add(path);
+            }
+            else
+            {
+                writtenFiles.Add(path);
+            }
+        }
+
         stopwatch.Stop();
-        return CreateResult(
-            plannedFiles,
-            writtenFiles: plannedFiles,
-            dryRun: false,
-            stopwatch.Elapsed);
+        return new RendererRunResult(
+            PlannedFiles: plannedFiles,
+            WrittenFiles: writtenFiles,
+            SkippedFiles: skippedFiles,
+            PrunedFiles: Array.Empty<string>(),
+            DryRun: false,
+            Elapsed: stopwatch.Elapsed);
     }
 
     private static RendererRunResult CreateResult(
