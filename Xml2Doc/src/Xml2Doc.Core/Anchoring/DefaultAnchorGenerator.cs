@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Xml2Doc.Core.Aliasing;
@@ -89,13 +90,12 @@ public sealed class DefaultAnchorGenerator : IAnchorGenerator
         var formD = value.Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder(formD.Length);
 
-        foreach (var character in formD)
+        foreach (var character in formD.Where(
+                     character =>
+                         CharUnicodeInfo.GetUnicodeCategory(character) !=
+                         UnicodeCategory.NonSpacingMark))
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) !=
-                UnicodeCategory.NonSpacingMark)
-            {
-                builder.Append(character);
-            }
+            builder.Append(character);
         }
 
         return builder.ToString().Normalize(NormalizationForm.FormC);
