@@ -177,6 +177,23 @@ kind prefix. For other routing rules, implement `IExternalSymbolResolver` and pa
 `ExternalSymbolResolver`. If the provider declines a symbol, Xml2Doc preserves its existing
 internal-link fallback.
 
+Signature formatting is extracted behind `ISignatureRenderer`. The default style preserves the
+existing headings and cref labels. Optional detail can be enabled without replacing the service:
+
+```csharp
+var options = new RendererOptions(
+    SignatureStyle: new SignatureStyle(
+        IncludeParamNames: true,
+        IncludeConstraints: true,
+        IncludeDefaultValues: true));
+```
+
+With parameter names enabled, documented indexer properties use C# `this[...]` syntax. Parameter
+modifiers, default values, and generic constraints are read from optional `modifier`, `default`,
+and `constraint` attributes when those metadata values are available. Standard compiler XML does
+not include every source-level signature detail, so consumers that obtain metadata elsewhere can
+implement `ISignatureRenderer` and pass it as `SignatureRenderer`.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
