@@ -35,7 +35,8 @@ public class TemplateRendererTests
                 model,
                 new RendererOptions(
                     TemplatePath: templatePath,
-                    FrontMatterPath: frontMatterPath));
+                    FrontMatterPath: frontMatterPath,
+                    EmitNamespaceIndex: true));
 
             renderer.RenderToDirectory(output);
 
@@ -48,6 +49,18 @@ public class TemplateRendererTests
             type.ShouldStartWith("---\nlayout: api\n---\n<!-- type:Widget -->");
             type.ShouldContain("# Widget");
             type.ShouldEndWith("<!-- end -->");
+
+            var namespaceOverview = await File.ReadAllTextAsync(
+                Path.Join(output, "namespaces.md"));
+            namespaceOverview.ShouldStartWith(
+                "---\nlayout: api\n---\n<!-- namespaceoverview:Namespaces -->");
+            namespaceOverview.ShouldContain("# Namespaces");
+
+            var namespaceIndex = await File.ReadAllTextAsync(
+                Path.Join(output, "namespaces", "Temp.md"));
+            namespaceIndex.ShouldStartWith(
+                "---\nlayout: api\n---\n<!-- namespaceindex:Temp -->");
+            namespaceIndex.ShouldContain("# Temp");
         }
         finally
         {
@@ -69,12 +82,25 @@ public class TemplateRendererTests
             var renderer = new MarkdownRenderer(
                 model,
                 new RendererOptions(
-                    TemplateRenderer: new PrefixTemplateRenderer()));
+                    TemplateRenderer: new PrefixTemplateRenderer(),
+                    FrontMatter: context => new Dictionary<string, object?>
+                    {
+                        ["title"] = context.Title,
+                        ["kind"] = context.Kind.ToString().ToLowerInvariant(),
+                        ["draft"] = false
+                    }));
 
             renderer.RenderToSingleFile(output);
 
             var markdown = await File.ReadAllTextAsync(output);
-            markdown.ShouldStartWith("singlefile:API Reference\n# API Reference");
+            markdown.ShouldStartWith(
+                "---\n" +
+                "draft: false\n" +
+                "kind: \"singlefile\"\n" +
+                "title: \"API Reference\"\n" +
+                "---\n" +
+                "singlefile:API Reference\n" +
+                "# API Reference");
         }
         finally
         {
@@ -93,6 +119,19 @@ public class TemplateRendererTests
                 new RendererOptions(
                     TemplatePath: "template.md",
                     TemplateRenderer: new PrefixTemplateRenderer())));
+    }
+
+    [Fact]
+    public void FrontMatterDelegateAndFile_AreRejected()
+    {
+        var model = LoadModel();
+
+        Should.Throw<ArgumentException>(() =>
+            new MarkdownRenderer(
+                model,
+                new RendererOptions(
+                    FrontMatterPath: "front-matter.yml",
+                    FrontMatter: _ => new Dictionary<string, object?>())));
     }
 
     [Fact]
