@@ -1,4 +1,5 @@
 using Shouldly;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -20,6 +21,35 @@ public class AliasingTests
         DefaultAliasProvider.Instance
             .ApplyAliases("System.String StringComparer Int32 System.UInt32")
             .ShouldBe("string StringComparer int uint");
+    }
+
+    [Fact]
+    public void RendererOptions_PreservesPreviousConstructorSignature()
+    {
+        var parameterTypes = new[]
+        {
+            typeof(FileNameMode),
+            typeof(string),
+            typeof(string),
+            typeof(bool),
+            typeof(AnchorAlgorithm),
+            typeof(string),
+            typeof(string),
+            typeof(bool),
+            typeof(string),
+            typeof(string),
+            typeof(bool),
+            typeof(bool),
+            typeof(bool),
+            typeof(int?),
+            typeof(bool),
+            typeof(bool),
+            typeof(string),
+            typeof(LineEndingStyle),
+            typeof(Action<string>)
+        };
+
+        typeof(RendererOptions).GetConstructor(parameterTypes).ShouldNotBeNull();
     }
 
     [Fact]
