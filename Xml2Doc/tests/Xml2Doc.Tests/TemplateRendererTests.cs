@@ -15,10 +15,10 @@ public class TemplateRendererTests
 
         try
         {
-            var xmlPath = Path.Combine(root, "input.xml");
-            var templatePath = Path.Combine(root, "template.md");
-            var frontMatterPath = Path.Combine(root, "front-matter.yml");
-            var output = Path.Combine(root, "docs");
+            var xmlPath = Path.Join(root, "input.xml");
+            var templatePath = Path.Join(root, "template.md");
+            var frontMatterPath = Path.Join(root, "front-matter.yml");
+            var output = Path.Join(root, "docs");
 
             await File.WriteAllTextAsync(xmlPath, FixtureXml, new UTF8Encoding(false));
             await File.WriteAllTextAsync(
@@ -39,12 +39,12 @@ public class TemplateRendererTests
 
             renderer.RenderToDirectory(output);
 
-            var index = await File.ReadAllTextAsync(Path.Combine(output, "index.md"));
+            var index = await File.ReadAllTextAsync(Path.Join(output, "index.md"));
             index.ShouldStartWith("---\nlayout: api\n---\n<!-- index:API Reference -->");
             index.ShouldContain("# API Reference");
             index.ShouldEndWith("<!-- end -->");
 
-            var type = await File.ReadAllTextAsync(Path.Combine(output, "Temp.Widget.md"));
+            var type = await File.ReadAllTextAsync(Path.Join(output, "Temp.Widget.md"));
             type.ShouldStartWith("---\nlayout: api\n---\n<!-- type:Widget -->");
             type.ShouldContain("# Widget");
             type.ShouldEndWith("<!-- end -->");
@@ -62,8 +62,8 @@ public class TemplateRendererTests
 
         try
         {
-            var xmlPath = Path.Combine(root, "input.xml");
-            var output = Path.Combine(root, "api.md");
+            var xmlPath = Path.Join(root, "input.xml");
+            var output = Path.Join(root, "api.md");
             await File.WriteAllTextAsync(xmlPath, FixtureXml, new UTF8Encoding(false));
             var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
             var renderer = new MarkdownRenderer(
@@ -102,7 +102,7 @@ public class TemplateRendererTests
 
         try
         {
-            var templatePath = Path.Combine(root, "template.md");
+            var templatePath = Path.Join(root, "template.md");
             await File.WriteAllTextAsync(templatePath, "missing token");
 
             Should.Throw<InvalidDataException>(() =>
@@ -131,10 +131,10 @@ public class TemplateRendererTests
 
     private static string CreateTestRoot()
     {
-        var root = Path.Combine(
+        var root = Path.Join(
             Path.GetTempPath(),
             "Xml2Doc.Tests",
-            Path.GetRandomFileName());
+            Path.GetFileName(Path.GetRandomFileName()));
         Directory.CreateDirectory(root);
         return root;
     }
