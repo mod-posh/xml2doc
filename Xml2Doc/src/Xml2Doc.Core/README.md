@@ -194,6 +194,21 @@ and `constraint` attributes when those metadata values are available. Standard c
 not include every source-level signature detail, so consumers that obtain metadata elsewhere can
 implement `ISignatureRenderer` and pass it as `SignatureRenderer`.
 
+Structured diagnostics are opt-in through `IDiagnosticSink`:
+
+```csharp
+var sink = new MyDiagnosticSink();
+var model = Xml2Doc.Core.Models.Xml2Doc.Load("MyLibrary.xml", sink);
+var renderer = new MarkdownRenderer(
+    model,
+    new RendererOptions(DiagnosticSink: sink));
+```
+
+Diagnostics include a stable code, severity, message, and optional member/source context. Loading
+reports malformed XML before rethrowing the parser exception. Rendering reports unresolved crefs,
+duplicate anchors, missing summaries, and unresolved `inheritdoc` targets. The legacy
+`WarningSink` remains supported for unresolved `inheritdoc` warnings.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
