@@ -250,12 +250,18 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_ManifestIdentity)");
             props.Descendants("Xml2Doc_LineEndings")
                 .Single().Value.ShouldBe("lf");
+            props.Descendants("Xml2Doc_ParallelDegree")
+                .Single().Value.ShouldBe("1");
             targets.Descendants("_Xml2Doc_NativeLineEndingToken")
                 .Single().Value.ShouldContain("Environment]::NewLine.Length");
             targets.Descendants("_Xml2Doc_Options")
                 .Single().Value.ShouldContain("$(_Xml2Doc_NativeLineEndingToken)");
             taskElement.Attribute("LineEndings")!.Value
                 .ShouldBe("$(Xml2Doc_LineEndings)");
+            taskElement.Attribute("ParallelDegree")!.Value
+                .ShouldBe("$(Xml2Doc_ParallelDegree)");
+            targets.Descendants("_Xml2Doc_Options")
+                .Single().Value.ShouldContain("$(Xml2Doc_ParallelDegree)");
             taskElement.Attribute("ReferenceXmlPaths")!.Value
                 .ShouldBe("@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)");
             var generateTarget = targets.Descendants("Target")

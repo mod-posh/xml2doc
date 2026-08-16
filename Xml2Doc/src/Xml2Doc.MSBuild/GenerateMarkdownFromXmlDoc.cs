@@ -162,6 +162,12 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public bool BasenameOnly { get; set; }
 
     /// <summary>
+    /// Maximum parallelism for per-type rendering. Values greater than one enable
+    /// bounded parallel execution; the default value of one preserves serial rendering.
+    /// </summary>
+    public int ParallelDegree { get; set; } = 1;
+
+    /// <summary>
     /// Algorithm for generating anchor links in Markdown. Supported values: "default", "github", "kramdown", "gfm".
     /// Defaults to "default" if not specified or unrecognized.
     /// </summary>
@@ -318,6 +324,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 EmitToc: EmitToc,
                 EmitNamespaceIndex: EmitNamespaceIndex,
                 BasenameOnly: BasenameOnly,
+                ParallelDegree: ParallelDegree,
                 AnchorAlgorithm: anchorAlgEnum,
                 GenerateIndex: GenerateIndex,
                 PruneStaleFiles: PruneStaleFiles,
@@ -414,6 +421,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                             fileNameMode = fnMode.ToString(),
                             rootNs = options.RootNamespaceToTrim,
                             lang = options.CodeBlockLanguage,
+                            parallelDegree = ParallelDegree,
                             pruneStaleFiles = PruneStaleFiles,
                             manifestIdentity = ManifestIdentity,
                             lineEndings = lineEndingStyle.ToString()
@@ -578,6 +586,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 
         /// <summary>Code block language identifier.</summary>
         public string? lang { get; set; }
+
+        /// <summary>Maximum parallelism used for per-type rendering.</summary>
+        public int parallelDegree { get; set; }
 
         /// <summary>Whether invocation-scoped stale-output pruning was enabled.</summary>
         public bool pruneStaleFiles { get; set; }

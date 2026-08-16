@@ -106,6 +106,7 @@ Reference XML contents are included in incremental fingerprinting.
 | `Xml2Doc_Toc` | `false` | `true`, `false` | Emits a member table of contents where supported. Set in `.csproj` or `Directory.Build.targets`. |
 | `Xml2Doc_NamespaceIndex` | `false` | `true`, `false` | Emits namespace index output in per-type mode. Set in `.csproj` or `Directory.Build.targets`. |
 | `Xml2Doc_BasenameOnly` | `false` | `true`, `false` | Drops namespace segments from filenames and increases collision risk. Set in `.csproj` or `Directory.Build.targets`. |
+| `Xml2Doc_ParallelDegree` | `1` | Positive integer | Maximum concurrent per-type renders. Values greater than `1` opt into bounded parallel generation; custom rendering extensions must be thread-safe. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, `native` | Normalizes generated Markdown at the output boundary. `lf` is deterministic across hosts. |
 
 Filename processing order is: filename-mode normalization, optional root-namespace trimming, then optional basename-only reduction.
@@ -176,6 +177,7 @@ Do not add an `Xml2Doc_WriteFingerprint` target. The imported targets already ma
   <Xml2Doc_TrimRootNamespaceInFileNames>true</Xml2Doc_TrimRootNamespaceInFileNames>
   <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
   <Xml2Doc_ManifestIdentity>$(MSBuildProjectName)</Xml2Doc_ManifestIdentity>
+  <Xml2Doc_ParallelDegree>4</Xml2Doc_ParallelDegree>
   <Xml2Doc_LineEndings>lf</Xml2Doc_LineEndings>
 </PropertyGroup>
 ```
@@ -323,6 +325,7 @@ xml2doc `
   --out .\docs `
   --file-names clean `
   --rootns MyCompany.MyProduct `
+  --parallel 4 `
   --line-endings lf
 ```
 

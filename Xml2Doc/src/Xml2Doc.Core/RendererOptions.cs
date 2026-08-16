@@ -115,7 +115,10 @@ namespace Xml2Doc.Core
     /// When true, file names drop namespace segments (after trimming if enabled), keeping only the final identifier.
     /// </param>
     /// <param name="ParallelDegree">
-    /// Max parallelism for rendering; <see langword="null"/> or &lt;= 0 selects a heuristic (typically <c>Environment.ProcessorCount</c>).
+    /// Maximum parallelism for per-type rendering. Values greater than one
+    /// enable bounded parallel execution; <see langword="null"/> or values less
+    /// than or equal to one preserve serial rendering. Custom rendering extensions
+    /// must support concurrent calls when parallel rendering is enabled.
     /// </param>
     /// <param name="GenerateIndex">
     /// When true, per-type output includes <c>index.md</c>. Disable this when multiple independent

@@ -151,6 +151,75 @@ public class RendererRunnerTests
     }
 
     [Fact]
+    public void Run_ParallelAndSerialPerTypeOutputsAreByteIdentical()
+    {
+        using var serialOutput = TemporaryDirectory.Create();
+        using var parallelOutput = TemporaryDirectory.Create();
+
+        var serialResult = CreateRunner(new RendererOptions(
+            ParallelDegree: 1,
+            EmitNamespaceIndex: true)).Run(
+                new RendererRunRequest(serialOutput.Path));
+        var parallelResult = CreateRunner(new RendererOptions(
+            ParallelDegree: 4,
+            EmitNamespaceIndex: true)).Run(
+                new RendererRunRequest(parallelOutput.Path));
+
+        var serialNames = serialResult.PlannedFiles
+            .Select(path => Path.GetRelativePath(serialOutput.Path, path))
+            .ToArray();
+        var parallelNames = parallelResult.PlannedFiles
+            .Select(path => Path.GetRelativePath(parallelOutput.Path, path))
+            .ToArray();
+        parallelNames.ShouldBe(serialNames);
+
+        foreach (var fileName in serialNames)
+        {
+            File.ReadAllBytes(Path.Join(serialOutput.Path, fileName))
+                .ShouldBe(File.ReadAllBytes(
+                    Path.Join(parallelOutput.Path, fileName)));
+        }
+    }
+
+    [Fact]
+    public void Run_ParallelDegreePreservesSerialCollisionOrdering()
+    {
+        using var serialOutput = TemporaryDirectory.Create();
+        using var parallelOutput = TemporaryDirectory.Create();
+        var model = new Xml2Doc.Core.Models.Xml2Doc();
+        AddType(model, "T:First.Duplicate");
+        AddType(model, "T:Second.Duplicate");
+
+        var serial = new RendererRunner(new MarkdownRenderer(
+            model,
+            new RendererOptions(BasenameOnly: true, ParallelDegree: 1)));
+        var parallel = new RendererRunner(new MarkdownRenderer(
+            model,
+            new RendererOptions(BasenameOnly: true, ParallelDegree: 4)));
+
+        serial.Run(new RendererRunRequest(serialOutput.Path));
+        parallel.Run(new RendererRunRequest(parallelOutput.Path));
+
+        File.ReadAllBytes(Path.Join(serialOutput.Path, "Duplicate.md"))
+            .ShouldBe(File.ReadAllBytes(
+                Path.Join(parallelOutput.Path, "Duplicate.md")));
+    }
+
+    [Fact]
+    public void Run_RepeatedParallelGenerationReportsDeterministicSkips()
+    {
+        using var output = TemporaryDirectory.Create();
+        var runner = CreateRunner(new RendererOptions(ParallelDegree: 4));
+        var request = new RendererRunRequest(output.Path);
+        runner.Run(request);
+
+        var second = runner.Run(request);
+
+        second.WrittenFiles.ShouldBeEmpty();
+        second.SkippedFiles.ShouldBe(second.PlannedFiles);
+    }
+
+    [Fact]
     public void Run_RelativeSingleFileExecutesTheAbsolutePlan()
     {
         var relativeOutput =
@@ -209,6 +278,20 @@ public class RendererRunnerTests
             runner.Plan(new RendererRunRequest(" ")));
 
         exception.ParamName.ShouldBe("OutputPath");
+    }
+
+    [Fact]
+    public void Plan_RejectsTypeFileNamesThatEscapeTheOutputDirectory()
+    {
+        using var output = TemporaryDirectory.Create();
+        var model = new Xml2Doc.Core.Models.Xml2Doc();
+        AddType(model, "T:../Escape");
+        var runner = new RendererRunner(new MarkdownRenderer(model));
+
+        var exception = Should.Throw<ArgumentException>(() =>
+            runner.Plan(new RendererRunRequest(output.Path)));
+
+        exception.ParamName.ShouldBe("fileName");
     }
 
     private static RendererRunner CreateRunner(
