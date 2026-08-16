@@ -26,7 +26,10 @@ public sealed record RendererRunResult(
     /// <summary>Gets the duration spent generating and writing Markdown.</summary>
     public TimeSpan RenderingElapsed { get; init; }
 
-    /// <summary>Gets the duration spent applying output lifecycle changes.</summary>
+    /// <summary>
+    /// Gets the duration spent evaluating or applying output lifecycle changes.
+    /// Dry runs evaluate lifecycle changes without applying them.
+    /// </summary>
     public TimeSpan LifecycleElapsed { get; init; }
 
     /// <summary>

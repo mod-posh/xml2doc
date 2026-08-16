@@ -55,7 +55,8 @@ public sealed class RendererRunner
             {
                 var lifecycleStopwatch = Stopwatch.StartNew();
                 wouldPruneFiles = _renderer.PlanPrunedFiles(
-                    request.OutputPath);
+                    request.OutputPath,
+                    plannedFiles);
                 lifecycleStopwatch.Stop();
                 lifecycleElapsed = lifecycleStopwatch.Elapsed;
             }

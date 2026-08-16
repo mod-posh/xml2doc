@@ -331,7 +331,9 @@ public sealed class MarkdownRenderer
             lifecycleElapsed);
     }
 
-    internal IReadOnlyList<string> PlanPrunedFiles(string outDir)
+    internal IReadOnlyList<string> PlanPrunedFiles(
+        string outDir,
+        IReadOnlyList<string> plannedFiles)
     {
         if (!_opt.PruneStaleFiles)
             return Array.Empty<string>();
@@ -341,7 +343,7 @@ public sealed class MarkdownRenderer
             _opt.ManifestIdentity!);
         var generatedFiles = GetOutputRootRelativePaths(
             location.OutputRoot,
-            PlanOutputs(outDir));
+            plannedFiles);
         var lifecyclePlan = OutputLifecycleExecutor
             .ExecuteAfterSuccessfulGeneration(
                 location,
