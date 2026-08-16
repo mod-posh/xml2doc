@@ -113,7 +113,7 @@ public class RendererRunnerTests
         public string Path { get; }
 
         public static TemporaryDirectory Create() =>
-            new(Path.Join(
+            new(System.IO.Path.Join(
                 System.IO.Path.GetTempPath(),
                 "Xml2Doc.Tests",
                 System.IO.Path.GetRandomFileName()));
