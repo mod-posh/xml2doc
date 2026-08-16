@@ -76,6 +76,56 @@ public class RendererRunnerTests
     }
 
     [Fact]
+    public void Run_RelativeSingleFileExecutesTheAbsolutePlan()
+    {
+        var relativeOutput =
+            "xml2doc-runner-" + Guid.NewGuid().ToString("N") + ".md";
+        var absoluteOutput = System.IO.Path.GetFullPath(relativeOutput);
+
+        try
+        {
+            var result = CreateRunner().Run(new RendererRunRequest(
+                relativeOutput,
+                RendererRunMode.SingleFile));
+
+            result.PlannedFiles.ShouldBe(new[] { absoluteOutput });
+            result.WrittenFiles.ShouldBe(result.PlannedFiles);
+            File.Exists(absoluteOutput).ShouldBeTrue();
+        }
+        finally
+        {
+            if (File.Exists(absoluteOutput))
+                File.Delete(absoluteOutput);
+        }
+    }
+
+    [Fact]
+    public void Run_RelativePerTypeDirectoryExecutesTheAbsolutePlan()
+    {
+        var relativeOutput =
+            "xml2doc-runner-" + Guid.NewGuid().ToString("N");
+        var absoluteOutput = System.IO.Path.GetFullPath(relativeOutput);
+
+        try
+        {
+            var result = CreateRunner().Run(
+                new RendererRunRequest(relativeOutput));
+
+            result.PlannedFiles.All(path =>
+                path.StartsWith(
+                    absoluteOutput + System.IO.Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal)).ShouldBeTrue();
+            result.WrittenFiles.ShouldBe(result.PlannedFiles);
+            result.WrittenFiles.All(File.Exists).ShouldBeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(absoluteOutput))
+                Directory.Delete(absoluteOutput, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Plan_RejectsMissingOutputPathBeforeWriting()
     {
         var runner = CreateRunner();
