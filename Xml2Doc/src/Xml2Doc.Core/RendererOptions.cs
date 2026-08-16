@@ -3,6 +3,7 @@ using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
+using Xml2Doc.Core.Linking;
 
 namespace Xml2Doc.Core
 {
@@ -99,7 +100,8 @@ namespace Xml2Doc.Core
     /// Path to a JSON/text alias map adding custom type/namespace replacements beyond built‑in C# keyword aliases.
     /// </param>
     /// <param name="ExternalDocs">
-    /// Base URL (or map) for external documentation used for unresolved cref targets (e.g. framework APIs).
+    /// Base URL for external documentation used for unresolved cref targets (e.g. framework APIs).
+    /// Requires <see cref="LinkPolicy.PreferExternalForUnknown"/>.
     /// </param>
     /// <param name="EmitToc">
     /// When true, emits a member table of contents per type in multi‑file mode (suppressed in single‑file mode).
@@ -149,6 +151,15 @@ namespace Xml2Doc.Core
     /// </param>
     /// <param name="AutoLinker">
     /// Optional free-text linker used when <paramref name="AutoLink"/> is true.
+    /// </param>
+    /// <param name="LinkPolicy">
+    /// Controls whether unresolved cref targets retain the existing internal-link
+    /// behavior or are offered to an external resolver.
+    /// </param>
+    /// <param name="ExternalSymbolResolver">
+    /// Optional provider for unresolved cref targets. When omitted and
+    /// <paramref name="ExternalDocs"/> is set, a
+    /// <see cref="BaseUrlExternalSymbolResolver"/> is used.
     /// </param>
     /// <remarks>
     /// Example:
@@ -201,9 +212,69 @@ namespace Xml2Doc.Core
         IAnchorGenerator? AnchorGenerator = null,
         ITemplateRenderer? TemplateRenderer = null,
         Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter = null,
-        IAutoLinker? AutoLinker = null
+        IAutoLinker? AutoLinker = null,
+        LinkPolicy LinkPolicy = LinkPolicy.InternalOnly,
+        IExternalSymbolResolver? ExternalSymbolResolver = null
     )
     {
+        /// <summary>
+        /// Preserves the constructor signature published with auto-linker injection.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator,
+            ITemplateRenderer? TemplateRenderer,
+            Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter,
+            IAutoLinker? AutoLinker)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer,
+                FrontMatter,
+                AutoLinker,
+                LinkPolicy: LinkPolicy.InternalOnly,
+                ExternalSymbolResolver: null)
+        {
+        }
+
         /// <summary>
         /// Preserves the constructor signature published with front-matter injection.
         /// </summary>

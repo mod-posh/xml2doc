@@ -162,6 +162,21 @@ mode-specific destinations as explicit `cref` links. It does not modify fenced c
 existing Markdown links, `paramref`, or `typeparamref` output. To customize the policy, implement
 `IAutoLinker.Apply` and supply `AutoLinker`; the `AutoLink` switch must still be enabled.
 
+External cref fallback is also opt-in:
+
+```csharp
+var options = new RendererOptions(
+    LinkPolicy: LinkPolicy.PreferExternalForUnknown,
+    ExternalDocs: "https://learn.microsoft.com/dotnet/api");
+```
+
+Crefs present in the rendered model always retain their normal per-type or single-file links.
+Only unknown crefs are offered to the external provider. `ExternalDocs` uses
+`BaseUrlExternalSymbolResolver`, which appends the escaped documentation identifier without its
+kind prefix. For other routing rules, implement `IExternalSymbolResolver` and pass it as
+`ExternalSymbolResolver`. If the provider declines a symbol, Xml2Doc preserves its existing
+internal-link fallback.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
