@@ -105,6 +105,41 @@ public class StructuredDiagnosticTests
     }
 
     [Fact]
+    public void PerTypeRender_AllowsMatchingAnchorsInDifferentTypeFiles()
+    {
+        var sink = new RecordingDiagnosticSink();
+        var renderer = CreateRenderer(
+            """
+            <doc><members>
+              <member name="T:Temp.First"><summary>First type.</summary></member>
+              <member name="M:Temp.First.Run"><summary>Runs first.</summary></member>
+              <member name="T:Temp.Second"><summary>Second type.</summary></member>
+              <member name="M:Temp.Second.Run"><summary>Runs second.</summary></member>
+            </members></doc>
+            """,
+            new RendererOptions(
+                AnchorGenerator: new ConstantMemberAnchorGenerator(),
+                DiagnosticSink: sink));
+        var output = Path.Join(
+            Path.GetTempPath(),
+            "Xml2Doc.Tests",
+            Path.GetFileName(Path.GetRandomFileName()));
+
+        try
+        {
+            renderer.RenderToDirectory(output);
+
+            sink.Diagnostics.ShouldNotContain(diagnostic =>
+                diagnostic.Code == DiagnosticIds.DuplicateAnchor);
+        }
+        finally
+        {
+            if (Directory.Exists(output))
+                Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Load_WhenXmlIsMalformed_ReportsErrorAndRethrows()
     {
         var path = Path.GetTempFileName();
