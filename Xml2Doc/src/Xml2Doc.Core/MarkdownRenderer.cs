@@ -8,6 +8,7 @@ using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.OutputLifecycle;
+using Xml2Doc.Core.Aliasing;
 using System.Globalization;
 
 namespace Xml2Doc.Core;
@@ -45,6 +46,7 @@ public sealed class MarkdownRenderer
         new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
+    private readonly IAliasProvider _aliasProvider;
 
     /// <summary>
     /// Internal link target selection mode for cref resolution (multi‑file vs single‑file).
@@ -89,6 +91,7 @@ public sealed class MarkdownRenderer
     {
         _model = model;
         _opt = options ?? new RendererOptions();
+        _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: ShortLabelFromCref,
             idToAnchor: IdToAnchor,
@@ -418,7 +421,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine(BuildMemberToc(members));
         }
 
-        static string GroupKey(XMember mm)
+        string GroupKey(XMember mm)
         {
             var id = mm.Id;
             var parenIdx = id.IndexOf('(');
@@ -432,7 +435,7 @@ public sealed class MarkdownRenderer
                 return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
             });
 
-            nameAndParams = ApplyAliases(nameAndParams);
+            nameAndParams = _aliasProvider.ApplyAliases(nameAndParams);
             if (nameAndParams.StartsWith("System.", StringComparison.Ordinal))
                 nameAndParams = nameAndParams.Substring("System.".Length);
 
@@ -730,43 +733,9 @@ public sealed class MarkdownRenderer
     }
 
     /// <summary>
-    /// Built‑in mappings from fully‑qualified BCL types to C# aliases.
-    /// </summary>
-    private static readonly (string Full, string Alias)[] Aliases = new[]
-    {
-        ("System.String","string"), ("System.Int32","int"), ("System.Boolean","bool"),
-        ("System.Object","object"), ("System.Void","void"), ("System.Int64","long"),
-        ("System.Int16","short"), ("System.Byte","byte"), ("System.SByte","sbyte"),
-        ("System.UInt32","uint"), ("System.UInt64","ulong"), ("System.UInt16","ushort"),
-        ("System.Char","char"), ("System.Decimal","decimal"),
-        ("System.Double","double"), ("System.Single","float")
-    };
-
-    // Token‑aware full and short patterns (avoid partial replacements inside larger identifiers).
-    private static readonly (Regex Pattern, string Alias)[] AliasFullTokenPatterns =
-        Aliases.Select(a => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(a.Full)}(?![A-Za-z0-9_])"), a.Alias)).ToArray();
-
-    private static readonly (Regex Pattern, string Alias)[] AliasShortTokenPatterns =
-        Aliases
-            .GroupBy(a => a.Full.Split('.').Last(), a => a.Alias)
-            .Select(g => (Pattern: new Regex($@"(?<![A-Za-z0-9_]){Regex.Escape(g.Key)}(?![A-Za-z0-9_])"), Alias: g.First()))
-            .ToArray();
-
-    /// <summary>
-    /// Applies alias substitutions to framework type tokens without touching longer identifiers.
-    /// </summary>
-    private static string ApplyAliases(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return s;
-        foreach (var (pattern, alias) in AliasFullTokenPatterns) s = pattern.Replace(s, alias);
-        foreach (var (pattern, alias) in AliasShortTokenPatterns) s = pattern.Replace(s, alias);
-        return s;
-    }
-
-    /// <summary>
     /// Shortens a fully‑qualified type for signature display (aliases + recursive generic argument formatting).
     /// </summary>
-    private static string ShortenSignatureType(string full)
+    private string ShortenSignatureType(string full)
     {
         if (string.IsNullOrWhiteSpace(full)) return string.Empty;
 
@@ -777,7 +746,7 @@ public sealed class MarkdownRenderer
         var lt = s.IndexOf('<');
         if (lt < 0)
         {
-            s = ApplyAliases(s);
+            s = _aliasProvider.ApplyAliases(s);
             if (s.Contains('.')) s = s.Split('.').Last();
             s = s.Replace("System.", string.Empty);
             return s;
@@ -790,7 +759,7 @@ public sealed class MarkdownRenderer
         var inner = s.Substring(lt + 1, gt - lt - 1);
         var tail = s.Substring(gt + 1);
 
-        head = ApplyAliases(head);
+        head = _aliasProvider.ApplyAliases(head);
         if (head.Contains('.')) head = head.Split('.').Last();
         head = head.Replace("System.Collections.Generic.", string.Empty)
                    .Replace("System.", string.Empty);
@@ -953,8 +922,8 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Converts a documentation ID to a stable anchor (lowercase; generic braces → square brackets; aliases applied).
     /// </summary>
-    private static string IdToAnchor(string id) =>
-        ApplyAliases(id)
+    private string IdToAnchor(string id) =>
+        _aliasProvider.ApplyAliases(id)
             .Replace('{', '[')
             .Replace('}', ']')
             .ToLowerInvariant();
@@ -1000,7 +969,7 @@ public sealed class MarkdownRenderer
             return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
         });
         last = last.Replace('{', '<').Replace('}', '>');
-        last = ApplyAliases(last);
+        last = _aliasProvider.ApplyAliases(last);
         return last;
     }
 
@@ -1082,7 +1051,7 @@ public sealed class MarkdownRenderer
             {
                 p = p.Trim();
                 p = p.Replace('{', '<').Replace('}', '>');
-                p = ApplyAliases(p);
+                p = _aliasProvider.ApplyAliases(p);
 
                 if (p.Contains('<') && p.Contains('>'))
                 {
