@@ -58,6 +58,7 @@ namespace Xml2Doc.Tests
         public void Main_WithPruning_DeletesOwnedStaleFileAndPreservesUntrackedFile()
         {
             using var output = TemporaryOutput.Create();
+            var reportPath = output.FullPath("report.json");
             var location = OutputManifestLocation.Create(
                 output.Path,
                 "sample-project");
@@ -70,13 +71,34 @@ namespace Xml2Doc.Tests
                 "--xml", SampleXml,
                 "--out", output.Path,
                 "--prune-stale",
-                "--manifest-id", "sample-project"
+                "--manifest-id", "sample-project",
+                "--report", reportPath
             });
 
             exitCode.ShouldBe(0);
             output.Exists("stale.md").ShouldBeFalse();
             output.Exists("hand-authored.md").ShouldBeTrue();
             OutputManifestStore.Load(location)!.Files.ShouldNotBeEmpty();
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            var plannedFiles = report.RootElement
+                .GetProperty("plannedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+            var writtenFiles = report.RootElement
+                .GetProperty("writtenFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+            writtenFiles.ShouldBe(plannedFiles);
+            report.RootElement.GetProperty("skippedFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.GetProperty("prunedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray()
+                .ShouldBe(new[] { output.FullPath("stale.md") });
         }
 
         [Fact]
@@ -176,6 +198,65 @@ namespace Xml2Doc.Tests
                 .Select(item => item.GetString())
                 .ToArray();
             wouldDelete.ShouldBe(new[] { output.FullPath("stale.md") });
+            var plannedFiles = report.RootElement
+                .GetProperty("plannedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+            var wouldWrite = report.RootElement
+                .GetProperty("wouldWrite")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+            wouldWrite.ShouldBe(plannedFiles);
+            report.RootElement.GetProperty("writtenFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.GetProperty("skippedFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.GetProperty("prunedFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.TryGetProperty("timings", out _)
+                .ShouldBeTrue();
+            report.RootElement.TryGetProperty("timestamp", out _)
+                .ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Main_RepeatedGenerationReportsAllUnchangedFilesAsSkipped()
+        {
+            using var output = TemporaryOutput.Create();
+            var reportPath = output.FullPath("report.json");
+            var arguments = new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--parallel", "4"
+            };
+
+            Program.Main(arguments).ShouldBe(0);
+            Program.Main(arguments.Concat(new[]
+            {
+                "--report", reportPath
+            }).ToArray()).ShouldBe(0);
+
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            var plannedFiles = report.RootElement
+                .GetProperty("plannedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+            var skippedFiles = report.RootElement
+                .GetProperty("skippedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ToArray();
+
+            skippedFiles.ShouldBe(plannedFiles);
+            report.RootElement.GetProperty("writtenFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.GetProperty("prunedFiles")
+                .GetArrayLength().ShouldBe(0);
         }
 
         [Fact]

@@ -28,4 +28,11 @@ public sealed record RendererRunResult(
 
     /// <summary>Gets the duration spent applying output lifecycle changes.</summary>
     public TimeSpan LifecycleElapsed { get; init; }
+
+    /// <summary>
+    /// Gets stale output paths that would be pruned by a dry run. Empty for
+    /// non-dry-run invocations.
+    /// </summary>
+    public IReadOnlyList<string> WouldPruneFiles { get; init; } =
+        Array.Empty<string>();
 }

@@ -345,6 +345,13 @@ format: `xml2doc <severity> <code>: <message>`. Source locations and member IDs
 are included when available. Warnings do not fail generation; diagnostic errors
 return exit code `2`. Invalid CLI arguments return exit code `1`.
 
+When `--report` is configured, the CLI report includes deterministic
+`plannedFiles`, `writtenFiles`, `skippedFiles`, and `prunedFiles` arrays plus
+runner timing fields. Dry runs leave the actual-result arrays empty and populate
+`wouldWrite` and `wouldDelete` without modifying Markdown or ownership state.
+CLI reports omit timestamps so otherwise identical invocations do not differ
+solely because of wall-clock time.
+
 Use `--single` when `--out` names one combined file. Pruning is unavailable in single-file mode.
 
 ## Troubleshooting
