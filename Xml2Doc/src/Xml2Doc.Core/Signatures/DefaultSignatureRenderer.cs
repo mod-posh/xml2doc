@@ -75,17 +75,71 @@ public sealed class DefaultSignatureRenderer : ISignatureRenderer
             return RenderTypeName(id);
 
         if (kind == "M")
-        {
-            var label = RenderMemberName(
-                id,
-                Array.Empty<XElement>(),
-                SignatureStyle.Default,
-                Array.Empty<string>());
-            return id.IndexOf('(') >= 0 ? label : label + "()";
-        }
+            return RenderLegacyMethodCrefLabel(id);
 
         var lastDot = id.LastIndexOf('.');
         return lastDot >= 0 ? id.Substring(lastDot + 1) : id;
+    }
+
+    private string RenderLegacyMethodCrefLabel(string id)
+    {
+        var parenIndex = id.IndexOf('(');
+        var cut = parenIndex >= 0
+            ? id.LastIndexOf('.', parenIndex)
+            : id.LastIndexOf('.');
+        var nameAndParameters = cut >= 0 ? id.Substring(cut + 1) : id;
+        var paren = nameAndParameters.IndexOf('(');
+        var methodName = paren >= 0
+            ? nameAndParameters.Substring(0, paren)
+            : nameAndParameters;
+        methodName = Regex.Replace(methodName, @"``(\d+)", match =>
+        {
+            var count = int.Parse(match.Groups[1].Value);
+            return $"<{string.Join(",", Enumerable.Range(1, count).Select(index => $"T{index}"))}>";
+        });
+
+        var parameterList = paren >= 0 &&
+                            nameAndParameters.EndsWith(")", StringComparison.Ordinal)
+            ? nameAndParameters.Substring(
+                paren + 1,
+                nameAndParameters.Length - paren - 2)
+            : string.Empty;
+        var parameters = string.IsNullOrWhiteSpace(parameterList)
+            ? string.Empty
+            : string.Join(", ",
+                SplitTopLevel(parameterList, '{', '}')
+                    .Select(FormatLegacyCrefParameter));
+
+        return string.IsNullOrEmpty(parameters)
+            ? $"{methodName}()"
+            : $"{methodName}({parameters})";
+    }
+
+    private string FormatLegacyCrefParameter(string parameter)
+    {
+        var value = _aliasProvider.ApplyAliases(
+            parameter.Trim().Replace('{', '<').Replace('}', '>'));
+        var open = value.IndexOf('<');
+        var close = value.LastIndexOf('>');
+
+        if (open >= 0 && close > open)
+        {
+            var head = value.Substring(0, open + 1);
+            var inner = value.Substring(open + 1, close - open - 1);
+            var tail = value.Substring(close);
+            var arguments = SplitTopLevel(inner, '<', '>')
+                .Select(argument => argument.IndexOf('<') >= 0
+                    ? Regex.Replace(
+                        argument,
+                        @"(?<![A-Za-z0-9_])([A-ZaZ0-9_.]+)(?=\s*<)",
+                        match => match.Groups[1].Value.Split('.').Last())
+                    : argument.Split('.').Last());
+            value = head + string.Join(", ", arguments) + tail;
+        }
+
+        if (value.IndexOf('<') < 0)
+            value = value.Split('.').Last();
+        return value;
     }
 
     private string RenderMemberName(
