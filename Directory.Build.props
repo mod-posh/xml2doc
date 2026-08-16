@@ -8,7 +8,7 @@
     <RepositoryType>git</RepositoryType>
 
     <!-- Version: set once for all (override per project if needed) -->
-    <VersionPrefix>2.0.3</VersionPrefix>
+    <VersionPrefix>2.1.0</VersionPrefix>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <!-- Licensing (metadata only; LICENSE lives in repo root) -->
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
