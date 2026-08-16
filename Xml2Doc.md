@@ -352,6 +352,12 @@ configuration, and unknown JSON properties. `--toc`, `--namespace-index`, and
 exclusive because diff already performs a non-mutating comparison. Validation
 failures do not create or modify generated output.
 
+CLI arguments take precedence over equivalent JSON configuration properties.
+Boolean command-line switches enable their feature even when the JSON value is
+`false`; value-bearing options such as filename mode, language, anchor
+algorithm, output mode, paths, parallelism, and line endings retain the explicit
+command-line value. Omitted values continue to use the `2.1.0` defaults.
+
 When `--report` is configured, the CLI report includes deterministic
 `plannedFiles`, `writtenFiles`, `skippedFiles`, and `prunedFiles` arrays plus
 runner timing fields. Dry runs leave the actual-result arrays empty and populate
