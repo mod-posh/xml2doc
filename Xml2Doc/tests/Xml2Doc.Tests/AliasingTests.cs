@@ -50,6 +50,9 @@ public class AliasingTests
         };
 
         typeof(RendererOptions).GetConstructor(parameterTypes).ShouldNotBeNull();
+        typeof(RendererOptions)
+            .GetConstructor(parameterTypes.Concat(new[] { typeof(IAliasProvider) }).ToArray())
+            .ShouldNotBeNull();
     }
 
     [Fact]
