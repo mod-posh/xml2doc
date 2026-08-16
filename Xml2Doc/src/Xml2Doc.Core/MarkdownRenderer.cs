@@ -11,6 +11,7 @@ using Xml2Doc.Core.OutputLifecycle;
 using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
+using Xml2Doc.Core.AutoLinking;
 
 namespace Xml2Doc.Core;
 
@@ -50,6 +51,9 @@ public sealed class MarkdownRenderer
     private readonly IAliasProvider _aliasProvider;
     private readonly IAnchorGenerator _anchorGenerator;
     private readonly ITemplateRenderer _templateRenderer;
+    private readonly IAutoLinker _autoLinker;
+    private readonly AutoLinkContext _perTypeAutoLinkContext;
+    private readonly AutoLinkContext _singleFileAutoLinkContext;
 
     /// <summary>
     /// Internal link target selection mode for cref resolution (multi‑file vs single‑file).
@@ -95,11 +99,14 @@ public sealed class MarkdownRenderer
                     _opt.TemplatePath,
                     _opt.FrontMatterPath)
                 : DefaultTemplateRenderer.Instance);
+        _autoLinker = _opt.AutoLinker ?? SimpleAutoLinker.Instance;
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: ShortLabelFromCref,
             idToAnchor: IdToAnchor,
             typeFileName: TypeFileNameForResolver,
             headingSlug: HeadingSlug);
+        _perTypeAutoLinkContext = BuildAutoLinkContext(singleFile: false);
+        _singleFileAutoLinkContext = BuildAutoLinkContext(singleFile: true);
     }
 
     // === Public APIs ===
@@ -817,6 +824,31 @@ public sealed class MarkdownRenderer
         sb.Append('[').Append(link.Label).Append("](").Append(link.Href).Append(')');
     }
 
+    private AutoLinkContext BuildAutoLinkContext(bool singleFile)
+    {
+        if (!_opt.AutoLink)
+            return new AutoLinkContext(Array.Empty<AutoLinkTarget>());
+
+        var targets = _model.Members.Values
+            .Where(member => member.Kind is "T" or "M" or "P" or "F" or "E")
+            .Select(member =>
+            {
+                var cref = member.Kind + ":" + member.Id;
+                var link = _linkResolver.Resolve(
+                    cref,
+                    new LinkContext(
+                        CurrentTypeId: null,
+                        SingleFile: singleFile,
+                        BasePath: null));
+                return new AutoLinkTarget(link.Label, link.Href);
+            })
+            .OrderByDescending(target => target.Label.Length)
+            .ThenBy(target => target.Label, StringComparer.Ordinal)
+            .ToArray();
+
+        return new AutoLinkContext(targets);
+    }
+
     /// <summary>
     /// Basic filename builder (mode only; no root namespace trimming).
     /// </summary>
@@ -1105,7 +1137,7 @@ public sealed class MarkdownRenderer
                         }
                     }
                     break;
-                case XElement e when e.Name.LocalName == "paramref":
+                case XElement e when e.Name.LocalName is "paramref" or "typeparamref":
                     var name = (string?)e.Attribute("name") ?? "";
                     text.Append($"`{name}`");
                     break;
@@ -1208,7 +1240,15 @@ public sealed class MarkdownRenderer
             }
         }
 
-        return sbOut.ToString().Trim('\n');
+        var markdown = sbOut.ToString().Trim('\n');
+        if (!_opt.AutoLink)
+            return markdown;
+
+        return _autoLinker.Apply(
+            markdown,
+            _singleFileMode
+                ? _singleFileAutoLinkContext
+                : _perTypeAutoLinkContext);
     }
 
     /// <summary>
