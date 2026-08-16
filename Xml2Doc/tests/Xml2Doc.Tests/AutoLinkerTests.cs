@@ -38,6 +38,43 @@ public class AutoLinkerTests
     }
 
     [Fact]
+    public void SimpleAutoLinker_DoesNotCloseLongFenceWithShorterFence()
+    {
+        var markdown = """
+            ````csharp
+            Widget
+            ```
+            Widget
+            ````
+            Widget
+            """;
+        var context = new AutoLinkContext(new[]
+        {
+            new AutoLinkTarget("Widget", "Widget.md")
+        });
+
+        var result = SimpleAutoLinker.Instance
+            .Apply(markdown, context)
+            .ReplaceLineEndings("\n");
+
+        result.ShouldBe(
+            "````csharp\nWidget\n```\nWidget\n````\n[Widget](Widget.md)");
+    }
+
+    [Fact]
+    public void SimpleAutoLinker_PreparesTargetsOncePerContext()
+    {
+        var targets = new TrackingTargets(
+            new AutoLinkTarget("Widget", "Widget.md"));
+        var context = new AutoLinkContext(targets);
+
+        SimpleAutoLinker.Instance.Apply("Widget", context);
+        SimpleAutoLinker.Instance.Apply("Widget again", context);
+
+        targets.EnumerationCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Renderer_AutoLinksWithModeSpecificTargets()
     {
         var root = CreateTestRoot();
@@ -143,6 +180,27 @@ public class AutoLinkerTests
     {
         public string Apply(string markdown, AutoLinkContext context) =>
             "linked:" + markdown;
+    }
+
+    private sealed class TrackingTargets : IReadOnlyList<AutoLinkTarget>
+    {
+        private readonly AutoLinkTarget[] _targets;
+
+        public TrackingTargets(params AutoLinkTarget[] targets) =>
+            _targets = targets;
+
+        public int EnumerationCount { get; private set; }
+        public int Count => _targets.Length;
+        public AutoLinkTarget this[int index] => _targets[index];
+
+        public IEnumerator<AutoLinkTarget> GetEnumerator()
+        {
+            EnumerationCount++;
+            return ((IEnumerable<AutoLinkTarget>)_targets).GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
     }
 
     private const string FixtureXml = """
