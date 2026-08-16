@@ -105,6 +105,20 @@ var options = new RendererOptions(
 Implement `IAliasProvider.ApplyAliases` with token-aware replacements. Omitting the provider uses
 `DefaultAliasProvider.Instance` and preserves the existing C# keyword mappings.
 
+Anchor generation is also replaceable while the built-in `AnchorAlgorithm` values remain the
+default:
+
+```csharp
+using Xml2Doc.Core.Anchoring;
+
+var options = new RendererOptions(
+    AnchorGenerator: new MyAnchorGenerator());
+```
+
+Implement both `GenerateHeadingAnchor` and `GenerateMemberAnchor`. Xml2Doc uses the selected
+provider for emitted anchors and internal link targets, keeping them aligned in per-type and
+single-file output.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
