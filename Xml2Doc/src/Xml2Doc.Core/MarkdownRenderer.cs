@@ -154,12 +154,12 @@ public sealed class MarkdownRenderer
 
     internal RendererWriteResult RenderToDirectoryWithResult(string outDir)
     {
+        var renderingStopwatch = Stopwatch.StartNew();
         ValidateAnchors(singleFile: false);
         var __prev = _singleFileMode;
         var writtenFiles = new List<string>();
         var skippedFiles = new List<string>();
         IReadOnlyList<string> prunedFiles = Array.Empty<string>();
-        var renderingStopwatch = Stopwatch.StartNew();
         var lifecycleElapsed = TimeSpan.Zero;
         OutputManifestLocation? manifestLocation = null;
         IReadOnlyList<string>? generatedFiles = null;
