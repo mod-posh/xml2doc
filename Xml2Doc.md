@@ -345,6 +345,13 @@ format: `xml2doc <severity> <code>: <message>`. Source locations and member IDs
 are included when available. Warnings do not fail generation; diagnostic errors
 return exit code `2`. Invalid CLI arguments return exit code `1`.
 
+CLI validation rejects unknown options, missing option values, unsupported
+filename or anchor modes, non-positive parallelism, missing or malformed JSON
+configuration, and unknown JSON properties. `--toc`, `--namespace-index`, and
+`--prune-stale` require directory output. `--dry-run` and `--diff` are mutually
+exclusive because diff already performs a non-mutating comparison. Validation
+failures do not create or modify generated output.
+
 When `--report` is configured, the CLI report includes deterministic
 `plannedFiles`, `writtenFiles`, `skippedFiles`, and `prunedFiles` arrays plus
 runner timing fields. Dry runs leave the actual-result arrays empty and populate

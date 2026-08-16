@@ -21,6 +21,186 @@ namespace Xml2Doc.Tests
                 "Xml2Doc.Sample.xml");
 
         [Fact]
+        public void Main_WhenOptionIsUnknown_ReturnsValidationFailure()
+        {
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--unknown"
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain("Unknown option: --unknown");
+        }
+
+        [Fact]
+        public void Main_WhenOptionValueIsMissing_ReturnsValidationFailure()
+        {
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", "--out", "docs"
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "Option --xml requires a value.");
+        }
+
+        [Theory]
+        [InlineData("invalid")]
+        [InlineData("0")]
+        [InlineData("-1")]
+        public void Main_WhenParallelValueIsInvalid_ReturnsValidationFailure(
+            string value)
+        {
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--parallel", value
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "--parallel must be an integer greater than zero.");
+        }
+
+        [Theory]
+        [InlineData("--file-names", "invalid", "--file-names must be one of")]
+        [InlineData("--anchor-algorithm", "invalid", "--anchor-algorithm must be one of")]
+        public void Main_WhenEnumeratedValueIsInvalid_ReturnsValidationFailure(
+            string option,
+            string value,
+            string expectedError)
+        {
+            using var output = TemporaryOutput.Create();
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                option, value
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(expectedError);
+            Directory.Exists(output.Path).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Main_WhenConfigFileIsMissing_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("missing.json");
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--config", configPath
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "Configuration file was not found:");
+        }
+
+        [Theory]
+        [InlineData("{")]
+        [InlineData("{\"Unexpected\":true}")]
+        public void Main_WhenConfigJsonIsInvalid_ReturnsValidationFailure(
+            string json)
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write("xml2doc.json", json);
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--config", configPath
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain("Invalid configuration file");
+        }
+
+        [Fact]
+        public void Main_WhenConfigJsonIsNull_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write("xml2doc.json", "null");
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--config", configPath
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "Configuration file must contain a JSON object:");
+        }
+
+        [Fact]
+        public void Main_WhenConfiguredParallelValueIsInvalid_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write(
+                "xml2doc.json",
+                JsonSerializer.Serialize(new CliConfig
+                {
+                    Xml = SampleXml,
+                    Out = output.FullPath("docs"),
+                    Parallel = 0
+                }));
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--config", configPath
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "--parallel must be an integer greater than zero.");
+            Directory.Exists(output.FullPath("docs")).ShouldBeFalse();
+        }
+
+        [Theory]
+        [InlineData("--toc", "--toc is only supported for directory output.")]
+        [InlineData("--namespace-index", "--namespace-index is only supported for directory output.")]
+        public void Main_WhenDirectoryFeatureIsUsedWithSingleFile_ReturnsValidationFailure(
+            string option,
+            string expectedError)
+        {
+            using var output = TemporaryOutput.Create();
+            var outputPath = output.FullPath("api.md");
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", outputPath,
+                "--single",
+                option
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(expectedError);
+            File.Exists(outputPath).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Main_WhenDryRunAndDiffAreCombined_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--dry-run",
+                "--diff"
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "--dry-run and --diff cannot be used together");
+            Directory.Exists(output.Path).ShouldBeFalse();
+        }
+
+        [Fact]
         public void Main_WhenPruningHasNoIdentity_ReturnsValidationFailure()
         {
             using var output = TemporaryOutput.Create();
