@@ -23,6 +23,18 @@ public class SignatureRendererTests
     }
 
     [Fact]
+    public void DefaultCrefLabel_PreservesLegacyNestedParameterQualification()
+    {
+        const string cref =
+            "M:Xml2Doc.Sample.GenericPlayground.Flatten(System.Collections.Generic.IEnumerable{System.Collections.Generic.IEnumerable{Xml2Doc.Sample.XItem}})";
+
+        new DefaultSignatureRenderer()
+            .RenderCrefLabel(cref)
+            .ShouldBe(
+                "Flatten(System.Collections.Generic.IEnumerable<System.Collections.Generic.IEnumerable<Xml2Doc.Sample.XItem>>)");
+    }
+
+    [Fact]
     public void DetailedStyle_RendersNamesDefaultsModifiersAndConstraints()
     {
         var member = Member(
