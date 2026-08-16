@@ -151,6 +151,49 @@ public class RendererRunnerTests
     }
 
     [Fact]
+    public void Run_ParallelAndSerialPerTypeOutputsAreByteIdentical()
+    {
+        using var serialOutput = TemporaryDirectory.Create();
+        using var parallelOutput = TemporaryDirectory.Create();
+
+        var serialResult = CreateRunner(new RendererOptions(
+            ParallelDegree: 1)).Run(
+                new RendererRunRequest(serialOutput.Path));
+        var parallelResult = CreateRunner(new RendererOptions(
+            ParallelDegree: 4)).Run(
+                new RendererRunRequest(parallelOutput.Path));
+
+        var serialNames = serialResult.PlannedFiles
+            .Select(Path.GetFileName)
+            .ToArray();
+        var parallelNames = parallelResult.PlannedFiles
+            .Select(Path.GetFileName)
+            .ToArray();
+        parallelNames.ShouldBe(serialNames);
+
+        foreach (var fileName in serialNames)
+        {
+            File.ReadAllBytes(Path.Join(serialOutput.Path, fileName!))
+                .ShouldBe(File.ReadAllBytes(
+                    Path.Join(parallelOutput.Path, fileName!)));
+        }
+    }
+
+    [Fact]
+    public void Run_RepeatedParallelGenerationReportsDeterministicSkips()
+    {
+        using var output = TemporaryDirectory.Create();
+        var runner = CreateRunner(new RendererOptions(ParallelDegree: 4));
+        var request = new RendererRunRequest(output.Path);
+        runner.Run(request);
+
+        var second = runner.Run(request);
+
+        second.WrittenFiles.ShouldBeEmpty();
+        second.SkippedFiles.ShouldBe(second.PlannedFiles);
+    }
+
+    [Fact]
     public void Run_RelativeSingleFileExecutesTheAbsolutePlan()
     {
         var relativeOutput =

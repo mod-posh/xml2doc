@@ -5,6 +5,7 @@ using Xml2Doc.Core.Compat;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
@@ -61,6 +62,7 @@ public sealed class MarkdownRenderer
     private readonly SignatureStyle _signatureStyle;
     private readonly HashSet<string> _reportedDiagnostics =
         new(StringComparer.Ordinal);
+    private readonly object _diagnosticLock = new();
     private readonly AutoLinkContext _perTypeAutoLinkContext;
     private readonly AutoLinkContext _singleFileAutoLinkContext;
 
@@ -184,18 +186,49 @@ public sealed class MarkdownRenderer
             _linkMode = LinkMode.PerTypeFiles;
 
             Directory.CreateDirectory(outDir);
-            var types = GetTypes().OrderBy(t => t.Id).ToList();
-            foreach (var t in types)
+            var types = GetTypes()
+                .OrderBy(t => t.Id, StringComparer.Ordinal)
+                .ToList();
+            var typeFiles = types
+                .Select(type =>
+                    Path.Combine(outDir, FileNameForPerType(type.Id)))
+                .ToArray();
+            var typeWasWritten = new bool[types.Count];
+
+            void RenderTypeAt(int index)
             {
-                var file = Path.Combine(outDir, FileNameForPerType(t.Id));
-                RecordWriteResult(
-                    file,
+                var type = types[index];
+                typeWasWritten[index] = WriteMarkdownFileIfChanged(
+                    typeFiles[index],
                     NormalizeLineEndings(ApplyTemplate(
-                        RenderType(t, includeHeader: true),
-                        _signatureRenderer.RenderTypeName(t.Id),
-                        TemplateDocumentKind.Type)),
-                    writtenFiles,
-                    skippedFiles);
+                        RenderType(type, includeHeader: true),
+                        _signatureRenderer.RenderTypeName(type.Id),
+                        TemplateDocumentKind.Type)));
+            }
+
+            var parallelDegree = _opt.ParallelDegree.GetValueOrDefault(1);
+            if (parallelDegree > 1 && types.Count > 1)
+            {
+                Parallel.For(
+                    0,
+                    types.Count,
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = parallelDegree
+                    },
+                    RenderTypeAt);
+            }
+            else
+            {
+                for (var index = 0; index < types.Count; index++)
+                    RenderTypeAt(index);
+            }
+
+            for (var index = 0; index < typeFiles.Length; index++)
+            {
+                (typeWasWritten[index]
+                    ? writtenFiles
+                    : skippedFiles).Add(typeFiles[index]);
             }
             if (_opt.GenerateIndex)
                 RecordWriteResult(
@@ -786,8 +819,17 @@ public sealed class MarkdownRenderer
             diagnostic.Code,
             diagnostic.MemberId ?? string.Empty,
             diagnostic.Message);
-        if (_reportedDiagnostics.Add(key))
-            _opt.DiagnosticSink?.Report(diagnostic);
+        lock (_diagnosticLock)
+        {
+            if (_reportedDiagnostics.Add(key))
+                _opt.DiagnosticSink?.Report(diagnostic);
+        }
+    }
+
+    private void ReportWarning(string message)
+    {
+        lock (_diagnosticLock)
+            _opt.WarningSink?.Invoke(message);
     }
 
     private void ValidateAnchors(bool singleFile)
@@ -1150,7 +1192,7 @@ public sealed class MarkdownRenderer
                     DiagnosticSeverity.Warning,
                     message,
                     MemberId: m.Name));
-                _opt.WarningSink?.Invoke(message);
+                ReportWarning(message);
             }
         }
 
