@@ -164,6 +164,7 @@ namespace Xml2Doc.Core
     /// </param>
     /// <param name="SignatureStyle">
     /// Optional controls for parameter names, generic constraints, and default values.
+    /// Constraint output also uses documented generic parameter names in the signature.
     /// The default preserves existing signature output.
     /// </param>
     /// <param name="SignatureRenderer">
