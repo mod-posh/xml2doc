@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml;
 using System.Xml.Linq;
+using Xml2Doc.Core.Diagnostics;
 
 namespace Xml2Doc.Core.Models
 {
@@ -36,8 +38,19 @@ namespace Xml2Doc.Core.Models
         /// (e.g., file not found, access denied, malformed XML).
         /// </remarks>
         public static Xml2Doc Load(string xmlPath)
+            => Load(xmlPath, diagnosticSink: null);
+
+        /// <summary>
+        /// Loads an XML documentation file and reports malformed XML through a diagnostic sink.
+        /// </summary>
+        /// <param name="xmlPath">The path to the XML documentation file.</param>
+        /// <param name="diagnosticSink">Optional receiver for structured diagnostics.</param>
+        /// <returns>An <see cref="Xml2Doc"/> instance containing parsed members.</returns>
+        public static Xml2Doc Load(
+            string xmlPath,
+            IDiagnosticSink? diagnosticSink)
         {
-            var doc = XDocument.Load(xmlPath, LoadOptions.PreserveWhitespace);
+            var doc = LoadDocument(xmlPath, diagnosticSink);
             var model = new Xml2Doc();
 
             foreach (var m in doc.Descendants("member"))
@@ -57,13 +70,21 @@ namespace Xml2Doc.Core.Models
         /// </summary>
         /// <param name="xmlPaths">Reference XML documentation paths.</param>
         public void LoadReferences(IEnumerable<string> xmlPaths)
+            => LoadReferences(xmlPaths, diagnosticSink: null);
+
+        /// <summary>
+        /// Loads reference XML and reports malformed inputs through a diagnostic sink.
+        /// </summary>
+        /// <param name="xmlPaths">Reference XML documentation paths.</param>
+        /// <param name="diagnosticSink">Optional receiver for structured diagnostics.</param>
+        public void LoadReferences(
+            IEnumerable<string> xmlPaths,
+            IDiagnosticSink? diagnosticSink)
         {
             foreach (var doc in xmlPaths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(path => XDocument.Load(
-                    path,
-                    LoadOptions.PreserveWhitespace)))
+                .Select(path => LoadDocument(path, diagnosticSink)))
             {
                 foreach (var element in doc.Descendants("member"))
                 {
@@ -73,6 +94,27 @@ namespace Xml2Doc.Core.Models
 
                     ReferenceMembers[name!] = new XMember(name!, element);
                 }
+            }
+        }
+
+        private static XDocument LoadDocument(
+            string xmlPath,
+            IDiagnosticSink? diagnosticSink)
+        {
+            try
+            {
+                return XDocument.Load(xmlPath, LoadOptions.PreserveWhitespace);
+            }
+            catch (XmlException exception)
+            {
+                diagnosticSink?.Report(new Xml2DocDiagnostic(
+                    DiagnosticIds.MalformedXml,
+                    DiagnosticSeverity.Error,
+                    $"Unable to parse XML documentation '{xmlPath}': {exception.Message}",
+                    SourcePath: xmlPath,
+                    LineNumber: exception.LineNumber,
+                    LinePosition: exception.LinePosition));
+                throw;
             }
         }
     }
