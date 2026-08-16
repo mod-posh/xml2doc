@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Anchoring;
 using Xunit;
 
 namespace Xml2Doc.Tests
@@ -18,6 +19,23 @@ namespace Xml2Doc.Tests
                 yield return new object[] { algorithm, false };
                 yield return new object[] { algorithm, true };
             }
+        }
+
+        [Theory]
+        [InlineData(AnchorAlgorithm.Default, "crme-brle-v20")]
+        [InlineData(AnchorAlgorithm.Github, "creme-brulee-v2-0")]
+        [InlineData(AnchorAlgorithm.Kramdown, "creme-brulee_-v2-0")]
+        [InlineData(AnchorAlgorithm.Gfm, "crme-brle_-v2.0")]
+        public void BuiltInAnchorGenerators_PreserveExistingHeadingSlugs(
+            AnchorAlgorithm algorithm,
+            string expected)
+        {
+            var generator = new DefaultAnchorGenerator(algorithm);
+
+            generator.GenerateHeadingAnchor("Crème brûlée_ v2.0!")
+                .ShouldBe(expected);
+            generator.GenerateMemberAnchor("Temp.Widget.Run(System.Int32)")
+                .ShouldBe("temp.widget.run(int)");
         }
 
         [Theory]
@@ -87,6 +105,45 @@ namespace Xml2Doc.Tests
             }
         }
 
+        [Fact]
+        public async Task CustomAnchorGenerator_IsUsedForEmittedAnchorsAndLinks()
+        {
+            var root = ChildPath(
+                ChildPath(Path.GetTempPath(), "Xml2Doc.Tests"),
+                Path.GetFileName(Path.GetRandomFileName()));
+
+            try
+            {
+                Directory.CreateDirectory(root);
+                var xmlPath = ChildPath(root, "custom-anchors.xml");
+                await File.WriteAllTextAsync(xmlPath, FixtureXml, new UTF8Encoding(false));
+                var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
+                var renderer = new MarkdownRenderer(
+                    model,
+                    new RendererOptions(
+                        AnchorGenerator: new PrefixAnchorGenerator()));
+                var output = ChildPath(root, "api.md");
+
+                renderer.RenderToSingleFile(output);
+                var markdown = await ReadRequiredMarkdownAsync(output);
+
+                var typeHref = ExtractHref(markdown, "HTTP_Parser_v2");
+                typeHref.ShouldBe("#heading-http_parser_v2");
+                AssertAnchorExists(markdown, typeHref.Substring(1));
+
+                var memberHref = ExtractHref(markdown, "Do(string)");
+                memberHref.ShouldBe("#member-temp.http_parser_v2.do(system.string)");
+                AssertAnchorExists(markdown, memberHref.Substring(1));
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
         private static string ExtractHref(string markdown, string label)
         {
             var marker = $"[{label}](";
@@ -117,6 +174,15 @@ namespace Xml2Doc.Tests
 
         private static void AssertAnchorExists(string markdown, string anchor) =>
             markdown.ShouldContain($"<a id=\"{anchor}\"></a>");
+
+        private sealed class PrefixAnchorGenerator : IAnchorGenerator
+        {
+            public string GenerateHeadingAnchor(string heading) =>
+                "heading-" + heading.ToLowerInvariant();
+
+            public string GenerateMemberAnchor(string memberId) =>
+                "member-" + memberId.ToLowerInvariant();
+        }
 
         private static async Task<string> ReadRequiredMarkdownAsync(string path)
         {
