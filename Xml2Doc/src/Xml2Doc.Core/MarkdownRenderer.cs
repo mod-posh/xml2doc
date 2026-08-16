@@ -179,22 +179,20 @@ public sealed class MarkdownRenderer
             foreach (var t in types)
             {
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
-                File.WriteAllText(
+                WriteMarkdownFileIfChanged(
                     file,
                     NormalizeLineEndings(ApplyTemplate(
                         RenderType(t, includeHeader: true),
                         _signatureRenderer.RenderTypeName(t.Id),
-                        TemplateDocumentKind.Type)),
-                    MarkdownEncoding);
+                        TemplateDocumentKind.Type)));
             }
             if (_opt.GenerateIndex)
-                File.WriteAllText(
+                WriteMarkdownFileIfChanged(
                     CombineOutputPath(outDir, "index.md"),
                     NormalizeLineEndings(ApplyTemplate(
                         RenderIndex(types, useAnchors: false),
                         "API Reference",
-                        TemplateDocumentKind.Index)),
-                    MarkdownEncoding);
+                        TemplateDocumentKind.Index)));
 
             if (_opt.EmitNamespaceIndex)
             {
@@ -224,13 +222,12 @@ public sealed class MarkdownRenderer
                         var perTypeFile = FileNameForPerType(t.Id);
                         sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
                     }
-                    File.WriteAllText(
+                    WriteMarkdownFileIfChanged(
                         nsFile,
                         NormalizeLineEndings(ApplyTemplate(
                             sbNs.ToString(),
                             ns,
-                            TemplateDocumentKind.NamespaceIndex)),
-                        MarkdownEncoding);
+                            TemplateDocumentKind.NamespaceIndex)));
                 }
 
                 var nsIndex = new StringBuilder();
@@ -240,13 +237,12 @@ public sealed class MarkdownRenderer
                     var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
-                File.WriteAllText(
+                WriteMarkdownFileIfChanged(
                     CombineOutputPath(outDir, "namespaces.md"),
                     NormalizeLineEndings(ApplyTemplate(
                         nsIndex.ToString(),
                         "Namespaces",
-                        TemplateDocumentKind.NamespaceOverview)),
-                    MarkdownEncoding);
+                        TemplateDocumentKind.NamespaceOverview)));
             }
 
             if (manifestLocation is not null &&
@@ -277,10 +273,9 @@ public sealed class MarkdownRenderer
         {
             _singleFileMode = true;
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-            File.WriteAllText(
+            WriteMarkdownFileIfChanged(
                 outPath,
-                NormalizeLineEndings(BuildSingleFileContent()),
-                MarkdownEncoding);
+                NormalizeLineEndings(BuildSingleFileContent()));
         }
         finally
         {
@@ -293,6 +288,21 @@ public sealed class MarkdownRenderer
     /// </summary>
     public string RenderToString() =>
         NormalizeLineEndings(BuildSingleFileContent());
+
+    private static void WriteMarkdownFileIfChanged(
+        string path,
+        string content)
+    {
+        var bytes = MarkdownEncoding.GetBytes(content);
+
+        if (File.Exists(path) &&
+            File.ReadAllBytes(path).SequenceEqual(bytes))
+        {
+            return;
+        }
+
+        File.WriteAllBytes(path, bytes);
+    }
 
     private string NormalizeLineEndings(string content)
     {
