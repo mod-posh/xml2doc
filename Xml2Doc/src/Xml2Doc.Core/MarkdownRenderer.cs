@@ -9,7 +9,7 @@ using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.OutputLifecycle;
 using Xml2Doc.Core.Aliasing;
-using System.Globalization;
+using Xml2Doc.Core.Anchoring;
 
 namespace Xml2Doc.Core;
 
@@ -47,6 +47,7 @@ public sealed class MarkdownRenderer
     private readonly Models.Xml2Doc _model;
     private readonly RendererOptions _opt;
     private readonly IAliasProvider _aliasProvider;
+    private readonly IAnchorGenerator _anchorGenerator;
 
     /// <summary>
     /// Internal link target selection mode for cref resolution (multi‑file vs single‑file).
@@ -58,31 +59,6 @@ public sealed class MarkdownRenderer
     private bool _singleFileMode;
 
     /// <summary>
-    /// Precompiled whitespace matching regex (reserved for future slug optimizations).
-    /// </summary>
-    private static readonly Regex Spaces = new Regex(@"\s+", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Precompiled pattern for GitHub slug punctuation removal (currently unused; kept for potential micro‑optimization).
-    /// </summary>
-    private static readonly Regex GitHubDrop = new Regex(@"[^a-z0-9\- ]+", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Precompiled pattern for Kramdown slug punctuation removal (unused placeholder).
-    /// </summary>
-    private static readonly Regex KramdownDrop = new Regex(@"[^a-z0-9\- _:.]+", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Precompiled pattern for GFM slug punctuation removal (unused placeholder).
-    /// </summary>
-    private static readonly Regex GfmDrop = new Regex(@"[^a-z0-9\-_. ]+", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Collapses consecutive dashes to a single dash (unused placeholder for potential manual slug pipelines).
-    /// </summary>
-    private static readonly Regex CollapseDash = new Regex(@"\-+", RegexOptions.Compiled);
-
-    /// <summary>
     /// Creates a renderer for a parsed XML documentation model.
     /// </summary>
     /// <param name="model">Parsed XML documentation model (never null).</param>
@@ -92,6 +68,8 @@ public sealed class MarkdownRenderer
         _model = model;
         _opt = options ?? new RendererOptions();
         _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
+        _anchorGenerator = _opt.AnchorGenerator ??
+            new DefaultAnchorGenerator(_opt.AnchorAlgorithm, _aliasProvider);
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: ShortLabelFromCref,
             idToAnchor: IdToAnchor,
@@ -558,83 +536,8 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="heading">Raw heading text.</param>
     /// <returns>Algorithm-specific slug string.</returns>
-    private string HeadingSlug(string heading)
-    {
-        switch (_opt.AnchorAlgorithm)
-        {
-            case AnchorAlgorithm.Github:
-                return GithubSlug(heading);
-            case AnchorAlgorithm.Kramdown:
-                return KramdownSlug(heading);
-            case AnchorAlgorithm.Gfm:
-                return GfmSlug(heading);
-            case AnchorAlgorithm.Default:
-            default:
-                return DefaultSlug(heading);
-        }
-    }
-
-    /// <summary>
-    /// Default slug (lowercase, whitespace → single dash, strip non <c>[a-z0-9-]</c>, collapse multi‑dash runs, trim dashes).
-    /// </summary>
-    private static string DefaultSlug(string heading)
-    {
-        var s = heading.Trim().ToLowerInvariant();
-        s = Regex.Replace(s, @"\s+", "-");
-        s = Regex.Replace(s, @"[^a-z0-9\-]", "");
-        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
-        return s;
-    }
-
-    /// <summary>
-    /// GitHub-style slug: Unicode normalize + diacritic removal, lowercase, drop punctuation, collapse spaces to dashes, trim.
-    /// </summary>
-    private static string GithubSlug(string heading)
-    {
-        var formD = heading.Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(formD.Length);
-        foreach (var ch in formD)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
-                sb.Append(ch);
-        }
-        var s = sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
-        s = Regex.Replace(s, @"[^a-z0-9\s\-]", " ");
-        s = Regex.Replace(s, @"\s+", "-");
-        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
-        return s;
-    }
-
-    /// <summary>
-    /// Kramdown/Jekyll slug: diacritics removed, lowercase, punctuation stripped (except underscore), whitespace → dash, trim.
-    /// </summary>
-    private static string KramdownSlug(string heading)
-    {
-        var formD = heading.Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(formD.Length);
-        foreach (var ch in formD)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
-                sb.Append(ch);
-        }
-        var s = sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
-        s = Regex.Replace(s, @"[^\w\s\-]", " ");
-        s = Regex.Replace(s, @"\s+", "-");
-        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
-        return s;
-    }
-
-    /// <summary>
-    /// GFM slug variant: lowercase, retain underscore and dot, remove other punctuation, whitespace becomes dash, collapse dashes, trim.
-    /// </summary>
-    private static string GfmSlug(string heading)
-    {
-        var s = heading.Trim().ToLowerInvariant();
-        s = Regex.Replace(s, @"[^a-z0-9\-_.\s]", "");
-        s = Regex.Replace(s, @"\s+", "-");
-        s = Regex.Replace(s, @"\-{2,}", "-").Trim('-');
-        return s;
-    }
+    private string HeadingSlug(string heading) =>
+        _anchorGenerator.GenerateHeadingAnchor(heading);
 
     /// <summary>
     /// Builds a concise member header (Kind + simplified signature) for headings and overload bullets.
@@ -923,10 +826,7 @@ public sealed class MarkdownRenderer
     /// Converts a documentation ID to a stable anchor (lowercase; generic braces → square brackets; aliases applied).
     /// </summary>
     private string IdToAnchor(string id) =>
-        _aliasProvider.ApplyAliases(id)
-            .Replace('{', '[')
-            .Replace('}', ']')
-            .ToLowerInvariant();
+        _anchorGenerator.GenerateMemberAnchor(id);
 
     /// <summary>
     /// Converts a <c>&lt;seealso&gt;</c> element to Markdown (cref, href, or inner text).
