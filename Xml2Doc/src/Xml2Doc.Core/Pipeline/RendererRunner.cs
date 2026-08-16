@@ -55,9 +55,10 @@ public sealed class RendererRunner
         }
 
         if (request.Mode == RendererRunMode.SingleFile)
-            _renderer.RenderToSingleFile(request.OutputPath);
+            _renderer.RenderToSingleFile(plannedFiles[0]);
         else
-            _renderer.RenderToDirectory(request.OutputPath);
+            _renderer.RenderToDirectory(
+                System.IO.Path.GetFullPath(request.OutputPath));
 
         stopwatch.Stop();
         return CreateResult(
