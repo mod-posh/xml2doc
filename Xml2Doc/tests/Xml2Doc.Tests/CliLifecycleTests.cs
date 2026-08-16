@@ -334,6 +334,64 @@ namespace Xml2Doc.Tests
             markdown.ShouldNotContain("https://config.example");
         }
 
+        [Fact]
+        public void Main_WithDiagnosticWarning_WritesStableWarningAndSucceeds()
+        {
+            using var output = TemporaryOutput.Create();
+            var xmlPath = WriteExternalLinkFixture(output);
+            var docsPath = output.FullPath("docs");
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", xmlPath,
+                "--out", docsPath
+            }));
+
+            result.ExitCode.ShouldBe(0);
+            result.StandardError.ShouldContain(
+                "xml2doc warning XML2DOC001:");
+            result.StandardError.ShouldContain("T:System.String");
+        }
+
+        [Fact]
+        public void Main_WithDiagnosticError_WritesStableErrorAndFails()
+        {
+            using var output = TemporaryOutput.Create();
+            output.Write("malformed.xml", "<doc><members></doc>");
+            var xmlPath = output.FullPath("malformed.xml");
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--xml", xmlPath,
+                "--out", output.FullPath("docs")
+            }));
+
+            result.ExitCode.ShouldBe(2);
+            result.StandardError.ShouldContain(
+                "xml2doc error XML2DOC003:");
+            result.StandardError.ShouldContain(xmlPath + "(");
+            result.StandardError.ShouldNotContain(
+                "System.Xml.XmlException");
+        }
+
+        private static (int ExitCode, string StandardError)
+            CaptureStandardError(Func<int> action)
+        {
+            var original = Console.Error;
+            using var writer = new StringWriter();
+            Console.SetError(writer);
+
+            try
+            {
+                var exitCode = action();
+                return (exitCode, writer.ToString());
+            }
+            finally
+            {
+                Console.SetError(original);
+            }
+        }
+
         private static string WriteExternalLinkFixture(TemporaryOutput output)
         {
             const string relativePath = "external-links.xml";
