@@ -191,7 +191,7 @@ public sealed class MarkdownRenderer
                 .ToList();
             var typeFiles = types
                 .Select(type =>
-                    Path.Combine(outDir, FileNameForPerType(type.Id)))
+                    CombineOutputPath(outDir, FileNameForPerType(type.Id)))
                 .ToArray();
             var typeWasWritten = new bool[types.Count];
 
@@ -659,7 +659,7 @@ public sealed class MarkdownRenderer
         foreach (var t in types)
         {
             var name = FileNameForPerType(t.Id);
-            list.Add(Path.Combine(root, name));
+            list.Add(CombineOutputPath(root, name));
         }
 
         if (_opt.GenerateIndex)

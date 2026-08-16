@@ -254,6 +254,20 @@ public class RendererRunnerTests
         exception.ParamName.ShouldBe("OutputPath");
     }
 
+    [Fact]
+    public void Plan_RejectsTypeFileNamesThatEscapeTheOutputDirectory()
+    {
+        using var output = TemporaryDirectory.Create();
+        var model = new Xml2Doc.Core.Models.Xml2Doc();
+        AddType(model, "T:../Escape");
+        var runner = new RendererRunner(new MarkdownRenderer(model));
+
+        var exception = Should.Throw<ArgumentException>(() =>
+            runner.Plan(new RendererRunRequest(output.Path)));
+
+        exception.ParamName.ShouldBe("fileName");
+    }
+
     private static RendererRunner CreateRunner(
         RendererOptions? options = null)
     {
