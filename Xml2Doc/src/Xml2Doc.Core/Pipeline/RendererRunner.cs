@@ -54,18 +54,22 @@ public sealed class RendererRunner
                 stopwatch.Elapsed);
         }
 
+        RendererWriteResult writeResult;
         if (request.Mode == RendererRunMode.SingleFile)
-            _renderer.RenderToSingleFile(plannedFiles[0]);
+            writeResult = _renderer.RenderToSingleFileWithResult(
+                plannedFiles[0]);
         else
-            _renderer.RenderToDirectory(
+            writeResult = _renderer.RenderToDirectoryWithResult(
                 System.IO.Path.GetFullPath(request.OutputPath));
 
         stopwatch.Stop();
-        return CreateResult(
-            plannedFiles,
-            writtenFiles: plannedFiles,
-            dryRun: false,
-            stopwatch.Elapsed);
+        return new RendererRunResult(
+            PlannedFiles: plannedFiles,
+            WrittenFiles: writeResult.WrittenFiles,
+            SkippedFiles: writeResult.SkippedFiles,
+            PrunedFiles: Array.Empty<string>(),
+            DryRun: false,
+            Elapsed: stopwatch.Elapsed);
     }
 
     private static RendererRunResult CreateResult(
