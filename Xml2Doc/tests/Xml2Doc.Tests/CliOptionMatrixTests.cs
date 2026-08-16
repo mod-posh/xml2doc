@@ -9,12 +9,13 @@ public class CliOptionMatrixTests
 {
     private static string SampleXml =>
         Path.GetFullPath(
-            AppContext.BaseDirectory +
-            ".." + Path.DirectorySeparatorChar +
-            ".." + Path.DirectorySeparatorChar +
-            ".." + Path.DirectorySeparatorChar +
-            "Assets" + Path.DirectorySeparatorChar +
-            "Xml2Doc.Sample.xml");
+            Path.Join(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "Assets",
+                "Xml2Doc.Sample.xml"));
 
     [Fact]
     public void Main_WithCompatibleCliOptionsMapsEveryValue()
