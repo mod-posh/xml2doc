@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Xml2Doc.Core.Aliasing;
@@ -88,16 +86,10 @@ public sealed class DefaultAnchorGenerator : IAnchorGenerator
     private static string RemoveDiacritics(string value)
     {
         var formD = value.Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder(formD.Length);
-
-        foreach (var character in formD.Where(
-                     character =>
-                         CharUnicodeInfo.GetUnicodeCategory(character) !=
-                         UnicodeCategory.NonSpacingMark))
-        {
-            builder.Append(character);
-        }
-
-        return builder.ToString().Normalize(NormalizationForm.FormC);
+        var withoutDiacritics = Regex.Replace(
+            formD,
+            @"\p{Mn}",
+            string.Empty);
+        return withoutDiacritics.Normalize(NormalizationForm.FormC);
     }
 }
