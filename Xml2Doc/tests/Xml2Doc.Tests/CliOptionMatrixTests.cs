@@ -308,7 +308,7 @@ public class CliOptionMatrixTests
         public string Path { get; }
 
         public static TemporaryWorkspace Create() =>
-            new(Path.Join(
+            new(System.IO.Path.Join(
                 System.IO.Path.GetTempPath(),
                 "Xml2Doc.Tests",
                 Guid.NewGuid().ToString("N")));

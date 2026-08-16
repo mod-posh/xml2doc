@@ -241,11 +241,12 @@ namespace Xml2Doc.Cli
                     return 1;
                 }
 
-                xml ??= cfg?.Xml;
-                outArg ??= cfg?.Out;
-                if (!singleSpecified && cfg.Single is bool s) single = s;
+                var config = cfg!;
+                xml ??= config.Xml;
+                outArg ??= config.Out;
+                if (!singleSpecified && config.Single is bool s) single = s;
 
-                var cfgNames = cfg?.FileNames;
+                var cfgNames = config.FileNames;
                 if (!fileNameModeSpecified &&
                     !string.IsNullOrWhiteSpace(cfgNames))
                 {
@@ -259,39 +260,39 @@ namespace Xml2Doc.Cli
                         ? FileNameMode.CleanGenerics : FileNameMode.Verbatim;
                 }
 
-                rootns ??= cfg?.RootNamespace;
-                if (cfg?.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
+                rootns ??= config.RootNamespace;
+                if (config.TrimRootNamespaceInFileNames is bool tr) trimRootNsInFileNames = tr || trimRootNsInFileNames;
                 if (!codeLangSpecified &&
-                    !string.IsNullOrWhiteSpace(cfg.CodeLanguage))
+                    !string.IsNullOrWhiteSpace(config.CodeLanguage))
                 {
-                    codeLang = cfg.CodeLanguage!;
+                    codeLang = config.CodeLanguage;
                 }
-                reportPath ??= cfg?.Report;
-                if (cfg?.DryRun is bool dr) dryRun = dr || dryRun;
+                reportPath ??= config.Report;
+                if (config.DryRun is bool dr) dryRun = dr || dryRun;
                 if (!anchorAlgorithmSpecified &&
-                    !string.IsNullOrWhiteSpace(cfg.AnchorAlgorithm))
+                    !string.IsNullOrWhiteSpace(config.AnchorAlgorithm))
                 {
-                    anchorAlgorithm = cfg.AnchorAlgorithm!;
+                    anchorAlgorithm = config.AnchorAlgorithm;
                 }
-                if (!string.IsNullOrWhiteSpace(cfg?.Template)) templatePath = templatePath ?? cfg.Template!;
-                if (!string.IsNullOrWhiteSpace(cfg?.FrontMatter)) frontMatterPath = frontMatterPath ?? cfg.FrontMatter!;
-                if (cfg?.AutoLink is bool al) autoLink = al || autoLink;
-                if (!string.IsNullOrWhiteSpace(cfg?.AliasMap)) aliasMapPath = aliasMapPath ?? cfg.AliasMap!;
-                if (!string.IsNullOrWhiteSpace(cfg?.ExternalDocs)) externalDocs = externalDocs ?? cfg.ExternalDocs!;
-                if (cfg?.Toc is bool tc) toc = tc || toc;
-                if (cfg?.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
-                if (cfg?.GenerateIndex is bool gi && generateIndex) generateIndex = gi;
-                if (cfg.BasenameOnly is bool bo)
+                if (!string.IsNullOrWhiteSpace(config.Template)) templatePath ??= config.Template;
+                if (!string.IsNullOrWhiteSpace(config.FrontMatter)) frontMatterPath ??= config.FrontMatter;
+                if (config.AutoLink is bool al) autoLink = al || autoLink;
+                if (!string.IsNullOrWhiteSpace(config.AliasMap)) aliasMapPath ??= config.AliasMap;
+                if (!string.IsNullOrWhiteSpace(config.ExternalDocs)) externalDocs ??= config.ExternalDocs;
+                if (config.Toc is bool tc) toc = tc || toc;
+                if (config.NamespaceIndex is bool ni) namespaceIndex = ni || namespaceIndex;
+                if (config.GenerateIndex is bool gi && generateIndex) generateIndex = gi;
+                if (config.BasenameOnly is bool bo)
                     basenameOnly = bo || basenameOnly;
-                if (cfg?.Parallel is int pi && parallel is null) parallel = pi;
-                if (cfg?.Diff is bool df) diff = df || diff;
-                if (cfg?.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
-                if (!string.IsNullOrWhiteSpace(cfg?.ManifestIdentity))
-                    manifestIdentity ??= cfg.ManifestIdentity;
+                if (config.Parallel is int pi && parallel is null) parallel = pi;
+                if (config.Diff is bool df) diff = df || diff;
+                if (config.PruneStaleFiles is bool ps) pruneStaleFiles = ps || pruneStaleFiles;
+                if (!string.IsNullOrWhiteSpace(config.ManifestIdentity))
+                    manifestIdentity ??= config.ManifestIdentity;
                 if (!lineEndingsSpecified &&
-                    !string.IsNullOrWhiteSpace(cfg?.LineEndings))
+                    !string.IsNullOrWhiteSpace(config.LineEndings))
                 {
-                    lineEndings = cfg.LineEndings!;
+                    lineEndings = config.LineEndings;
                 }
             }
 
