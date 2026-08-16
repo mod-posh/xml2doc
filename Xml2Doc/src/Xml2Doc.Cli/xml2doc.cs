@@ -60,7 +60,7 @@ namespace Xml2Doc.Cli
         /// Application entry point for the Xml2Doc CLI.
         /// </summary>
         /// <param name="args">Command‑line arguments (use <c>--help</c> / <c>-h</c> for usage).</param>
-        /// <returns>0 success; 1 validation failure; 2 runtime error.</returns>
+        /// <returns>0 success; 1 validation failure; 2 diagnostic or runtime error.</returns>
         public static int Main(string[] args)
         {
             if (args.Length == 0 || Array.IndexOf(args, "--help") >= 0 || Array.IndexOf(args, "-h") >= 0)
@@ -230,10 +230,14 @@ namespace Xml2Doc.Cli
                 _ => Xml2Doc.Core.AnchorAlgorithm.Default
             };
 
+            var diagnosticSink = new CliDiagnosticSink(Console.Error);
+
             try
             {
                 // Build options & renderer
-                var model = Xml2Doc.Core.Models.Xml2Doc.Load(xml);
+                var model = Xml2Doc.Core.Models.Xml2Doc.Load(
+                    xml,
+                    diagnosticSink);
                 var options = new RendererOptions(
                     FileNameMode: fileNameMode,
                     RootNamespaceToTrim: string.IsNullOrWhiteSpace(rootns) ? null : rootns,
@@ -255,7 +259,8 @@ namespace Xml2Doc.Cli
                     GenerateIndex: generateIndex,
                     PruneStaleFiles: pruneStaleFiles,
                     ManifestIdentity: manifestIdentity,
-                    LineEndings: lineEndingStyle
+                    LineEndings: lineEndingStyle,
+                    DiagnosticSink: diagnosticSink
                 );
 
                 var renderer = new MarkdownRenderer(model, options);
@@ -363,11 +368,12 @@ namespace Xml2Doc.Cli
                     Console.WriteLine($"Report written to {repFull}");
                 }
 
-                return 0;
+                return diagnosticSink.HasErrors ? 2 : 0;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(ex.ToString());
+                if (!diagnosticSink.HasErrors)
+                    Console.Error.WriteLine(ex.ToString());
                 return 2;
             }
         }
