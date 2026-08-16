@@ -129,10 +129,7 @@ public sealed class DefaultSignatureRenderer : ISignatureRenderer
             var tail = value.Substring(close);
             var arguments = SplitTopLevel(inner, '<', '>')
                 .Select(argument => argument.IndexOf('<') >= 0
-                    ? Regex.Replace(
-                        argument,
-                        @"(?<![A-Za-z0-9_])([A-ZaZ0-9_.]+)(?=\s*<)",
-                        match => match.Groups[1].Value.Split('.').Last())
+                    ? argument
                     : argument.Split('.').Last());
             value = head + string.Join(", ", arguments) + tail;
         }
