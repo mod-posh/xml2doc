@@ -410,12 +410,18 @@ namespace Xml2Doc.Cli
                         outputPath,
                         mode,
                         DryRun: true));
+            var temporaryDirectoryName = Path.GetFileName(
+                "xml2doc-diff-" + Guid.NewGuid().ToString("N"));
             var temporaryRoot = Path.Combine(
                 Path.GetTempPath(),
-                "xml2doc-diff-" + Guid.NewGuid().ToString("N"));
+                temporaryDirectoryName);
+            var temporaryFileName = Path.GetFileName("output.md");
+            var temporaryOutputDirectoryName = Path.GetFileName("output");
             var temporaryOutput = mode == RendererRunMode.SingleFile
-                ? Path.Combine(temporaryRoot, "output.md")
-                : Path.Combine(temporaryRoot, "output");
+                ? Path.Combine(temporaryRoot, temporaryFileName)
+                : Path.Combine(
+                    temporaryRoot,
+                    temporaryOutputDirectoryName);
 
             try
             {
