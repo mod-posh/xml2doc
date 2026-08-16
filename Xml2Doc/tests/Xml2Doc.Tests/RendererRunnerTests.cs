@@ -43,6 +43,7 @@ public class RendererRunnerTests
         result.WrittenFiles.ShouldBeEmpty();
         result.SkippedFiles.ShouldBeEmpty();
         result.PrunedFiles.ShouldBeEmpty();
+        result.WouldPruneFiles.ShouldBeEmpty();
         result.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
         result.PlanningElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
         result.RenderingElapsed.ShouldBe(TimeSpan.Zero);
@@ -148,6 +149,34 @@ public class RendererRunnerTests
         result.PlanningElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
         result.RenderingElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
         result.LifecycleElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        result.WouldPruneFiles.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Run_DryRunWithPruningReportsFilesWithoutDeletingThem()
+    {
+        using var output = TemporaryDirectory.Create();
+        Directory.CreateDirectory(output.Path);
+        var stalePath = Path.Join(output.Path, "Stale.md");
+        File.WriteAllText(stalePath, "stale");
+        var location = OutputManifestLocation.Create(
+            output.Path,
+            "runner-dry-run");
+        OutputManifestStore.Save(location, new[] { "Stale.md" });
+        var previousManifest = File.ReadAllBytes(location.ManifestPath);
+        var runner = CreateRunner(new RendererOptions(
+            PruneStaleFiles: true,
+            ManifestIdentity: "runner-dry-run"));
+
+        var result = runner.Run(new RendererRunRequest(
+            output.Path,
+            DryRun: true));
+
+        result.WouldPruneFiles.ShouldBe(new[] { stalePath });
+        result.PrunedFiles.ShouldBeEmpty();
+        result.LifecycleElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        File.Exists(stalePath).ShouldBeTrue();
+        File.ReadAllBytes(location.ManifestPath).ShouldBe(previousManifest);
     }
 
     [Fact]

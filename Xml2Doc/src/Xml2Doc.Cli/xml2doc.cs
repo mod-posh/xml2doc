@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Linking;
-using Xml2Doc.Core.OutputLifecycle;
+using Xml2Doc.Core.Pipeline;
 
 namespace Xml2Doc.Cli
 {
@@ -38,9 +36,11 @@ namespace Xml2Doc.Cli
     /// </list>
     /// Dry run report fields:
     /// <list type="bullet">
-    ///   <item><description><c>files</c>: empty (no writes performed).</description></item>
+    ///   <item><description><c>plannedFiles</c>: deterministic absolute output paths.</description></item>
+    ///   <item><description><c>writtenFiles</c>, <c>skippedFiles</c>, and <c>prunedFiles</c>: actual execution results; empty during dry run.</description></item>
     ///   <item><description><c>wouldWrite</c>: full absolute paths planned.</description></item>
     ///   <item><description><c>wouldDelete</c>: stale files owned by the selected manifest identity; empty when pruning is disabled.</description></item>
+    ///   <item><description><c>timings</c>: runner planning, rendering, lifecycle, and total durations.</description></item>
     /// </list>
     /// Processing pipeline:
     /// <list type="number">
@@ -48,8 +48,7 @@ namespace Xml2Doc.Cli
     ///   <item><description>Overlay JSON config values for unspecified options.</description></item>
     ///   <item><description>Map <c>--anchor-algorithm</c> token to <see cref="AnchorAlgorithm"/> enum.</description></item>
     ///   <item><description>Instantiate <see cref="RendererOptions"/> and <see cref="MarkdownRenderer"/>.</description></item>
-    ///   <item><description>Call <c>PlanOutputs</c> to produce a deterministic file list.</description></item>
-    ///   <item><description>Render (unless dry‑run); collect actual outputs.</description></item>
+    ///   <item><description>Use <see cref="RendererRunner"/> to plan and execute the invocation.</description></item>
     ///   <item><description>Optionally emit JSON report with planned vs actual sets.</description></item>
     /// </list>
     /// Exit codes: 0 success (incl. dry‑run); 1 invalid arguments; 2 unhandled error.
@@ -264,61 +263,31 @@ namespace Xml2Doc.Cli
                 );
 
                 var renderer = new MarkdownRenderer(model, options);
+                var runner = new RendererRunner(renderer);
+                var runResult = runner.Run(new RendererRunRequest(
+                    outArg!,
+                    single
+                        ? RendererRunMode.SingleFile
+                        : RendererRunMode.PerType,
+                    DryRun: dryRun));
 
-                // Plan outputs (deterministic)
-                var plannedFiles = single
-                    ? renderer.PlanOutputs(outDir: "", singleFilePath: outArg)
-                    : renderer.PlanOutputs(outDir: outArg!, singleFilePath: null);
-
-                List<string> produced = new();
-                var wouldDelete = Array.Empty<string>();
-
-                if (dryRun && pruneStaleFiles)
-                {
-                    var location = OutputManifestLocation.Create(
-                        outArg!,
-                        manifestIdentity!);
-                    var relativeFiles = plannedFiles
-                        .Select(path => Path.GetRelativePath(
-                            location.OutputRoot,
-                            Path.GetFullPath(path)))
-                        .ToArray();
-                    var lifecyclePlan =
-                        OutputLifecycleExecutor.ExecuteAfterSuccessfulGeneration(
-                            location,
-                            relativeFiles,
-                            dryRun: true);
-                    wouldDelete = lifecyclePlan.FilesToDelete
-                        .Select(path =>
-                            location.OutputRoot +
-                            Path.DirectorySeparatorChar +
-                            path)
-                        .ToArray();
-                }
-
-                // Execute or simulate
                 if (dryRun)
                 {
                     var where = single ? Path.GetDirectoryName(Path.GetFullPath(outArg!))! : Path.GetFullPath(outArg!);
-                    Console.WriteLine($"[dry-run] would write {plannedFiles.Count} files under {where}");
+                    Console.WriteLine($"[dry-run] would write {runResult.PlannedFiles.Count} files under {where}");
+                }
+                else if (single)
+                {
+                    Console.WriteLine(
+                        $"Processed single-file Markdown at {Path.GetFullPath(outArg!)} " +
+                        $"(written {runResult.WrittenFiles.Count}, skipped {runResult.SkippedFiles.Count})");
                 }
                 else
                 {
-                    if (single)
-                    {
-                        var full = Path.GetFullPath(outArg!);
-                        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-                        renderer.RenderToSingleFile(full);
-                        Console.WriteLine($"Wrote single-file Markdown to {full}");
-                    }
-                    else
-                    {
-                        var dir = Path.GetFullPath(outArg!);
-                        Directory.CreateDirectory(dir);
-                        renderer.RenderToDirectory(dir);
-                        Console.WriteLine($"Wrote Markdown files to {dir}");
-                    }
-                    produced.AddRange(plannedFiles);
+                    Console.WriteLine(
+                        $"Processed Markdown files in {Path.GetFullPath(outArg!)} " +
+                        $"(written {runResult.WrittenFiles.Count}, skipped {runResult.SkippedFiles.Count}, " +
+                        $"pruned {runResult.PrunedFiles.Count})");
                 }
 
                 // Report (optional)
@@ -330,9 +299,13 @@ namespace Xml2Doc.Cli
                         single,
                         outputFile = single ? Path.GetFullPath(outArg!) : null,
                         outputDir = single ? null : Path.GetFullPath(outArg!),
-                        files = produced.ToArray(),
-                        wouldWrite = dryRun ? plannedFiles.ToArray() : null,
-                        wouldDelete = dryRun ? wouldDelete : null,
+                        files = dryRun ? Array.Empty<string>() : runResult.PlannedFiles,
+                        plannedFiles = runResult.PlannedFiles,
+                        writtenFiles = runResult.WrittenFiles,
+                        skippedFiles = runResult.SkippedFiles,
+                        prunedFiles = runResult.PrunedFiles,
+                        wouldWrite = dryRun ? runResult.PlannedFiles : null,
+                        wouldDelete = dryRun ? runResult.WouldPruneFiles : null,
                         options = new
                         {
                             fileNameMode = fileNameMode.ToString(),
@@ -356,7 +329,13 @@ namespace Xml2Doc.Cli
                         },
                         dryRun,
                         diffRequested = diff,
-                        timestamp = DateTimeOffset.Now
+                        timings = new
+                        {
+                            totalMilliseconds = runResult.Elapsed.TotalMilliseconds,
+                            planningMilliseconds = runResult.PlanningElapsed.TotalMilliseconds,
+                            renderingMilliseconds = runResult.RenderingElapsed.TotalMilliseconds,
+                            lifecycleMilliseconds = runResult.LifecycleElapsed.TotalMilliseconds
+                        }
                     };
 
                     var repFull = Path.GetFullPath(reportPath!);

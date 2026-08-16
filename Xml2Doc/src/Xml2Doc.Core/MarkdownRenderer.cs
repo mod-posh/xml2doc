@@ -75,6 +75,8 @@ public sealed class MarkdownRenderer
     private readonly ILinkResolver _linkResolver;
     private bool _singleFileMode;
 
+    internal bool PrunesStaleFiles => _opt.PruneStaleFiles;
+
     /// <summary>
     /// Creates a renderer for a parsed XML documentation model.
     /// </summary>
@@ -327,6 +329,29 @@ public sealed class MarkdownRenderer
             prunedFiles,
             renderingStopwatch.Elapsed,
             lifecycleElapsed);
+    }
+
+    internal IReadOnlyList<string> PlanPrunedFiles(
+        string outDir,
+        IReadOnlyList<string> plannedFiles)
+    {
+        if (!_opt.PruneStaleFiles)
+            return Array.Empty<string>();
+
+        var location = OutputManifestLocation.Create(
+            outDir,
+            _opt.ManifestIdentity!);
+        var generatedFiles = GetOutputRootRelativePaths(
+            location.OutputRoot,
+            plannedFiles);
+        var lifecyclePlan = OutputLifecycleExecutor
+            .ExecuteAfterSuccessfulGeneration(
+                location,
+                generatedFiles,
+                dryRun: true);
+        return lifecyclePlan.FilesToDelete
+            .Select(path => CombineOutputPath(location.OutputRoot, path))
+            .ToArray();
     }
 
     /// <summary>

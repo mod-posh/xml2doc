@@ -48,6 +48,18 @@ public sealed class RendererRunner
 
         if (request.DryRun)
         {
+            IReadOnlyList<string> wouldPruneFiles = Array.Empty<string>();
+            var lifecycleElapsed = TimeSpan.Zero;
+            if (request.Mode == RendererRunMode.PerType &&
+                _renderer.PrunesStaleFiles)
+            {
+                var lifecycleStopwatch = Stopwatch.StartNew();
+                wouldPruneFiles = _renderer.PlanPrunedFiles(
+                    request.OutputPath,
+                    plannedFiles);
+                lifecycleStopwatch.Stop();
+                lifecycleElapsed = lifecycleStopwatch.Elapsed;
+            }
             stopwatch.Stop();
             return CreateResult(
                 plannedFiles,
@@ -55,7 +67,9 @@ public sealed class RendererRunner
                 dryRun: true,
                 stopwatch.Elapsed) with
             {
-                PlanningElapsed = planningStopwatch.Elapsed
+                PlanningElapsed = planningStopwatch.Elapsed,
+                LifecycleElapsed = lifecycleElapsed,
+                WouldPruneFiles = wouldPruneFiles
             };
         }
 
