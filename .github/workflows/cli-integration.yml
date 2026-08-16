@@ -16,6 +16,9 @@ on:
       - "global.json"
       - "Directory.Build.props"
 
+permissions:
+  contents: read
+
 jobs:
   cli_integration:
     runs-on: windows-latest
