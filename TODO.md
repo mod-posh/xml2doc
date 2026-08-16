@@ -1,22 +1,22 @@
 # Xml2Doc Roadmap
 
-This roadmap groups the current open issues into focused release milestones. The current stable release is `2.0.2`. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
+This roadmap groups the current open issues into focused release milestones. The current stable release is `2.0.3`. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
 
 ## Release sequence
 
-1. `2.0.3` — Documentation and Lifecycle Correctness
-2. `2.1.0` — Rendering Extensibility
+1. `2.0.3` — Documentation and Lifecycle Correctness (released)
+2. `2.1.0` — Rendering Extensibility (current)
 3. `2.2.0` — Diagnostics and Pipeline
 4. `2.3.0` — Multi-project Aggregation
 
 ## 2.0.3 — Documentation and Lifecycle Correctness
 
-Deliver focused correctness fixes after the current `2.0.2` release.
+Released focused correctness fixes on top of `2.0.2`.
 
-- [ ] [#69 — Render `<see langword="..."/>` correctly in generated Markdown](https://github.com/mod-posh/xml2doc/issues/69)
-- [ ] [#68 — Resolve `/// <inheritdoc />` content when generating Markdown](https://github.com/mod-posh/xml2doc/issues/68)
-- [ ] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
-- [ ] [#79 — MSBuild incremental state does not regenerate a missing generated Markdown file](https://github.com/mod-posh/xml2doc/issues/79)
+- [x] [#69 — Render `<see langword="..."/>` correctly in generated Markdown](https://github.com/mod-posh/xml2doc/issues/69)
+- [x] [#68 — Resolve `/// <inheritdoc />` content when generating Markdown](https://github.com/mod-posh/xml2doc/issues/68)
+- [x] [#77 — Make stale-output ownership manifests portable across checkout paths](https://github.com/mod-posh/xml2doc/issues/77)
+- [x] [#79 — MSBuild incremental state does not regenerate a missing generated Markdown file](https://github.com/mod-posh/xml2doc/issues/79)
 
 Completion criteria:
 
@@ -34,13 +34,13 @@ Completion criteria:
 
 Extract renderer behavior behind configurable services while preserving the default output contract.
 
-- [ ] [#34 — Pluggable anchor algorithms (`IAnchorGenerator`)](https://github.com/mod-posh/xml2doc/issues/34)
-- [ ] [#35 — Template hook and optional YAML front matter](https://github.com/mod-posh/xml2doc/issues/35)
-- [ ] [#36 — Auto-link types and members in free text (`IAutoLinker`)](https://github.com/mod-posh/xml2doc/issues/36)
-- [ ] [#37 — Configurable aliasing (`IAliasProvider`)](https://github.com/mod-posh/xml2doc/issues/37)
-- [ ] [#38 — External documentation fallback for unresolved crefs](https://github.com/mod-posh/xml2doc/issues/38)
-- [ ] [#40 — Extract `ISignatureRenderer` and improve signatures](https://github.com/mod-posh/xml2doc/issues/40)
-- [ ] [#43 — Matrix snapshots and anchor parity checks](https://github.com/mod-posh/xml2doc/issues/43)
+- [x] [#34 — Pluggable anchor algorithms (`IAnchorGenerator`)](https://github.com/mod-posh/xml2doc/issues/34)
+- [x] [#35 — Template hook and optional YAML front matter](https://github.com/mod-posh/xml2doc/issues/35)
+- [x] [#36 — Auto-link types and members in free text (`IAutoLinker`)](https://github.com/mod-posh/xml2doc/issues/36)
+- [x] [#37 — Configurable aliasing (`IAliasProvider`)](https://github.com/mod-posh/xml2doc/issues/37)
+- [x] [#38 — External documentation fallback for unresolved crefs](https://github.com/mod-posh/xml2doc/issues/38)
+- [x] [#40 — Extract `ISignatureRenderer` and improve signatures](https://github.com/mod-posh/xml2doc/issues/40)
+- [x] [#43 — Matrix snapshots and anchor parity checks](https://github.com/mod-posh/xml2doc/issues/43)
 
 Completion criteria:
 
@@ -51,7 +51,7 @@ Completion criteria:
 
 Dependencies:
 
-- #43 supplies regression coverage for #34 and #36 and should be developed alongside those issues.
+- #43 supplies regression coverage for #34 and #36.
 - CLI exposure for these services is tracked in #44 and completes in `2.2.0`.
 
 ## 2.2.0 — Diagnostics and Pipeline
