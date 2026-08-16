@@ -66,6 +66,19 @@ public class AliasingTests
                     .Concat(new[] { typeof(ITemplateRenderer) })
                     .ToArray())
             .ShouldNotBeNull();
+
+        typeof(RendererOptions)
+            .GetConstructor(
+                anchorGeneratorSignature
+                    .Concat(new[]
+                    {
+                        typeof(ITemplateRenderer),
+                        typeof(Func<
+                            TemplateRenderContext,
+                            IReadOnlyDictionary<string, object?>>)
+                    })
+                    .ToArray())
+            .ShouldNotBeNull();
     }
 
     [Fact]
