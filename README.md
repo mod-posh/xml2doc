@@ -7,7 +7,8 @@ Xml2Doc converts C# compiler XML documentation into deterministic, linkable Mark
 
 ## Current status
 
-The current stable package line is `2.0.2`:
+The current stable package line is `2.1.0`. This release adds programmatic rendering extension
+points while preserving the default `2.0.x` output contract:
 
 - `Xml2Doc.Core` provides parsing, rendering, output ownership, stale-file pruning, and line-ending normalization.
 - `Xml2Doc.Cli` provides repeatable command-line generation for development and CI.
@@ -16,8 +17,10 @@ The current stable package line is `2.0.2`:
 - Markdown uses LF on every platform by default.
 - Multiple projects can safely share an output directory when they have distinct manifest identities and disable their project-owned indexes.
 - Unified multi-project index aggregation is planned for `2.3.0`. Until then, maintain or generate the repository index separately.
-- Portable ownership manifests are implemented for the upcoming `2.0.3` release and migrate safe
-  2.0.x manifests when they are next saved.
+- Portable ownership manifests were added in `2.0.3` and migrate safe 2.0.x manifests when they
+  are next saved.
+- `2.1.0` makes anchors, aliases, templates, free-text linking, external symbol resolution, and
+  signature formatting replaceable through `RendererOptions`.
 
 ## Supported frameworks
 
@@ -39,7 +42,7 @@ The MSBuild package selects its task assembly automatically. Do not define a cus
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.0.2" PrivateAssets="all">
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.1.0" PrivateAssets="all">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
@@ -57,13 +60,13 @@ Most Xml2Doc properties can be placed in either:
 
 Project properties override `Directory.Build.props`. Avoid defining a property in both unless the override is intentional.
 
-Keep string values such as the root namespace on one line. In 2.0.2, surrounding whitespace is preserved and can prevent prefix matching:
+Keep string values such as the root namespace on one line. Surrounding whitespace is preserved and can prevent prefix matching:
 
 ```xml
 <Xml2Doc_RootNamespaceToTrim>Rackspace.BAT.Core</Xml2Doc_RootNamespaceToTrim>
 ```
 
-The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2Doc_BasenameOnly` unconditionally in its imported defaults. To enable them in 2.0.2, set them in the `.csproj` or `Directory.Build.targets`; a `Directory.Build.props` value may be overwritten.
+The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2Doc_BasenameOnly` unconditionally in its imported defaults. To enable them, set them in the `.csproj` or `Directory.Build.targets`; a `Directory.Build.props` value may be overwritten.
 
 ## Complete MSBuild property reference
 
@@ -103,9 +106,9 @@ Reference XML contents are included in incremental fingerprinting.
 | `Xml2Doc_TrimRootNamespaceInFileNames` | `false` | `true`, `false` | Also removes the configured root namespace from filenames. |
 | `Xml2Doc_CodeBlockLanguage` | `csharp` | Fence language | Default fenced-code language. |
 | `Xml2Doc_AnchorAlgorithm` | `default` | `default`, `github`, `gfm`, `kramdown` | Controls heading/member anchors. Changing it can break published fragment links. |
-| `Xml2Doc_Toc` | `false` | `true`, `false` | Emits a member table of contents where supported. Set in `.csproj` or `Directory.Build.targets` in 2.0.2. |
-| `Xml2Doc_NamespaceIndex` | `false` | `true`, `false` | Emits namespace index output in per-type mode. Set in `.csproj` or `Directory.Build.targets` in 2.0.2. |
-| `Xml2Doc_BasenameOnly` | `false` | `true`, `false` | Drops namespace segments from filenames and increases collision risk. Set in `.csproj` or `Directory.Build.targets` in 2.0.2. |
+| `Xml2Doc_Toc` | `false` | `true`, `false` | Emits a member table of contents where supported. Set in `.csproj` or `Directory.Build.targets`. |
+| `Xml2Doc_NamespaceIndex` | `false` | `true`, `false` | Emits namespace index output in per-type mode. Set in `.csproj` or `Directory.Build.targets`. |
+| `Xml2Doc_BasenameOnly` | `false` | `true`, `false` | Drops namespace segments from filenames and increases collision risk. Set in `.csproj` or `Directory.Build.targets`. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, `native` | Normalizes generated Markdown at the output boundary. `lf` is deterministic across hosts. |
 
 Filename processing order is: filename-mode normalization, optional root-namespace trimming, then optional basename-only reduction.
@@ -142,7 +145,7 @@ history. Always ignore `.xml2doc/transactions`; it is local, best-effort staging
 | `Xml2Doc_DryRun` | `false` | `true`, `false` | Plans output without writing Markdown; a configured report can still be written. |
 | `Xml2Doc_Dump` | `false` | `true`, `false` | Logs evaluated paths and key generation inputs. |
 | `Xml2Doc_LogChosenTask` | `false` | `true`, `false` | Logs the selected task TFM and assembly path. |
-| `Xml2Doc_Diff` | `false` | Reserved | Has no effect in 2.0.2. |
+| `Xml2Doc_Diff` | `false` | Reserved | Has no effect in `2.1.0`. |
 
 Reports and transaction staging may be ignored:
 
@@ -214,7 +217,7 @@ Each participating `.csproj` still needs:
 </PropertyGroup>
 
 <ItemGroup>
-  <PackageReference Include="Xml2Doc.MSBuild" Version="2.0.2" PrivateAssets="all">
+  <PackageReference Include="Xml2Doc.MSBuild" Version="2.1.0" PrivateAssets="all">
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
   </PackageReference>
 </ItemGroup>
@@ -230,6 +233,43 @@ Engine.Execution.BatExecutionService.md
 Do not enable `Xml2Doc_BasenameOnly` for a shared flat directory unless duplicate type names are impossible.
 
 Each invocation sees only its own compiler XML, so it cannot safely build an index containing the other projects. Keep `Xml2Doc_GenerateIndex=false` and maintain `docs/index.md` separately until multi-input aggregation is available.
+
+## Rendering extensibility in 2.1.0
+
+`Xml2Doc.Core` consumers can replace individual rendering services through `RendererOptions`.
+All extension points are optional; omitting them preserves the built-in output contract.
+
+| Option | Extension point | Default behavior |
+| --- | --- | --- |
+| `AliasProvider` | `IAliasProvider` | C# keyword aliases from `DefaultAliasProvider` |
+| `AnchorGenerator` | `IAnchorGenerator` | Selected built-in `AnchorAlgorithm` |
+| `TemplateRenderer` | `ITemplateRenderer` | Built-in layout, or file-based template/front matter when paths are configured |
+| `FrontMatter` | Metadata callback | No generated YAML front matter |
+| `AutoLinker` | `IAutoLinker` | `SimpleAutoLinker` when `AutoLink=true` |
+| `ExternalSymbolResolver` | `IExternalSymbolResolver` | Base-URL resolver when `ExternalDocs` is configured |
+| `SignatureRenderer` | `ISignatureRenderer` | `DefaultSignatureRenderer` |
+| `SignatureStyle` | Signature detail switches | Compatibility output without parameter names, constraints, or default values |
+
+Example:
+
+```csharp
+var options = new RendererOptions(
+    AnchorGenerator: new MyAnchorGenerator(),
+    AliasProvider: new MyAliasProvider(),
+    AutoLink: true,
+    AutoLinker: new MyAutoLinker(),
+    LinkPolicy: LinkPolicy.PreferExternalForUnknown,
+    ExternalSymbolResolver: new MyExternalSymbolResolver(),
+    SignatureStyle: new SignatureStyle(
+        IncludeParamNames: true,
+        IncludeConstraints: true,
+        IncludeDefaultValues: true),
+    SignatureRenderer: new MySignatureRenderer());
+```
+
+File-based templates, front matter, auto-linking, alias maps, and built-in anchor algorithms are
+available through the CLI. Custom service implementations and external link-policy selection
+require direct use of `Xml2Doc.Core`; broader CLI and MSBuild exposure is tracked for `2.2.0`.
 
 ## Conditional generation
 
@@ -279,7 +319,7 @@ Do not enable stale pruning in single-file mode; validation will fail.
 ## CLI quick start
 
 ```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.0.2
+dotnet tool install --global Xml2Doc.Cli --version 2.1.0
 
 xml2doc `
   --xml .\bin\Release\net9.0\MyLibrary.xml `
@@ -301,7 +341,7 @@ Use `--single` when `--out` names one combined file. Pruning is unavailable in s
 
 ### Full namespaces remain in filenames
 
-Embedded newlines or indentation can prevent an exact prefix match in 2.0.2. Inspect the evaluated values:
+Embedded newlines or indentation can prevent an exact prefix match. Inspect the evaluated values:
 
 ```powershell
 dotnet msbuild .\MyProject.csproj `
@@ -334,9 +374,9 @@ Temporarily enable:
 
 See [TODO.md](TODO.md) and [the ADR index](docs/adr/README.md). Notable planned work includes:
 
-- `2.0.3`: documentation and lifecycle correctness ([#68](https://github.com/mod-posh/xml2doc/issues/68), [#69](https://github.com/mod-posh/xml2doc/issues/69), and [#77](https://github.com/mod-posh/xml2doc/issues/77)).
-- `2.1.0`: rendering extensibility.
-- `2.2.0`: diagnostics and pipeline improvements.
+- `2.0.3`: released documentation and lifecycle correctness.
+- `2.1.0`: released rendering extensibility.
+- `2.2.0`: current diagnostics and pipeline milestone.
 - `2.3.0`: deterministic multi-project aggregation and a unified index.
 
 Report bugs and feature requests in the [GitHub issue tracker](https://github.com/mod-posh/xml2doc/issues).
