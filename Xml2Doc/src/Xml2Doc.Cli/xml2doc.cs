@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Linking;
@@ -32,7 +34,7 @@ namespace Xml2Doc.Cli
     ///   <item><description><c>--prune-stale</c> / <c>--manifest-id</c>: remove only stale outputs owned by the same invocation.</description></item>
     ///   <item><description><c>--report</c>: write JSON execution report.</description></item>
     ///   <item><description><c>--dry-run</c>: plan (no writes); report includes <c>wouldWrite</c>/<c>wouldDelete</c>.</description></item>
-    ///   <item><description><c>--diff</c>: reserved (currently no effect).</description></item>
+    ///   <item><description><c>--diff</c>: compare generated Markdown with existing output without modifying it.</description></item>
     /// </list>
     /// Dry run report fields:
     /// <list type="bullet">
@@ -51,7 +53,7 @@ namespace Xml2Doc.Cli
     ///   <item><description>Use <see cref="RendererRunner"/> to plan and execute the invocation.</description></item>
     ///   <item><description>Optionally emit JSON report with planned vs actual sets.</description></item>
     /// </list>
-    /// Exit codes: 0 success (incl. dry‑run); 1 invalid arguments; 2 unhandled error.
+    /// Exit codes: 0 success/no differences; 1 invalid arguments; 2 diagnostic or runtime error; 3 differences found.
     /// </remarks>
     internal static class Program
     {
@@ -59,7 +61,7 @@ namespace Xml2Doc.Cli
         /// Application entry point for the Xml2Doc CLI.
         /// </summary>
         /// <param name="args">Command‑line arguments (use <c>--help</c> / <c>-h</c> for usage).</param>
-        /// <returns>0 success; 1 validation failure; 2 diagnostic or runtime error.</returns>
+        /// <returns>0 success/no differences; 1 validation failure; 2 diagnostic or runtime error; 3 differences found.</returns>
         public static int Main(string[] args)
         {
             if (args.Length == 0 || Array.IndexOf(args, "--help") >= 0 || Array.IndexOf(args, "-h") >= 0)
@@ -262,16 +264,36 @@ namespace Xml2Doc.Cli
                     DiagnosticSink: diagnosticSink
                 );
 
-                var renderer = new MarkdownRenderer(model, options);
-                var runner = new RendererRunner(renderer);
-                var runResult = runner.Run(new RendererRunRequest(
-                    outArg!,
-                    single
-                        ? RendererRunMode.SingleFile
-                        : RendererRunMode.PerType,
-                    DryRun: dryRun));
+                var mode = single
+                    ? RendererRunMode.SingleFile
+                    : RendererRunMode.PerType;
+                CliDiffResult? diffResult = null;
+                RendererRunResult runResult;
 
-                if (dryRun)
+                if (diff)
+                {
+                    diffResult = RunDiff(model, options, outArg!, mode);
+                    runResult = diffResult.RunResult;
+                }
+                else
+                {
+                    var renderer = new MarkdownRenderer(model, options);
+                    var runner = new RendererRunner(renderer);
+                    runResult = runner.Run(new RendererRunRequest(
+                        outArg!,
+                        mode,
+                        DryRun: dryRun));
+                }
+
+                if (diffResult is not null)
+                {
+                    Console.WriteLine(
+                        $"[diff] added {diffResult.AddedFiles.Count}, " +
+                        $"changed {diffResult.ChangedFiles.Count}, " +
+                        $"unchanged {diffResult.UnchangedFiles.Count}, " +
+                        $"removed {diffResult.RemovedFiles.Count}");
+                }
+                else if (dryRun)
                 {
                     var where = single ? Path.GetDirectoryName(Path.GetFullPath(outArg!))! : Path.GetFullPath(outArg!);
                     Console.WriteLine($"[dry-run] would write {runResult.PlannedFiles.Count} files under {where}");
@@ -299,13 +321,29 @@ namespace Xml2Doc.Cli
                         single,
                         outputFile = single ? Path.GetFullPath(outArg!) : null,
                         outputDir = single ? null : Path.GetFullPath(outArg!),
-                        files = dryRun ? Array.Empty<string>() : runResult.PlannedFiles,
+                        files = dryRun || diff
+                            ? Array.Empty<string>()
+                            : runResult.PlannedFiles,
                         plannedFiles = runResult.PlannedFiles,
                         writtenFiles = runResult.WrittenFiles,
                         skippedFiles = runResult.SkippedFiles,
                         prunedFiles = runResult.PrunedFiles,
-                        wouldWrite = dryRun ? runResult.PlannedFiles : null,
-                        wouldDelete = dryRun ? runResult.WouldPruneFiles : null,
+                        wouldWrite = diffResult is not null
+                            ? diffResult.AddedFiles
+                                .Concat(diffResult.ChangedFiles)
+                                .ToArray()
+                            : dryRun ? runResult.PlannedFiles : null,
+                        wouldDelete = diffResult is not null
+                            ? diffResult.RemovedFiles
+                            : dryRun ? runResult.WouldPruneFiles : null,
+                        differences = diffResult is null ? null : new
+                        {
+                            addedFiles = diffResult.AddedFiles,
+                            changedFiles = diffResult.ChangedFiles,
+                            unchangedFiles = diffResult.UnchangedFiles,
+                            removedFiles = diffResult.RemovedFiles,
+                            hasDifferences = diffResult.HasDifferences
+                        },
                         options = new
                         {
                             fileNameMode = fileNameMode.ToString(),
@@ -347,7 +385,10 @@ namespace Xml2Doc.Cli
                     Console.WriteLine($"Report written to {repFull}");
                 }
 
-                return diagnosticSink.HasErrors ? 2 : 0;
+                if (diagnosticSink.HasErrors)
+                    return 2;
+
+                return diffResult?.HasDifferences == true ? 3 : 0;
             }
             catch (Exception ex)
             {
@@ -355,6 +396,90 @@ namespace Xml2Doc.Cli
                     Console.Error.WriteLine(ex.ToString());
                 return 2;
             }
+        }
+
+        private static CliDiffResult RunDiff(
+            Xml2Doc.Core.Models.Xml2Doc model,
+            RendererOptions options,
+            string outputPath,
+            RendererRunMode mode)
+        {
+            var comparisonResult = new RendererRunner(
+                new MarkdownRenderer(model, options)).Run(
+                    new RendererRunRequest(
+                        outputPath,
+                        mode,
+                        DryRun: true));
+            var temporaryRoot = Path.Combine(
+                Path.GetTempPath(),
+                "xml2doc-diff-" + Guid.NewGuid().ToString("N"));
+            var temporaryOutput = mode == RendererRunMode.SingleFile
+                ? Path.Combine(temporaryRoot, "output.md")
+                : Path.Combine(temporaryRoot, "output");
+
+            try
+            {
+                var previewOptions = options with
+                {
+                    PruneStaleFiles = false,
+                    ManifestIdentity = null
+                };
+                var previewResult = new RendererRunner(
+                    new MarkdownRenderer(model, previewOptions)).Run(
+                        new RendererRunRequest(temporaryOutput, mode));
+
+                if (previewResult.PlannedFiles.Count !=
+                    comparisonResult.PlannedFiles.Count)
+                {
+                    throw new InvalidOperationException(
+                        "Diff preview did not match the deterministic output plan.");
+                }
+
+                var addedFiles = new List<string>();
+                var changedFiles = new List<string>();
+                var unchangedFiles = new List<string>();
+
+                for (var index = 0;
+                    index < comparisonResult.PlannedFiles.Count;
+                    index++)
+                {
+                    var destination = comparisonResult.PlannedFiles[index];
+                    var preview = previewResult.PlannedFiles[index];
+
+                    if (!File.Exists(destination))
+                        addedFiles.Add(destination);
+                    else if (File.ReadAllBytes(destination)
+                        .SequenceEqual(File.ReadAllBytes(preview)))
+                        unchangedFiles.Add(destination);
+                    else
+                        changedFiles.Add(destination);
+                }
+
+                return new CliDiffResult(
+                    comparisonResult,
+                    addedFiles,
+                    changedFiles,
+                    unchangedFiles,
+                    comparisonResult.WouldPruneFiles);
+            }
+            finally
+            {
+                if (Directory.Exists(temporaryRoot))
+                    Directory.Delete(temporaryRoot, recursive: true);
+            }
+        }
+
+        private sealed record CliDiffResult(
+            RendererRunResult RunResult,
+            IReadOnlyList<string> AddedFiles,
+            IReadOnlyList<string> ChangedFiles,
+            IReadOnlyList<string> UnchangedFiles,
+            IReadOnlyList<string> RemovedFiles)
+        {
+            public bool HasDifferences =>
+                AddedFiles.Count > 0 ||
+                ChangedFiles.Count > 0 ||
+                RemovedFiles.Count > 0;
         }
 
         /// <summary>

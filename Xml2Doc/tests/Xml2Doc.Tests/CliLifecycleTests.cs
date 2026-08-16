@@ -222,6 +222,157 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void Main_WithDiffAndMissingOutputReportsAddedWithoutWriting()
+        {
+            using var output = TemporaryOutput.Create();
+            var docsPath = output.FullPath("docs");
+            var reportPath = output.FullPath("report.json");
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", docsPath,
+                "--diff",
+                "--report", reportPath
+            });
+
+            exitCode.ShouldBe(3);
+            Directory.Exists(docsPath).ShouldBeFalse();
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            var differences = report.RootElement
+                .GetProperty("differences");
+            differences.GetProperty("hasDifferences")
+                .GetBoolean().ShouldBeTrue();
+            differences.GetProperty("addedFiles")
+                .GetArrayLength().ShouldBeGreaterThan(0);
+            differences.GetProperty("changedFiles")
+                .GetArrayLength().ShouldBe(0);
+            differences.GetProperty("unchangedFiles")
+                .GetArrayLength().ShouldBe(0);
+            differences.GetProperty("removedFiles")
+                .GetArrayLength().ShouldBe(0);
+            report.RootElement.GetProperty("writtenFiles")
+                .GetArrayLength().ShouldBe(0);
+        }
+
+        [Fact]
+        public void Main_WithDiffAndMatchingOutputReportsNoDifferences()
+        {
+            using var output = TemporaryOutput.Create();
+            var docsPath = output.FullPath("docs");
+            var reportPath = output.FullPath("report.json");
+            var generationArgs = new[]
+            {
+                "--xml", SampleXml,
+                "--out", docsPath
+            };
+            Program.Main(generationArgs).ShouldBe(0);
+            var previousFiles = Directory.GetFiles(docsPath, "*.md");
+            var previousBytes = previousFiles.ToDictionary(
+                path => path,
+                File.ReadAllBytes);
+
+            var exitCode = Program.Main(generationArgs.Concat(new[]
+            {
+                "--diff",
+                "--report", reportPath
+            }).ToArray());
+
+            exitCode.ShouldBe(0);
+            foreach (var file in previousFiles)
+                File.ReadAllBytes(file).ShouldBe(previousBytes[file]);
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            var differences = report.RootElement
+                .GetProperty("differences");
+            differences.GetProperty("hasDifferences")
+                .GetBoolean().ShouldBeFalse();
+            differences.GetProperty("unchangedFiles")
+                .GetArrayLength().ShouldBe(previousFiles.Length);
+        }
+
+        [Fact]
+        public void Main_WithDiffReportsChangedAndRemovedFilesWithoutMutation()
+        {
+            using var output = TemporaryOutput.Create();
+            var docsPath = output.FullPath("docs");
+            var reportPath = output.FullPath("report.json");
+            var manifestIdentity = "diff-project";
+            var generationArgs = new[]
+            {
+                "--xml", SampleXml,
+                "--out", docsPath,
+                "--prune-stale",
+                "--manifest-id", manifestIdentity
+            };
+            Program.Main(generationArgs).ShouldBe(0);
+            var changedPath = Directory.GetFiles(docsPath, "*.md").First();
+            File.WriteAllText(changedPath, "locally changed");
+            var stalePath = Path.Join(docsPath, "stale.md");
+            File.WriteAllText(stalePath, "stale");
+            var location = OutputManifestLocation.Create(
+                docsPath,
+                manifestIdentity);
+            var ownedFiles = OutputManifestStore.Load(location)!.Files
+                .Concat(new[] { "stale.md" })
+                .ToArray();
+            OutputManifestStore.Save(location, ownedFiles);
+            var previousManifest = File.ReadAllBytes(location.ManifestPath);
+
+            var exitCode = Program.Main(generationArgs.Concat(new[]
+            {
+                "--diff",
+                "--report", reportPath
+            }).ToArray());
+
+            exitCode.ShouldBe(3);
+            File.ReadAllText(changedPath).ShouldBe("locally changed");
+            File.ReadAllText(stalePath).ShouldBe("stale");
+            File.ReadAllBytes(location.ManifestPath)
+                .ShouldBe(previousManifest);
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            var differences = report.RootElement
+                .GetProperty("differences");
+            differences.GetProperty("changedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ShouldContain(changedPath);
+            differences.GetProperty("removedFiles")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+                .ShouldBe(new[] { stalePath });
+        }
+
+        [Fact]
+        public void Main_WithConfiguredDiffUsesNonMutatingComparison()
+        {
+            using var output = TemporaryOutput.Create();
+            var docsPath = output.FullPath("docs");
+            var reportPath = output.FullPath("report.json");
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write(
+                "xml2doc.json",
+                JsonSerializer.Serialize(new CliConfig
+                {
+                    Xml = SampleXml,
+                    Out = docsPath,
+                    Diff = true,
+                    Report = reportPath
+                }));
+
+            var exitCode = Program.Main(new[] { "--config", configPath });
+
+            exitCode.ShouldBe(3);
+            Directory.Exists(docsPath).ShouldBeFalse();
+            using var report = JsonDocument.Parse(
+                File.ReadAllText(reportPath));
+            report.RootElement.GetProperty("diffRequested")
+                .GetBoolean().ShouldBeTrue();
+        }
+
+        [Fact]
         public void Main_RepeatedGenerationReportsAllUnchangedFilesAsSkipped()
         {
             using var output = TemporaryOutput.Create();

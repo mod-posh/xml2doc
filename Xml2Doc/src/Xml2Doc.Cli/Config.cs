@@ -47,7 +47,7 @@ namespace Xml2Doc.Cli
         /// <summary>Dry run (no writes) when true. Maps to <c>--dry-run</c>.</summary>
         public bool? DryRun { get; set; }
 
-        /// <summary>Reserved for diff analysis (currently inert). Maps to <c>--diff</c>.</summary>
+        /// <summary>Compare generated Markdown with existing output without writing it. Maps to <c>--diff</c>.</summary>
         public bool? Diff { get; set; }
 
         /// <summary>Anchor/slug algorithm (<c>default</c>|<c>github</c>|<c>kramdown</c>|<c>gfm</c>). Maps to <c>--anchor-algorithm</c>.</summary>
