@@ -26,7 +26,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Post to Bluesky
-        uses: mod-posh/Post2BlueSky@v0.0.3.0
+        uses: mod-posh/Post2BlueSky@v0.0.3.1
         with:
           Message: |
             Version ${{ env.latest_tag }} of ${{ vars.Project_Name }} is available! 🎉  
