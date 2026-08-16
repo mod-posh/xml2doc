@@ -4,6 +4,7 @@ using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Linking;
+using Xml2Doc.Core.Signatures;
 
 namespace Xml2Doc.Core
 {
@@ -161,6 +162,15 @@ namespace Xml2Doc.Core
     /// <paramref name="ExternalDocs"/> is set, a
     /// <see cref="BaseUrlExternalSymbolResolver"/> is used.
     /// </param>
+    /// <param name="SignatureStyle">
+    /// Optional controls for parameter names, generic constraints, and default values.
+    /// Constraint output also uses documented generic parameter names in the signature.
+    /// The default preserves existing signature output.
+    /// </param>
+    /// <param name="SignatureRenderer">
+    /// Optional signature and label renderer. When omitted, Xml2Doc uses
+    /// <see cref="DefaultSignatureRenderer"/>.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -214,9 +224,73 @@ namespace Xml2Doc.Core
         Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter = null,
         IAutoLinker? AutoLinker = null,
         LinkPolicy LinkPolicy = LinkPolicy.InternalOnly,
-        IExternalSymbolResolver? ExternalSymbolResolver = null
+        IExternalSymbolResolver? ExternalSymbolResolver = null,
+        SignatureStyle? SignatureStyle = null,
+        ISignatureRenderer? SignatureRenderer = null
     )
     {
+        /// <summary>
+        /// Preserves the constructor signature published with external cref resolution.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator,
+            ITemplateRenderer? TemplateRenderer,
+            Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter,
+            IAutoLinker? AutoLinker,
+            LinkPolicy LinkPolicy,
+            IExternalSymbolResolver? ExternalSymbolResolver)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer,
+                FrontMatter,
+                AutoLinker,
+                LinkPolicy,
+                ExternalSymbolResolver,
+                SignatureStyle: null,
+                SignatureRenderer: null)
+        {
+        }
+
         /// <summary>
         /// Preserves the constructor signature published with auto-linker injection.
         /// </summary>

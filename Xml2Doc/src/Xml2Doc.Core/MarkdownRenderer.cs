@@ -12,6 +12,7 @@ using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
+using Xml2Doc.Core.Signatures;
 
 namespace Xml2Doc.Core;
 
@@ -52,6 +53,8 @@ public sealed class MarkdownRenderer
     private readonly IAnchorGenerator _anchorGenerator;
     private readonly ITemplateRenderer _templateRenderer;
     private readonly IAutoLinker _autoLinker;
+    private readonly ISignatureRenderer _signatureRenderer;
+    private readonly SignatureStyle _signatureStyle;
     private readonly AutoLinkContext _perTypeAutoLinkContext;
     private readonly AutoLinkContext _singleFileAutoLinkContext;
 
@@ -74,6 +77,11 @@ public sealed class MarkdownRenderer
         _model = model;
         _opt = options ?? new RendererOptions();
         _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
+        _signatureStyle = _opt.SignatureStyle ?? SignatureStyle.Default;
+        _signatureRenderer = _opt.SignatureRenderer ??
+            new DefaultSignatureRenderer(
+                _aliasProvider,
+                _opt.RootNamespaceToTrim);
         _anchorGenerator = _opt.AnchorGenerator ??
             new DefaultAnchorGenerator(_opt.AnchorAlgorithm, _aliasProvider);
         if (_opt.TemplateRenderer is not null &&
@@ -105,7 +113,7 @@ public sealed class MarkdownRenderer
                 ? new BaseUrlExternalSymbolResolver(_opt.ExternalDocs!)
                 : null);
         _linkResolver = new DefaultLinkResolver(
-            labelFromCref: ShortLabelFromCref,
+            labelFromCref: _signatureRenderer.RenderCrefLabel,
             idToAnchor: IdToAnchor,
             typeFileName: TypeFileNameForResolver,
             headingSlug: HeadingSlug,
@@ -167,7 +175,7 @@ public sealed class MarkdownRenderer
                     file,
                     NormalizeLineEndings(ApplyTemplate(
                         RenderType(t, includeHeader: true),
-                        ShortTypeDisplay(t.Id),
+                        _signatureRenderer.RenderTypeName(t.Id),
                         TemplateDocumentKind.Type)),
                     MarkdownEncoding);
             }
@@ -204,7 +212,7 @@ public sealed class MarkdownRenderer
                     sbNs.AppendLine($"# {ns}");
                     foreach (var t in kv.Value.OrderBy(t => t.Id, StringComparer.Ordinal))
                     {
-                        var shortName = ShortTypeDisplay(t.Id);
+                        var shortName = _signatureRenderer.RenderTypeName(t.Id);
                         var perTypeFile = FileNameForPerType(t.Id);
                         sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
                     }
@@ -334,7 +342,7 @@ public sealed class MarkdownRenderer
             for (int i = 0; i < types.Count; i++)
             {
                 var t = types[i];
-                var typeDisplay = ShortTypeDisplay(t.Id);
+                var typeDisplay = _signatureRenderer.RenderTypeName(t.Id);
                 sb.AppendLine($"<a id=\"{HeadingSlug(typeDisplay)}\"></a>");
                 sb.AppendLine($"# {typeDisplay}");
                 sb.AppendLine();
@@ -392,7 +400,7 @@ public sealed class MarkdownRenderer
         sb.AppendLine("# API Reference");
         foreach (var t in types)
         {
-            var shortName = ShortTypeDisplay(t.Id);
+            var shortName = _signatureRenderer.RenderTypeName(t.Id);
             var link = useAnchors ? $"#{HeadingSlug(shortName)}" : FileNameForPerType(t.Id);
             sb.AppendLine($"- [{shortName}]({link})");
         }
@@ -407,7 +415,7 @@ public sealed class MarkdownRenderer
     private string RenderType(XMember type, bool includeHeader = true)
     {
         var sb = new StringBuilder();
-        var typeDisplay = ShortTypeDisplay(type.Id);
+        var typeDisplay = _signatureRenderer.RenderTypeName(type.Id);
 
         if (includeHeader)
         {
@@ -609,172 +617,6 @@ public sealed class MarkdownRenderer
         _anchorGenerator.GenerateHeadingAnchor(heading);
 
     /// <summary>
-    /// Builds a concise member header (Kind + simplified signature) for headings and overload bullets.
-    /// </summary>
-    private string MemberHeader(XMember m)
-    {
-        var id = m.Id;
-        var parenIdx = id.IndexOf('(');
-        var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
-        var namePart = cut >= 0 ? id.Substring(cut + 1) : id;
-
-        namePart = Regex.Replace(namePart, @"\((.*)\)", match =>
-        {
-            var inner = match.Groups[1].Value;
-            if (string.IsNullOrWhiteSpace(inner)) return "()";
-
-            static IEnumerable<string> SplitParams(string s)
-            {
-                var depth = 0; var start = 0;
-                for (int i = 0; i < s.Length; i++)
-                {
-                    var ch = s[i];
-                    if (ch == '{') depth++;
-                    else if (ch == '}') depth--;
-                    else if (ch == ',' && depth == 0)
-                    {
-                        yield return s.Substring(start, i - start);
-                        start = i + 1;
-                    }
-                }
-                yield return s.Substring(start);
-            }
-
-            var parts = SplitParams(inner).Select(p => p.Trim());
-            var simplified = parts.Select(ShortenSignatureType).ToArray();
-            return $"({string.Join(", ", simplified)})";
-        });
-
-        namePart = Regex.Replace(namePart, @"``(\d+)", m2 =>
-        {
-            var n = int.Parse(m2.Groups[1].Value);
-            return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
-        });
-
-        return $"{KindToWord(m.Kind)}: {namePart}";
-    }
-
-    /// <summary>
-    /// Maps XML documentation kind letter to a readable word.
-    /// </summary>
-    private static string KindToWord(string kind) => kind switch
-    {
-        "M" => "Method",
-        "P" => "Property",
-        "F" => "Field",
-        "E" => "Event",
-        "T" => "Type",
-        _ => kind
-    };
-
-    /// <summary>
-    /// Produces a short display name for a type ID (generic arity → &lt;T…&gt;, optional root namespace trimming).
-    /// </summary>
-    private string ShortTypeDisplay(string typeId)
-    {
-        if (typeId.IndexOf('{') >= 0 || typeId.IndexOf('}') >= 0 || typeId.IndexOf('<') >= 0)
-        {
-            var normalized = typeId.Replace('{', '<').Replace('}', '>');
-            var display = ShortenSignatureType(normalized);
-
-            if (_opt.RootNamespaceToTrim is string root && root.Length > 0 &&
-                display.StartsWith(root + ".", StringComparison.Ordinal))
-            {
-                display = display.Substring(root.Length + 1);
-            }
-            return display;
-        }
-
-        var id = typeId;
-        if (_opt.RootNamespaceToTrim is string root2 && root2.Length > 0 &&
-            id.StartsWith(root2 + ".", StringComparison.Ordinal))
-        {
-            id = id.Substring(root2.Length + 1);
-        }
-
-        var lastDot = id.LastIndexOf('.');
-        var simple = lastDot >= 0 ? id.Substring(lastDot + 1) : id;
-
-        simple = Regex.Replace(simple, @"`(\d+)", m =>
-        {
-            var n = int.Parse(m.Groups[1].Value);
-            return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
-        });
-
-        return simple;
-    }
-
-    /// <summary>
-    /// Shortens a fully‑qualified type for signature display (aliases + recursive generic argument formatting).
-    /// </summary>
-    private string ShortenSignatureType(string full)
-    {
-        if (string.IsNullOrWhiteSpace(full)) return string.Empty;
-
-        var s = full.Trim().Replace('{', '<').Replace('}', '>');
-        s = Regex.Replace(s, @"``(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
-        s = Regex.Replace(s, @"`(\d+)", m => $"T{int.Parse(m.Groups[1].Value) + 1}");
-
-        var lt = s.IndexOf('<');
-        if (lt < 0)
-        {
-            s = _aliasProvider.ApplyAliases(s);
-            if (s.Contains('.')) s = s.Split('.').Last();
-            s = s.Replace("System.", string.Empty);
-            return s;
-        }
-
-        var gt = FindMatchingAngle(s, lt);
-        if (gt < 0) return s;
-
-        var head = s.Substring(0, lt);
-        var inner = s.Substring(lt + 1, gt - lt - 1);
-        var tail = s.Substring(gt + 1);
-
-        head = _aliasProvider.ApplyAliases(head);
-        if (head.Contains('.')) head = head.Split('.').Last();
-        head = head.Replace("System.Collections.Generic.", string.Empty)
-                   .Replace("System.", string.Empty);
-
-        var args = SplitTopLevel(inner).Select(ShortenSignatureType);
-        var rebuilt = $"{head}<{string.Join(", ", args)}>";
-        return rebuilt + tail;
-
-        static int FindMatchingAngle(string str, int openIdx)
-        {
-            int depth = 0;
-            for (int i = openIdx; i < str.Length; i++)
-            {
-                var ch = str[i];
-                if (ch == '<') depth++;
-                else if (ch == '>')
-                {
-                    depth--;
-                    if (depth == 0) return i;
-                }
-            }
-            return -1;
-        }
-
-        static IEnumerable<string> SplitTopLevel(string s)
-        {
-            var depth = 0; int start = 0;
-            for (int i = 0; i < s.Length; i++)
-            {
-                var ch = s[i];
-                if (ch == '<') depth++;
-                else if (ch == '>') depth--;
-                else if (ch == ',' && depth == 0)
-                {
-                    yield return s.Substring(start, i - start).Trim();
-                    start = i + 1;
-                }
-            }
-            if (start <= s.Length) yield return s.Substring(start).Trim();
-        }
-    }
-
-    /// <summary>
     /// Builds a member table of contents (overload groups collapsed to first anchor).
     /// </summary>
     private string BuildMemberToc(IEnumerable<XMember> members)
@@ -795,7 +637,7 @@ public sealed class MarkdownRenderer
         foreach (var g in groups)
         {
             var first = g.First();
-            var label = MemberHeader(first);
+            var label = _signatureRenderer.RenderMemberHeader(first, _signatureStyle);
             var anchor = IdToAnchor(first.Id);
             sb.AppendLine($"- [{label}](#{anchor})");
         }
@@ -944,156 +786,6 @@ public sealed class MarkdownRenderer
         var id = typeCref.StartsWith("T:") ? typeCref.Substring(2) : typeCref;
         id = id.Replace('+', '.');
         return FileNameForPerType(id);
-    }
-
-    /// <summary>
-    /// Shortens a type cref for display (arity → placeholders, braces normalized, aliases applied).
-    /// </summary>
-    private string ShortenTypeName(string cref)
-    {
-#if NETSTANDARD2_0
-        var id = (cref.IndexOf(':') >= 0) ? cref.Split(new[] { ':' }, 2)[1] : cref;
-#else
-        var id = cref.Contains(':') ? cref.Split(':', 2)[1] : cref;
-#endif
-        var last = id.Split('.').LastOrDefault() ?? id;
-        last = Regex.Replace(last, @"`(\d+)", m =>
-        {
-            var n = int.Parse(m.Groups[1].Value);
-            return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
-        });
-        last = last.Replace('{', '<').Replace('}', '>');
-        last = _aliasProvider.ApplyAliases(last);
-        return last;
-    }
-
-    /// <summary>
-    /// Generates a short label from a cref (type name or method name + simplified parameter list).
-    /// </summary>
-    private string ShortLabelFromCref(string cref)
-    {
-        if (string.IsNullOrWhiteSpace(cref))
-            return string.Empty;
-
-#if NETSTANDARD2_0
-        var parts = cref.Split(new[] { ':' }, 2);
-#else
-        var parts = cref.Split(':', 2);
-#endif
-        var kind = parts.Length == 2 ? parts[0] : "";
-        var id = parts.Length == 2 ? parts[1] : cref;
-
-        if (kind == "T")
-            return ShortTypeDisplay(id);
-
-        if (kind == "M")
-        {
-            var parenIdx = id.IndexOf('(');
-            var cut = parenIdx >= 0 ? id.LastIndexOf('.', parenIdx) : id.LastIndexOf('.');
-            var nameAndParams = cut >= 0 ? id.Substring(cut + 1) : id;
-            var paren = nameAndParams.IndexOf('(');
-#if NETSTANDARD2_0
-            var methodName = paren >= 0 ? nameAndParams.Substring(0, paren) : nameAndParams;
-#else
-            var methodName = paren >= 0 ? nameAndParams[..paren] : nameAndParams;
-#endif
-            methodName = Regex.Replace(methodName, @"``(\d+)", m2 =>
-            {
-                var n = int.Parse(m2.Groups[1].Value);
-                return $"<{string.Join(",", Enumerable.Range(1, n).Select(i => $"T{i}"))}>";
-            });
-
-            var paramList = (paren >= 0 && nameAndParams.EndsWith(")"))
-                ? nameAndParams.Substring(paren + 1, nameAndParams.Length - paren - 2)
-                : string.Empty;
-
-            static IEnumerable<string> SplitParams(string s)
-            {
-                var depth = 0; var start = 0;
-                for (int i = 0; i < s.Length; i++)
-                {
-                    var ch = s[i];
-                    if (ch == '{') depth++;
-                    else if (ch == '}') depth--;
-                    else if (ch == ',' && depth == 0)
-                    {
-                        yield return s.Substring(start, i - start).Trim();
-                        start = i + 1;
-                    }
-                }
-                if (s.Length > 0) yield return s.Substring(start).Trim();
-            }
-
-            static IEnumerable<string> SplitTopLevelGenericArgs(string s)
-            {
-                var depth = 0; var start = 0;
-                for (int i = 0; i < s.Length; i++)
-                {
-                    var ch = s[i];
-                    if (ch == '<') depth++;
-                    else if (ch == '>') depth--;
-                    else if (ch == ',' && depth == 0)
-                    {
-                        yield return s.Substring(start, i - start).Trim();
-                        start = i + 1;
-                    }
-                }
-                if (start <= s.Length) yield return s.Substring(start).Trim();
-            }
-
-            string FormatParam(string p)
-            {
-                p = p.Trim();
-                p = p.Replace('{', '<').Replace('}', '>');
-                p = _aliasProvider.ApplyAliases(p);
-
-                if (p.Contains('<') && p.Contains('>'))
-                {
-                    var lt = p.IndexOf('<');
-                    var gt = p.LastIndexOf('>');
-                    if (lt >= 0 && gt > lt)
-                    {
-#if NETSTANDARD2_0
-                        var head = p.Substring(0, lt + 1);
-                        var inner = p.Substring(lt + 1, gt - lt - 1);
-                        var tail = p.Substring(gt);
-#else
-                        var head = p[..(lt + 1)];
-                        var inner = p.Substring(lt + 1, gt - lt - 1);
-                        var tail = p[gt..];
-#endif
-                        var trimmedArgs = SplitTopLevelGenericArgs(inner)
-                            .Select(x => x.Contains('<')
-                                ? Regex.Replace(x, @"(?<![A-Za-z0-9_])([A-ZaZ0-9_.]+)(?=\s*<)", m => m.Groups[1].Value.Split('.').Last())
-                                : x.Split('.').Last()
-                            );
-                        var newInner = string.Join(", ", trimmedArgs);
-                        p = head + newInner + tail;
-                    }
-                }
-
-                if (!p.Contains('<'))
-                    p = p.Split('.').Last();
-                return p;
-            }
-
-            var formattedParams = string.IsNullOrWhiteSpace(paramList)
-                ? string.Empty
-                : string.Join(", ", SplitParams(paramList).Select(FormatParam));
-
-            return string.IsNullOrEmpty(formattedParams)
-                ? $"{methodName}()"
-                : $"{methodName}({formattedParams})";
-        }
-
-#if NETSTANDARD2_0
-        if (id.Contains("."))
-            return id.Substring(id.LastIndexOf('.') + 1);
-#else
-        if (id.Contains('.'))
-            return id[(id.LastIndexOf('.') + 1)..];
-#endif
-        return id;
     }
 
     // === XML → Markdown normalization ===
@@ -1284,9 +976,9 @@ public sealed class MarkdownRenderer
         sb.AppendLine($"<a id=\"{IdToAnchor(m.Id)}\"></a>");
 
         if (asOverload)
-            sb.AppendLine($"- `{MemberHeader(m)}`");
+            sb.AppendLine($"- `{_signatureRenderer.RenderMemberHeader(m, _signatureStyle)}`");
         else
-            sb.AppendLine($"## {MemberHeader(m)}");
+            sb.AppendLine($"## {_signatureRenderer.RenderMemberHeader(m, _signatureStyle)}");
 
         var ms = NormalizeXmlToMarkdown(memberElement.Element("summary"));
         if (!string.IsNullOrWhiteSpace(ms))
