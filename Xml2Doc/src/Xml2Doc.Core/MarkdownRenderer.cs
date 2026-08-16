@@ -100,11 +100,18 @@ public sealed class MarkdownRenderer
                     _opt.FrontMatterPath)
                 : DefaultTemplateRenderer.Instance);
         _autoLinker = _opt.AutoLinker ?? SimpleAutoLinker.Instance;
+        var externalSymbolResolver = _opt.ExternalSymbolResolver ??
+            (!string.IsNullOrWhiteSpace(_opt.ExternalDocs)
+                ? new BaseUrlExternalSymbolResolver(_opt.ExternalDocs!)
+                : null);
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: ShortLabelFromCref,
             idToAnchor: IdToAnchor,
             typeFileName: TypeFileNameForResolver,
-            headingSlug: HeadingSlug);
+            headingSlug: HeadingSlug,
+            isKnownCref: cref => _model.Members.ContainsKey(cref),
+            linkPolicy: _opt.LinkPolicy,
+            externalSymbolResolver: externalSymbolResolver);
         _perTypeAutoLinkContext = BuildAutoLinkContext(singleFile: false);
         _singleFileAutoLinkContext = BuildAutoLinkContext(singleFile: true);
     }
