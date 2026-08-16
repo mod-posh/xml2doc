@@ -180,5 +180,53 @@ namespace Xml2Doc.Core
         LineEndingStyle LineEndings = LineEndingStyle.Lf,
         Action<string>? WarningSink = null,
         IAliasProvider? AliasProvider = null
-    );
+    )
+    {
+        /// <summary>
+        /// Preserves the constructor signature published before alias-provider injection was added.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider: null)
+        {
+        }
+    }
 }
