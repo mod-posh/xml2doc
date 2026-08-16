@@ -223,7 +223,7 @@ namespace Xml2Doc.Cli
                 if (cfg is null)
                 {
                     Console.Error.WriteLine(
-                        $"Configuration file is empty: {configPath}");
+                        $"Configuration file must contain a JSON object: {configPath}");
                     return 1;
                 }
 

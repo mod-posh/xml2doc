@@ -119,6 +119,23 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void Main_WhenConfigJsonIsNull_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write("xml2doc.json", "null");
+
+            var result = CaptureStandardError(() => Program.Main(new[]
+            {
+                "--config", configPath
+            }));
+
+            result.ExitCode.ShouldBe(1);
+            result.StandardError.ShouldContain(
+                "Configuration file must contain a JSON object:");
+        }
+
+        [Fact]
         public void Main_WhenConfiguredParallelValueIsInvalid_ReturnsValidationFailure()
         {
             using var output = TemporaryOutput.Create();
