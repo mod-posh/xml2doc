@@ -116,6 +116,54 @@ public class InheritDocResolverTests
     }
 
     [Fact]
+    public async Task Render_SnapshotMemberWithLocalContent_DoesNotMatchItself()
+    {
+        var xml = """
+                <?xml version="1.0"?>
+                <doc><members>
+                  <member name="M:Temp.IService.Run">
+                    <summary>Runs through the contract.</summary>
+                  </member>
+                  <member name="T:Temp.Service"><summary>Service.</summary></member>
+                  <member name="M:Temp.Service.Run">
+                    <inheritdoc/>
+                    <remarks>Implementation guidance.</remarks>
+                  </member>
+                </members></doc>
+                """;
+        var tmpDir = Path.Join(
+            Path.GetTempPath(),
+            "Xml2Doc.Tests",
+            Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var xmlPath = Path.Join(tmpDir, "Temp.xml");
+            await File.WriteAllTextAsync(
+                xmlPath,
+                xml,
+                new UTF8Encoding(false));
+            var renderer = new MarkdownRenderer(
+                Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath),
+                new RendererOptions());
+            var outDir = Path.Join(tmpDir, "out");
+
+            renderer.RenderToDirectory(outDir);
+
+            var implementation = await File.ReadAllTextAsync(
+                Path.Join(outDir, "Temp.Service.md"));
+            implementation.ShouldContain("Runs through the contract.");
+            implementation.ShouldContain("Implementation guidance.");
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Render_ResolvesUniqueFullSignatureAndExplicitCref_ButNotAmbiguousMatches()
     {
         var xml = """
