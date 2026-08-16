@@ -80,6 +80,13 @@ public sealed class MarkdownRenderer
                 "TemplateRenderer cannot be combined with TemplatePath or FrontMatterPath.",
                 nameof(options));
         }
+        if (_opt.FrontMatter is not null &&
+            !string.IsNullOrWhiteSpace(_opt.FrontMatterPath))
+        {
+            throw new ArgumentException(
+                "FrontMatter cannot be combined with FrontMatterPath.",
+                nameof(options));
+        }
 
         _templateRenderer = _opt.TemplateRenderer ??
             (!string.IsNullOrWhiteSpace(_opt.TemplatePath) ||
@@ -208,7 +215,7 @@ public sealed class MarkdownRenderer
                     NormalizeLineEndings(ApplyTemplate(
                         nsIndex.ToString(),
                         "Namespaces",
-                        TemplateDocumentKind.Index)),
+                        TemplateDocumentKind.NamespaceOverview)),
                     MarkdownEncoding);
             }
 
@@ -340,8 +347,17 @@ public sealed class MarkdownRenderer
     private string ApplyTemplate(
         string content,
         string? title,
-        TemplateDocumentKind kind) =>
-        _templateRenderer.Render(new TemplateRenderContext(content, title, kind));
+        TemplateDocumentKind kind)
+    {
+        var context = new TemplateRenderContext(content, title, kind);
+        var rendered = _templateRenderer.Render(context);
+        var frontMatter = _opt.FrontMatter?.Invoke(context);
+
+        if (frontMatter is null || frontMatter.Count == 0)
+            return rendered;
+
+        return YamlFrontMatter.Serialize(frontMatter) + "\n" + rendered;
+    }
 
     // === Core rendering ===
 
