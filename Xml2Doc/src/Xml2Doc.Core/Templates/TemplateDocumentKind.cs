@@ -12,6 +12,9 @@ public enum TemplateDocumentKind
     /// <summary>A namespace-specific index.</summary>
     NamespaceIndex,
 
+    /// <summary>The overview that links to every namespace index.</summary>
+    NamespaceOverview,
+
     /// <summary>A consolidated single-file API document.</summary>
     SingleFile
 }
