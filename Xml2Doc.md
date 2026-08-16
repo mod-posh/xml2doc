@@ -335,6 +335,11 @@ Safe per-type pruning additionally requires:
 --prune-stale --manifest-id MyCompany.MyLibrary
 ```
 
+Use `--external-docs <base-url>` to route unresolved `cref` targets to an
+external documentation site. Known symbols continue to use internal links.
+The equivalent JSON configuration property is `ExternalDocs`. When the option
+is omitted, all links retain the existing internal-only behavior.
+
 Use `--single` when `--out` names one combined file. Pruning is unavailable in single-file mode.
 
 ## Troubleshooting
