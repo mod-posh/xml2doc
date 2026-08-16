@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace Xml2Doc.Core.AutoLinking;
 
@@ -15,6 +16,9 @@ public sealed class SimpleAutoLinker : IAutoLinker
     /// <summary>The shared stateless instance.</summary>
     public static SimpleAutoLinker Instance { get; } = new();
 
+    private readonly ConditionalWeakTable<AutoLinkContext, PreparedTargets>
+        _preparedContexts = new();
+
     private SimpleAutoLinker()
     {
     }
@@ -29,6 +33,15 @@ public sealed class SimpleAutoLinker : IAutoLinker
         if (markdown.Length == 0 || context.Targets.Count == 0)
             return markdown;
 
+        var prepared = _preparedContexts.GetValue(context, PrepareTargets);
+        if (prepared.IdentifierPattern is null)
+            return markdown;
+
+        return ApplyPrepared(markdown, prepared);
+    }
+
+    private static PreparedTargets PrepareTargets(AutoLinkContext context)
+    {
         var targets = context.Targets
             .Where(target =>
                 !string.IsNullOrWhiteSpace(target.Label) &&
@@ -43,7 +56,7 @@ public sealed class SimpleAutoLinker : IAutoLinker
             .ToArray();
 
         if (targets.Length == 0)
-            return markdown;
+            return PreparedTargets.Empty;
 
         var byLabel = targets.ToDictionary(
             target => target.Label,
@@ -52,26 +65,35 @@ public sealed class SimpleAutoLinker : IAutoLinker
             @"(?<![A-Za-z0-9_])(?:" +
             string.Join("|", targets.Select(target => Regex.Escape(target.Label))) +
             @")(?![A-Za-z0-9_])");
+
+        return new PreparedTargets(identifierPattern, byLabel);
+    }
+
+    private static string ApplyPrepared(string markdown, PreparedTargets prepared)
+    {
         var lines = markdown.Split('\n');
         var output = new StringBuilder(markdown.Length);
-        char? fenceMarker = null;
+        Fence? fence = null;
 
         for (var index = 0; index < lines.Length; index++)
         {
             var line = lines[index];
             var trimmed = line.TrimStart();
-            var marker = GetFenceMarker(trimmed);
+            var candidate = GetFence(trimmed);
 
-            if (fenceMarker is null)
+            if (fence is null)
             {
-                if (marker is not null)
-                    fenceMarker = marker;
+                if (candidate is not null)
+                    fence = candidate;
                 else
-                    line = LinkUnprotected(line, identifierPattern, byLabel);
+                    line = LinkUnprotected(
+                        line,
+                        prepared.IdentifierPattern!,
+                        prepared.ByLabel);
             }
-            else if (marker == fenceMarker)
+            else if (IsClosingFence(trimmed, fence.Value))
             {
-                fenceMarker = null;
+                fence = null;
             }
 
             if (index > 0)
@@ -119,12 +141,54 @@ public sealed class SimpleAutoLinker : IAutoLinker
                 return $"[{target.Label}]({target.Href})";
             });
 
-    private static char? GetFenceMarker(string line)
+    private static Fence? GetFence(string line)
     {
-        if (line.StartsWith("```", StringComparison.Ordinal))
-            return '`';
-        if (line.StartsWith("~~~", StringComparison.Ordinal))
-            return '~';
-        return null;
+        if (line.Length < 3 || (line[0] != '`' && line[0] != '~'))
+            return null;
+
+        var marker = line[0];
+        var length = 1;
+        while (length < line.Length && line[length] == marker)
+            length++;
+
+        return length >= 3 ? new Fence(marker, length) : null;
+    }
+
+    private static bool IsClosingFence(string line, Fence opening)
+    {
+        var candidate = GetFence(line);
+        return candidate is not null &&
+               candidate.Value.Marker == opening.Marker &&
+               candidate.Value.Length >= opening.Length &&
+               line.Substring(candidate.Value.Length).Trim().Length == 0;
+    }
+
+    private readonly struct Fence
+    {
+        public Fence(char marker, int length)
+        {
+            Marker = marker;
+            Length = length;
+        }
+
+        public char Marker { get; }
+        public int Length { get; }
+    }
+
+    private sealed class PreparedTargets
+    {
+        public static PreparedTargets Empty { get; } = new(null,
+            new Dictionary<string, AutoLinkTarget>(StringComparer.Ordinal));
+
+        public PreparedTargets(
+            Regex? identifierPattern,
+            IReadOnlyDictionary<string, AutoLinkTarget> byLabel)
+        {
+            IdentifierPattern = identifierPattern;
+            ByLabel = byLabel;
+        }
+
+        public Regex? IdentifierPattern { get; }
+        public IReadOnlyDictionary<string, AutoLinkTarget> ByLabel { get; }
     }
 }
