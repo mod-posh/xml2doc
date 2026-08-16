@@ -76,6 +76,51 @@ public class RendererRunnerTests
     }
 
     [Fact]
+    public void Run_RepeatedGenerationSkipsUnchangedFilesAndPreservesTimestamps()
+    {
+        using var output = TemporaryDirectory.Create();
+        var runner = CreateRunner();
+        var request = new RendererRunRequest(output.Path);
+        var first = runner.Run(request);
+        var preservedTimestamp = new DateTime(
+            2020,
+            1,
+            2,
+            3,
+            4,
+            5,
+            DateTimeKind.Utc);
+        foreach (var path in first.WrittenFiles)
+            File.SetLastWriteTimeUtc(path, preservedTimestamp);
+
+        var second = runner.Run(request);
+
+        second.WrittenFiles.ShouldBeEmpty();
+        second.SkippedFiles.ShouldBe(second.PlannedFiles);
+        second.SkippedFiles.All(path =>
+            File.GetLastWriteTimeUtc(path) == preservedTimestamp)
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Run_ChangedExistingFileIsRewrittenAndReported()
+    {
+        using var output = TemporaryDirectory.Create();
+        var runner = CreateRunner();
+        var request = new RendererRunRequest(output.Path);
+        var first = runner.Run(request);
+        var changedPath = first.PlannedFiles[0];
+        File.WriteAllText(changedPath, "changed");
+
+        var second = runner.Run(request);
+
+        second.WrittenFiles.ShouldBe(new[] { changedPath });
+        second.SkippedFiles.ShouldBe(
+            second.PlannedFiles.Skip(1).ToArray());
+        File.ReadAllText(changedPath).ShouldNotBe("changed");
+    }
+
+    [Fact]
     public void Run_RelativeSingleFileExecutesTheAbsolutePlan()
     {
         var relativeOutput =
