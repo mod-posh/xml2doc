@@ -352,6 +352,14 @@ runner timing fields. Dry runs leave the actual-result arrays empty and populate
 CLI reports omit timestamps so otherwise identical invocations do not differ
 solely because of wall-clock time.
 
+Use `--diff` to compare the Markdown that would be generated with the current
+output without modifying generated files, ownership manifests, or transaction
+state. The console summary and optional report classify absolute paths as
+`addedFiles`, `changedFiles`, `unchangedFiles`, or `removedFiles`. Removed files
+are limited to stale outputs owned by the selected manifest identity when
+pruning is enabled. Diff returns exit code `0` when output is current and `3`
+when differences are found, making it suitable for CI drift checks.
+
 Use `--single` when `--out` names one combined file. Pruning is unavailable in single-file mode.
 
 ## Troubleshooting
