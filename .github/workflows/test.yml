@@ -21,6 +21,9 @@ on:
       - "RELEASE.md"
       - "Xml2Doc.md"
 
+permissions:
+  contents: read
+
 jobs:
   run_tests:
     strategy:
