@@ -133,6 +133,24 @@ For programmatic layouts, implement `ITemplateRenderer.Render` and pass it throu
 `TemplateRenderer`. Programmatic renderers cannot be combined with the file-based options.
 Omitting all template options preserves the built-in Markdown byte-for-byte.
 
+Per-document YAML can be generated with the `FrontMatter` delegate. The context identifies the
+document title and kind, including distinct `Index`, `NamespaceOverview`, `NamespaceIndex`,
+`Type`, and `SingleFile` values:
+
+```csharp
+var options = new RendererOptions(
+    FrontMatter: context => new Dictionary<string, object?>
+    {
+        ["title"] = context.Title,
+        ["kind"] = context.Kind.ToString(),
+        ["generated"] = true
+    });
+```
+
+Keys are ordered ordinally for deterministic output. Supported values include strings, booleans,
+numbers, dates, enums, nulls, and scalar sequences. The delegate cannot be combined with
+`FrontMatterPath`.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.
