@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Xml2Doc.Core.OutputLifecycle
@@ -24,7 +25,17 @@ namespace Xml2Doc.Core.OutputLifecycle
         public static OutputLifecyclePlan ExecuteAfterSuccessfulGeneration(
             OutputManifestLocation location,
             IReadOnlyList<string> generatedFiles,
-            bool dryRun = false)
+            bool dryRun = false) =>
+            ExecuteAfterSuccessfulGenerationWithResult(
+                location,
+                generatedFiles,
+                dryRun).Plan;
+
+        internal static OutputLifecycleExecutionResult
+            ExecuteAfterSuccessfulGenerationWithResult(
+                OutputManifestLocation location,
+                IReadOnlyList<string> generatedFiles,
+                bool dryRun = false)
         {
             if (location is null)
             {
@@ -44,14 +55,16 @@ namespace Xml2Doc.Core.OutputLifecycle
 
             if (dryRun)
             {
-                return plan;
+                return new OutputLifecycleExecutionResult(
+                    plan,
+                    Array.Empty<string>());
             }
 
             ValidateGeneratedFilesExist(
                 location.OutputRoot,
                 plan.FilesToWrite);
-            ApplyPlan(location, plan);
-            return plan;
+            var deletedFiles = ApplyPlan(location, plan);
+            return new OutputLifecycleExecutionResult(plan, deletedFiles);
         }
 
         private static void ValidateGeneratedFilesExist(
@@ -72,7 +85,7 @@ namespace Xml2Doc.Core.OutputLifecycle
             }
         }
 
-        private static void ApplyPlan(
+        private static IReadOnlyList<string> ApplyPlan(
             OutputManifestLocation location,
             OutputLifecyclePlan plan)
         {
@@ -108,6 +121,10 @@ namespace Xml2Doc.Core.OutputLifecycle
                     transactionDirectory,
                     recursive: manifestCommitted);
             }
+
+            return stagedFiles
+                .Select(file => file.OriginalPath)
+                .ToArray();
         }
 
         private static string CreateTransactionDirectory(
