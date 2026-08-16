@@ -508,7 +508,10 @@ public sealed class MarkdownRenderer
             return nameAndParams;
         }
 
-        var groups = members.GroupBy(GroupKey).OrderBy(g => g.Key).ToList();
+        var groups = members
+            .GroupBy(GroupKey, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToList();
 
         foreach (var g in groups)
         {
