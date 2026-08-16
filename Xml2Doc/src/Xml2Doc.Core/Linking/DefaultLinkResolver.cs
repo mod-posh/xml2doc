@@ -15,6 +15,7 @@ namespace Xml2Doc.Core.Linking
         private readonly Func<string, bool> _isKnownCref;
         private readonly LinkPolicy _linkPolicy;
         private readonly IExternalSymbolResolver? _externalSymbolResolver;
+        private readonly Action<string>? _unresolvedCref;
 
         internal DefaultLinkResolver(
             Func<string, string> labelFromCref,
@@ -23,7 +24,8 @@ namespace Xml2Doc.Core.Linking
             Func<string, string> headingSlug,
             Func<string, bool> isKnownCref,
             LinkPolicy linkPolicy,
-            IExternalSymbolResolver? externalSymbolResolver)
+            IExternalSymbolResolver? externalSymbolResolver,
+            Action<string>? unresolvedCref = null)
         {
             _labelFromCref = labelFromCref ?? throw new ArgumentNullException(nameof(labelFromCref));
             _idToAnchor = idToAnchor ?? throw new ArgumentNullException(nameof(idToAnchor));
@@ -32,6 +34,7 @@ namespace Xml2Doc.Core.Linking
             _isKnownCref = isKnownCref ?? throw new ArgumentNullException(nameof(isKnownCref));
             _linkPolicy = linkPolicy;
             _externalSymbolResolver = externalSymbolResolver;
+            _unresolvedCref = unresolvedCref;
         }
 
         public MarkdownLink Resolve(string cref, LinkContext ctx)
@@ -41,14 +44,18 @@ namespace Xml2Doc.Core.Linking
             var kind = isCref ? cref[0] : '?';
             var label = _labelFromCref(cref);
 
+            var isKnown = _isKnownCref(cref);
             if (_linkPolicy == LinkPolicy.PreferExternalForUnknown &&
-                !_isKnownCref(cref) &&
+                !isKnown &&
                 _externalSymbolResolver is not null &&
                 _externalSymbolResolver.TryResolve(cref, out var externalHref) &&
                 !string.IsNullOrWhiteSpace(externalHref))
             {
                 return new MarkdownLink(externalHref!, label);
             }
+
+            if (!isKnown)
+                _unresolvedCref?.Invoke(cref);
 
             // Derive the id portion (strip the leading "X:" if present) so anchors do not contain the kind prefix.
             // Many callers (e.g., renderer emission) call IdToAnchor with the plain id (no "M:"/"T:"), so the resolver
