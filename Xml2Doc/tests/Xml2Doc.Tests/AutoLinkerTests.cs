@@ -27,7 +27,9 @@ public class AutoLinkerTests
             new AutoLinkTarget("Run(string)", "Widget.md#run")
         });
 
-        var result = SimpleAutoLinker.Instance.Apply(markdown, context);
+        var result = SimpleAutoLinker.Instance
+            .Apply(markdown, context)
+            .ReplaceLineEndings("\n");
 
         result.ShouldContain("[Widget](Widget.md) calls [Run(string)](Widget.md#run).");
         result.ShouldContain("`Widget` and [Widget](existing.md) and WidgetFactory");
