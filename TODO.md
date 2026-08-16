@@ -1,12 +1,12 @@
 # Xml2Doc Roadmap
 
-This roadmap groups the current open issues into focused release milestones. The current stable release is `2.0.3`. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
+This roadmap groups the current open issues into focused release milestones. The current stable release is `2.1.0`. Milestone versions are proposed and may be adjusted before release, but the dependency order should remain stable.
 
 ## Release sequence
 
 1. `2.0.3` — Documentation and Lifecycle Correctness (released)
-2. `2.1.0` — Rendering Extensibility (current)
-3. `2.2.0` — Diagnostics and Pipeline
+2. `2.1.0` — Rendering Extensibility (released)
+3. `2.2.0` — Diagnostics and Pipeline (current)
 4. `2.3.0` — Multi-project Aggregation
 
 ## 2.0.3 — Documentation and Lifecycle Correctness
