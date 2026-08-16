@@ -157,26 +157,52 @@ public class RendererRunnerTests
         using var parallelOutput = TemporaryDirectory.Create();
 
         var serialResult = CreateRunner(new RendererOptions(
-            ParallelDegree: 1)).Run(
+            ParallelDegree: 1,
+            EmitNamespaceIndex: true)).Run(
                 new RendererRunRequest(serialOutput.Path));
         var parallelResult = CreateRunner(new RendererOptions(
-            ParallelDegree: 4)).Run(
+            ParallelDegree: 4,
+            EmitNamespaceIndex: true)).Run(
                 new RendererRunRequest(parallelOutput.Path));
 
         var serialNames = serialResult.PlannedFiles
-            .Select(Path.GetFileName)
+            .Select(path => Path.GetRelativePath(serialOutput.Path, path))
             .ToArray();
         var parallelNames = parallelResult.PlannedFiles
-            .Select(Path.GetFileName)
+            .Select(path => Path.GetRelativePath(parallelOutput.Path, path))
             .ToArray();
         parallelNames.ShouldBe(serialNames);
 
         foreach (var fileName in serialNames)
         {
-            File.ReadAllBytes(Path.Join(serialOutput.Path, fileName!))
+            File.ReadAllBytes(Path.Join(serialOutput.Path, fileName))
                 .ShouldBe(File.ReadAllBytes(
-                    Path.Join(parallelOutput.Path, fileName!)));
+                    Path.Join(parallelOutput.Path, fileName)));
         }
+    }
+
+    [Fact]
+    public void Run_ParallelDegreePreservesSerialCollisionOrdering()
+    {
+        using var serialOutput = TemporaryDirectory.Create();
+        using var parallelOutput = TemporaryDirectory.Create();
+        var model = new Xml2Doc.Core.Models.Xml2Doc();
+        AddType(model, "T:First.Duplicate");
+        AddType(model, "T:Second.Duplicate");
+
+        var serial = new RendererRunner(new MarkdownRenderer(
+            model,
+            new RendererOptions(BasenameOnly: true, ParallelDegree: 1)));
+        var parallel = new RendererRunner(new MarkdownRenderer(
+            model,
+            new RendererOptions(BasenameOnly: true, ParallelDegree: 4)));
+
+        serial.Run(new RendererRunRequest(serialOutput.Path));
+        parallel.Run(new RendererRunRequest(parallelOutput.Path));
+
+        File.ReadAllBytes(Path.Join(serialOutput.Path, "Duplicate.md"))
+            .ShouldBe(File.ReadAllBytes(
+                Path.Join(parallelOutput.Path, "Duplicate.md")));
     }
 
     [Fact]

@@ -194,6 +194,12 @@ public sealed class MarkdownRenderer
                     CombineOutputPath(outDir, FileNameForPerType(type.Id)))
                 .ToArray();
             var typeWasWritten = new bool[types.Count];
+            var pathComparer = Path.DirectorySeparatorChar == '\\'
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
+            var typeFilesAreUnique =
+                new HashSet<string>(typeFiles, pathComparer).Count ==
+                typeFiles.Length;
 
             void RenderTypeAt(int index)
             {
@@ -207,7 +213,7 @@ public sealed class MarkdownRenderer
             }
 
             var parallelDegree = _opt.ParallelDegree.GetValueOrDefault(1);
-            if (parallelDegree > 1 && types.Count > 1)
+            if (parallelDegree > 1 && types.Count > 1 && typeFilesAreUnique)
             {
                 Parallel.For(
                     0,
@@ -445,7 +451,9 @@ public sealed class MarkdownRenderer
         _linkMode = LinkMode.InDocumentAnchors;
         try
         {
-            var types = GetTypes().OrderBy(t => t.Id).ToList();
+            var types = GetTypes()
+                .OrderBy(t => t.Id, StringComparer.Ordinal)
+                .ToList();
             var sb = new StringBuilder();
 
             sb.Append(RenderIndex(types, useAnchors: true));
