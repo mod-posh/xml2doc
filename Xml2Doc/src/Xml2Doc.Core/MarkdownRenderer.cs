@@ -14,6 +14,7 @@ using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Signatures;
 using Xml2Doc.Core.Diagnostics;
+using Xml2Doc.Core.Pipeline;
 
 namespace Xml2Doc.Core;
 
@@ -49,6 +50,7 @@ public sealed class MarkdownRenderer
     private static readonly Encoding MarkdownEncoding =
         new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly Models.Xml2Doc _model;
+    private readonly SymbolIndex _symbolIndex;
     private readonly RendererOptions _opt;
     private readonly IAliasProvider _aliasProvider;
     private readonly IAnchorGenerator _anchorGenerator;
@@ -78,6 +80,7 @@ public sealed class MarkdownRenderer
     public MarkdownRenderer(Models.Xml2Doc model, RendererOptions? options = null)
     {
         _model = model;
+        _symbolIndex = SymbolIndex.Build(model);
         _opt = options ?? new RendererOptions();
         _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
         _signatureStyle = _opt.SignatureStyle ?? SignatureStyle.Default;
@@ -393,7 +396,7 @@ public sealed class MarkdownRenderer
     /// Enumerates all documented types (<c>T:</c> members only).
     /// </summary>
     private IEnumerable<XMember> GetTypes() =>
-        _model.Members.Values.Where(m => m.Kind == "T");
+        _symbolIndex.Types;
 
     /// <summary>
     /// Builds a type index linking either to per‑type files or heading anchors (single‑file mode).
@@ -472,10 +475,10 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        var members = _model.Members.Values
+        var members = _symbolIndex.Members.Values
             .Where(m => m.Kind is "M" or "P" or "F" or "E")
             .Where(m => m.Id.StartsWith(type.Id + ".", StringComparison.Ordinal))
-            .OrderBy(m => m.Id)
+            .OrderBy(m => m.Id, StringComparer.Ordinal)
             .ToList();
 
         // Insert per‑type member TOC (multi‑file mode only).
@@ -505,7 +508,10 @@ public sealed class MarkdownRenderer
             return nameAndParams;
         }
 
-        var groups = members.GroupBy(GroupKey).OrderBy(g => g.Key).ToList();
+        var groups = members
+            .GroupBy(GroupKey, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .ToList();
 
         foreach (var g in groups)
         {
@@ -682,7 +688,7 @@ public sealed class MarkdownRenderer
     }
 
     private bool IsKnownCref(string cref) =>
-        _model.Members.ContainsKey(cref);
+        _symbolIndex.ContainsMember(cref);
 
     private void ReportUnresolvedCref(string cref)
     {
@@ -719,7 +725,7 @@ public sealed class MarkdownRenderer
         if (_opt.DiagnosticSink is null)
             return;
 
-        var anchors = _model.Members.Values
+        var anchors = _symbolIndex.Members.Values
             .Where(member => member.Kind is "M" or "P" or "F" or "E")
             .Select(member => new
             {
@@ -776,7 +782,7 @@ public sealed class MarkdownRenderer
         if (!_opt.AutoLink)
             return new AutoLinkContext(Array.Empty<AutoLinkTarget>());
 
-        var targets = _model.Members.Values
+        var targets = _symbolIndex.Members.Values
             .Where(member => member.Kind is "T" or "M" or "P" or "F" or "E")
             .Select(member =>
             {
