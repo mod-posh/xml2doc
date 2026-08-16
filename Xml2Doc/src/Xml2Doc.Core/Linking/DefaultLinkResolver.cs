@@ -12,17 +12,26 @@ namespace Xml2Doc.Core.Linking
         private readonly Func<string, string> _idToAnchor;
         private readonly Func<string, string> _typeFileName;
         private readonly Func<string, string> _headingSlug;
+        private readonly Func<string, bool> _isKnownCref;
+        private readonly LinkPolicy _linkPolicy;
+        private readonly IExternalSymbolResolver? _externalSymbolResolver;
 
         internal DefaultLinkResolver(
             Func<string, string> labelFromCref,
             Func<string, string> idToAnchor,
             Func<string, string> typeFileName,
-            Func<string, string> headingSlug)
+            Func<string, string> headingSlug,
+            Func<string, bool> isKnownCref,
+            LinkPolicy linkPolicy,
+            IExternalSymbolResolver? externalSymbolResolver)
         {
             _labelFromCref = labelFromCref ?? throw new ArgumentNullException(nameof(labelFromCref));
             _idToAnchor = idToAnchor ?? throw new ArgumentNullException(nameof(idToAnchor));
             _typeFileName = typeFileName ?? throw new ArgumentNullException(nameof(typeFileName));
             _headingSlug = headingSlug ?? throw new ArgumentNullException(nameof(headingSlug));
+            _isKnownCref = isKnownCref ?? throw new ArgumentNullException(nameof(isKnownCref));
+            _linkPolicy = linkPolicy;
+            _externalSymbolResolver = externalSymbolResolver;
         }
 
         public MarkdownLink Resolve(string cref, LinkContext ctx)
@@ -31,6 +40,15 @@ namespace Xml2Doc.Core.Linking
             var isCref = !string.IsNullOrWhiteSpace(cref) && cref.Length > 1 && cref[1] == ':';
             var kind = isCref ? cref[0] : '?';
             var label = _labelFromCref(cref);
+
+            if (_linkPolicy == LinkPolicy.PreferExternalForUnknown &&
+                !_isKnownCref(cref) &&
+                _externalSymbolResolver is not null &&
+                _externalSymbolResolver.TryResolve(cref, out var externalHref) &&
+                !string.IsNullOrWhiteSpace(externalHref))
+            {
+                return new MarkdownLink(externalHref!, label);
+            }
 
             // Derive the id portion (strip the leading "X:" if present) so anchors do not contain the kind prefix.
             // Many callers (e.g., renderer emission) call IdToAnchor with the plain id (no "M:"/"T:"), so the resolver
