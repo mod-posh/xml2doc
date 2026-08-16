@@ -148,10 +148,15 @@ public sealed class MarkdownRenderer
     /// </remarks>
     /// <exception cref="IOException">Error writing one or more output files.</exception>
     /// <exception cref="UnauthorizedAccessException">Insufficient permissions for the target directory.</exception>
-    public void RenderToDirectory(string outDir)
+    public void RenderToDirectory(string outDir) =>
+        _ = RenderToDirectoryWithResult(outDir);
+
+    internal RendererWriteResult RenderToDirectoryWithResult(string outDir)
     {
         ValidateAnchors(singleFile: false);
         var __prev = _singleFileMode;
+        var writtenFiles = new List<string>();
+        var skippedFiles = new List<string>();
         OutputManifestLocation? manifestLocation = null;
         IReadOnlyList<string>? generatedFiles = null;
 
@@ -179,20 +184,24 @@ public sealed class MarkdownRenderer
             foreach (var t in types)
             {
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
-                WriteMarkdownFileIfChanged(
+                RecordWriteResult(
                     file,
                     NormalizeLineEndings(ApplyTemplate(
                         RenderType(t, includeHeader: true),
                         _signatureRenderer.RenderTypeName(t.Id),
-                        TemplateDocumentKind.Type)));
+                        TemplateDocumentKind.Type)),
+                    writtenFiles,
+                    skippedFiles);
             }
             if (_opt.GenerateIndex)
-                WriteMarkdownFileIfChanged(
+                RecordWriteResult(
                     CombineOutputPath(outDir, "index.md"),
                     NormalizeLineEndings(ApplyTemplate(
                         RenderIndex(types, useAnchors: false),
                         "API Reference",
-                        TemplateDocumentKind.Index)));
+                        TemplateDocumentKind.Index)),
+                    writtenFiles,
+                    skippedFiles);
 
             if (_opt.EmitNamespaceIndex)
             {
@@ -222,12 +231,14 @@ public sealed class MarkdownRenderer
                         var perTypeFile = FileNameForPerType(t.Id);
                         sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
                     }
-                    WriteMarkdownFileIfChanged(
+                    RecordWriteResult(
                         nsFile,
                         NormalizeLineEndings(ApplyTemplate(
                             sbNs.ToString(),
                             ns,
-                            TemplateDocumentKind.NamespaceIndex)));
+                            TemplateDocumentKind.NamespaceIndex)),
+                        writtenFiles,
+                        skippedFiles);
                 }
 
                 var nsIndex = new StringBuilder();
@@ -237,12 +248,14 @@ public sealed class MarkdownRenderer
                     var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
                     nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
                 }
-                WriteMarkdownFileIfChanged(
+                RecordWriteResult(
                     CombineOutputPath(outDir, "namespaces.md"),
                     NormalizeLineEndings(ApplyTemplate(
                         nsIndex.ToString(),
                         "Namespaces",
-                        TemplateDocumentKind.NamespaceOverview)));
+                        TemplateDocumentKind.NamespaceOverview)),
+                    writtenFiles,
+                    skippedFiles);
             }
 
             if (manifestLocation is not null &&
@@ -257,6 +270,8 @@ public sealed class MarkdownRenderer
         {
             _singleFileMode = __prev;
         }
+
+        return new RendererWriteResult(writtenFiles, skippedFiles);
     }
 
     /// <summary>
@@ -266,21 +281,30 @@ public sealed class MarkdownRenderer
     /// <remarks>Type links become heading slugs; member links use explicit anchors from <see cref="IdToAnchor(string)"/>.</remarks>
     /// <exception cref="IOException">Error writing the output file.</exception>
     /// <exception cref="UnauthorizedAccessException">Insufficient permissions for the output path.</exception>
-    public void RenderToSingleFile(string outPath)
+    public void RenderToSingleFile(string outPath) =>
+        _ = RenderToSingleFileWithResult(outPath);
+
+    internal RendererWriteResult RenderToSingleFileWithResult(string outPath)
     {
         var __prev = _singleFileMode;
+        var writtenFiles = new List<string>();
+        var skippedFiles = new List<string>();
         try
         {
             _singleFileMode = true;
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-            WriteMarkdownFileIfChanged(
+            RecordWriteResult(
                 outPath,
-                NormalizeLineEndings(BuildSingleFileContent()));
+                NormalizeLineEndings(BuildSingleFileContent()),
+                writtenFiles,
+                skippedFiles);
         }
         finally
         {
             _singleFileMode = __prev;
         }
+
+        return new RendererWriteResult(writtenFiles, skippedFiles);
     }
 
     /// <summary>
@@ -289,7 +313,7 @@ public sealed class MarkdownRenderer
     public string RenderToString() =>
         NormalizeLineEndings(BuildSingleFileContent());
 
-    private static void WriteMarkdownFileIfChanged(
+    private static bool WriteMarkdownFileIfChanged(
         string path,
         string content)
     {
@@ -298,10 +322,23 @@ public sealed class MarkdownRenderer
         if (File.Exists(path) &&
             File.ReadAllBytes(path).SequenceEqual(bytes))
         {
-            return;
+            return false;
         }
 
         File.WriteAllBytes(path, bytes);
+        return true;
+    }
+
+    private static void RecordWriteResult(
+        string path,
+        string content,
+        ICollection<string> writtenFiles,
+        ICollection<string> skippedFiles)
+    {
+        if (WriteMarkdownFileIfChanged(path, content))
+            writtenFiles.Add(path);
+        else
+            skippedFiles.Add(path);
     }
 
     private string NormalizeLineEndings(string content)
