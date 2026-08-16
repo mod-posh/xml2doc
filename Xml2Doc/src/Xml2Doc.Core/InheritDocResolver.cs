@@ -34,7 +34,10 @@ namespace Xml2Doc.Core
             var candidates = model.Members.Values
                 .Concat(model.ReferenceMembers.Values)
                 .Where(candidate =>
-                    !ReferenceEquals(candidate, member) &&
+                    !string.Equals(
+                        candidate.Name,
+                        member.Name,
+                        StringComparison.Ordinal) &&
                     string.Equals(candidate.Kind, member.Kind, StringComparison.Ordinal) &&
                     string.Equals(
                         GetMemberSignature(candidate.Id),
