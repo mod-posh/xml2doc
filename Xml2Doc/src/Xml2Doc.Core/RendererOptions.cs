@@ -2,6 +2,7 @@
 using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
 using Xml2Doc.Core.Templates;
+using Xml2Doc.Core.AutoLinking;
 
 namespace Xml2Doc.Core
 {
@@ -146,6 +147,9 @@ namespace Xml2Doc.Core
     /// Optional per-document metadata provider. Returned scalar values are serialized as
     /// deterministic YAML front matter. Cannot be combined with <paramref name="FrontMatterPath"/>.
     /// </param>
+    /// <param name="AutoLinker">
+    /// Optional free-text linker used when <paramref name="AutoLink"/> is true.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -196,9 +200,65 @@ namespace Xml2Doc.Core
         IAliasProvider? AliasProvider = null,
         IAnchorGenerator? AnchorGenerator = null,
         ITemplateRenderer? TemplateRenderer = null,
-        Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter = null
+        Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter = null,
+        IAutoLinker? AutoLinker = null
     )
     {
+        /// <summary>
+        /// Preserves the constructor signature published with front-matter injection.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator,
+            ITemplateRenderer? TemplateRenderer,
+            Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer,
+                FrontMatter,
+                AutoLinker: null)
+        {
+        }
+
         /// <summary>
         /// Preserves the constructor signature published with template-renderer injection.
         /// </summary>
@@ -248,7 +308,8 @@ namespace Xml2Doc.Core
                 AliasProvider,
                 AnchorGenerator,
                 TemplateRenderer,
-                FrontMatter: null)
+                FrontMatter: null,
+                AutoLinker: null)
         {
         }
 
@@ -300,7 +361,8 @@ namespace Xml2Doc.Core
                 AliasProvider,
                 AnchorGenerator,
                 TemplateRenderer: null,
-                FrontMatter: null)
+                FrontMatter: null,
+                AutoLinker: null)
         {
         }
 
@@ -351,7 +413,8 @@ namespace Xml2Doc.Core
                 AliasProvider,
                 AnchorGenerator: null,
                 TemplateRenderer: null,
-                FrontMatter: null)
+                FrontMatter: null,
+                AutoLinker: null)
         {
         }
 
@@ -401,7 +464,8 @@ namespace Xml2Doc.Core
                 AliasProvider: null,
                 AnchorGenerator: null,
                 TemplateRenderer: null,
-                FrontMatter: null)
+                FrontMatter: null,
+                AutoLinker: null)
         {
         }
     }
