@@ -10,6 +10,7 @@ using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.OutputLifecycle;
 using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
+using Xml2Doc.Core.Templates;
 
 namespace Xml2Doc.Core;
 
@@ -48,6 +49,7 @@ public sealed class MarkdownRenderer
     private readonly RendererOptions _opt;
     private readonly IAliasProvider _aliasProvider;
     private readonly IAnchorGenerator _anchorGenerator;
+    private readonly ITemplateRenderer _templateRenderer;
 
     /// <summary>
     /// Internal link target selection mode for cref resolution (multi‑file vs single‑file).
@@ -70,6 +72,29 @@ public sealed class MarkdownRenderer
         _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
         _anchorGenerator = _opt.AnchorGenerator ??
             new DefaultAnchorGenerator(_opt.AnchorAlgorithm, _aliasProvider);
+        if (_opt.TemplateRenderer is not null &&
+            (!string.IsNullOrWhiteSpace(_opt.TemplatePath) ||
+             !string.IsNullOrWhiteSpace(_opt.FrontMatterPath)))
+        {
+            throw new ArgumentException(
+                "TemplateRenderer cannot be combined with TemplatePath or FrontMatterPath.",
+                nameof(options));
+        }
+        if (_opt.FrontMatter is not null &&
+            !string.IsNullOrWhiteSpace(_opt.FrontMatterPath))
+        {
+            throw new ArgumentException(
+                "FrontMatter cannot be combined with FrontMatterPath.",
+                nameof(options));
+        }
+
+        _templateRenderer = _opt.TemplateRenderer ??
+            (!string.IsNullOrWhiteSpace(_opt.TemplatePath) ||
+             !string.IsNullOrWhiteSpace(_opt.FrontMatterPath)
+                ? new FileTemplateRenderer(
+                    _opt.TemplatePath,
+                    _opt.FrontMatterPath)
+                : DefaultTemplateRenderer.Instance);
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: ShortLabelFromCref,
             idToAnchor: IdToAnchor,
@@ -126,13 +151,19 @@ public sealed class MarkdownRenderer
                 var file = Path.Combine(outDir, FileNameForPerType(t.Id));
                 File.WriteAllText(
                     file,
-                    NormalizeLineEndings(RenderType(t, includeHeader: true)),
+                    NormalizeLineEndings(ApplyTemplate(
+                        RenderType(t, includeHeader: true),
+                        ShortTypeDisplay(t.Id),
+                        TemplateDocumentKind.Type)),
                     MarkdownEncoding);
             }
             if (_opt.GenerateIndex)
                 File.WriteAllText(
                     CombineOutputPath(outDir, "index.md"),
-                    NormalizeLineEndings(RenderIndex(types, useAnchors: false)),
+                    NormalizeLineEndings(ApplyTemplate(
+                        RenderIndex(types, useAnchors: false),
+                        "API Reference",
+                        TemplateDocumentKind.Index)),
                     MarkdownEncoding);
 
             if (_opt.EmitNamespaceIndex)
@@ -165,7 +196,10 @@ public sealed class MarkdownRenderer
                     }
                     File.WriteAllText(
                         nsFile,
-                        NormalizeLineEndings(sbNs.ToString()),
+                        NormalizeLineEndings(ApplyTemplate(
+                            sbNs.ToString(),
+                            ns,
+                            TemplateDocumentKind.NamespaceIndex)),
                         MarkdownEncoding);
                 }
 
@@ -178,7 +212,10 @@ public sealed class MarkdownRenderer
                 }
                 File.WriteAllText(
                     CombineOutputPath(outDir, "namespaces.md"),
-                    NormalizeLineEndings(nsIndex.ToString()),
+                    NormalizeLineEndings(ApplyTemplate(
+                        nsIndex.ToString(),
+                        "Namespaces",
+                        TemplateDocumentKind.NamespaceOverview)),
                     MarkdownEncoding);
             }
 
@@ -296,12 +333,30 @@ public sealed class MarkdownRenderer
                 }
             }
 
-            return sb.ToString();
+            return ApplyTemplate(
+                sb.ToString(),
+                "API Reference",
+                TemplateDocumentKind.SingleFile);
         }
         finally
         {
             _linkMode = prev;
         }
+    }
+
+    private string ApplyTemplate(
+        string content,
+        string? title,
+        TemplateDocumentKind kind)
+    {
+        var context = new TemplateRenderContext(content, title, kind);
+        var rendered = _templateRenderer.Render(context);
+        var frontMatter = _opt.FrontMatter?.Invoke(context);
+
+        if (frontMatter is null || frontMatter.Count == 0)
+            return rendered;
+
+        return YamlFrontMatter.Serialize(frontMatter) + "\n" + rendered;
     }
 
     // === Core rendering ===

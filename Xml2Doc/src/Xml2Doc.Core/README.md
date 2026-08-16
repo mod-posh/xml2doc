@@ -119,6 +119,38 @@ Implement both `GenerateHeadingAnchor` and `GenerateMemberAnchor`. Xml2Doc uses 
 provider for emitted anchors and internal link targets, keeping them aligned in per-type and
 single-file output.
 
+Templates and front matter are optional. A file template must contain `{{content}}`; it may also
+use `{{title}}` and `{{kind}}`. Front matter is prepended verbatim, so include delimiters such as
+`---` in the front-matter file when targeting YAML-aware documentation systems:
+
+```csharp
+var options = new RendererOptions(
+    TemplatePath: "templates/page.md",
+    FrontMatterPath: "templates/front-matter.yml");
+```
+
+For programmatic layouts, implement `ITemplateRenderer.Render` and pass it through
+`TemplateRenderer`. Programmatic renderers cannot be combined with the file-based options.
+Omitting all template options preserves the built-in Markdown byte-for-byte.
+
+Per-document YAML can be generated with the `FrontMatter` delegate. The context identifies the
+document title and kind, including distinct `Index`, `NamespaceOverview`, `NamespaceIndex`,
+`Type`, and `SingleFile` values:
+
+```csharp
+var options = new RendererOptions(
+    FrontMatter: context => new Dictionary<string, object?>
+    {
+        ["title"] = context.Title,
+        ["kind"] = context.Kind.ToString(),
+        ["generated"] = true
+    });
+```
+
+Keys are ordered ordinally for deterministic output. Supported values include strings, booleans,
+numbers, dates, enums, nulls, and scalar sequences. The delegate cannot be combined with
+`FrontMatterPath`.
+
 ## Tests & Snapshots
 
 - Snapshot tests assert stable Markdown for representative inputs.

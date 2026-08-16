@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Aliasing;
+using Xml2Doc.Core.Anchoring;
+using Xml2Doc.Core.Templates;
 using Xml2Doc.Sample;
 using Xunit;
 
@@ -50,8 +52,32 @@ public class AliasingTests
         };
 
         typeof(RendererOptions).GetConstructor(parameterTypes).ShouldNotBeNull();
+        var aliasProviderSignature =
+            parameterTypes.Concat(new[] { typeof(IAliasProvider) }).ToArray();
+        typeof(RendererOptions).GetConstructor(aliasProviderSignature).ShouldNotBeNull();
+
+        var anchorGeneratorSignature =
+            aliasProviderSignature.Concat(new[] { typeof(IAnchorGenerator) }).ToArray();
+        typeof(RendererOptions).GetConstructor(anchorGeneratorSignature).ShouldNotBeNull();
+
         typeof(RendererOptions)
-            .GetConstructor(parameterTypes.Concat(new[] { typeof(IAliasProvider) }).ToArray())
+            .GetConstructor(
+                anchorGeneratorSignature
+                    .Concat(new[] { typeof(ITemplateRenderer) })
+                    .ToArray())
+            .ShouldNotBeNull();
+
+        typeof(RendererOptions)
+            .GetConstructor(
+                anchorGeneratorSignature
+                    .Concat(new[]
+                    {
+                        typeof(ITemplateRenderer),
+                        typeof(Func<
+                            TemplateRenderContext,
+                            IReadOnlyDictionary<string, object?>>)
+                    })
+                    .ToArray())
             .ShouldNotBeNull();
     }
 

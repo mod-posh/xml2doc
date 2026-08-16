@@ -1,6 +1,7 @@
 ﻿using System;
 using Xml2Doc.Core.Aliasing;
 using Xml2Doc.Core.Anchoring;
+using Xml2Doc.Core.Templates;
 
 namespace Xml2Doc.Core
 {
@@ -137,6 +138,14 @@ namespace Xml2Doc.Core
     /// Optional anchor generator. When omitted, the selected <paramref name="AnchorAlgorithm"/>
     /// uses Xml2Doc's built-in implementation.
     /// </param>
+    /// <param name="TemplateRenderer">
+    /// Optional programmatic template renderer. Cannot be combined with
+    /// <paramref name="TemplatePath"/> or <paramref name="FrontMatterPath"/>.
+    /// </param>
+    /// <param name="FrontMatter">
+    /// Optional per-document metadata provider. Returned scalar values are serialized as
+    /// deterministic YAML front matter. Cannot be combined with <paramref name="FrontMatterPath"/>.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -185,9 +194,116 @@ namespace Xml2Doc.Core
         LineEndingStyle LineEndings = LineEndingStyle.Lf,
         Action<string>? WarningSink = null,
         IAliasProvider? AliasProvider = null,
-        IAnchorGenerator? AnchorGenerator = null
+        IAnchorGenerator? AnchorGenerator = null,
+        ITemplateRenderer? TemplateRenderer = null,
+        Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter = null
     )
     {
+        /// <summary>
+        /// Preserves the constructor signature published with template-renderer injection.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator,
+            ITemplateRenderer? TemplateRenderer)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer,
+                FrontMatter: null)
+        {
+        }
+
+        /// <summary>
+        /// Preserves the constructor signature published with anchor-generator injection.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer: null,
+                FrontMatter: null)
+        {
+        }
+
         /// <summary>
         /// Preserves the constructor signature published with alias-provider injection.
         /// </summary>
@@ -233,7 +349,9 @@ namespace Xml2Doc.Core
                 LineEndings,
                 WarningSink,
                 AliasProvider,
-                AnchorGenerator: null)
+                AnchorGenerator: null,
+                TemplateRenderer: null,
+                FrontMatter: null)
         {
         }
 
@@ -281,7 +399,9 @@ namespace Xml2Doc.Core
                 LineEndings,
                 WarningSink,
                 AliasProvider: null,
-                AnchorGenerator: null)
+                AnchorGenerator: null,
+                TemplateRenderer: null,
+                FrontMatter: null)
         {
         }
     }
