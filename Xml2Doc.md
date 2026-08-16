@@ -4,8 +4,8 @@ Xml2Doc converts C# compiler XML documentation into deterministic, linkable Mark
 
 ## Current status
 
-The current stable package line is `2.0.3`. The next release is `2.1.0`, which adds
-programmatic rendering extension points while preserving the default `2.0.x` output contract:
+The current stable package line is `2.1.0`. This release adds programmatic rendering extension
+points while preserving the default `2.0.x` output contract:
 
 - `Xml2Doc.Core` provides parsing, rendering, output ownership, stale-file pruning, and line-ending normalization.
 - `Xml2Doc.Cli` provides repeatable command-line generation for development and CI.
@@ -372,8 +372,8 @@ Temporarily enable:
 See [TODO.md](TODO.md) and [the ADR index](docs/adr/README.md). Notable planned work includes:
 
 - `2.0.3`: released documentation and lifecycle correctness.
-- `2.1.0`: completed rendering extensibility; release preparation is in progress.
-- `2.2.0`: diagnostics and pipeline improvements.
+- `2.1.0`: released rendering extensibility.
+- `2.2.0`: current diagnostics and pipeline milestone.
 - `2.3.0`: deterministic multi-project aggregation and a unified index.
 
 Report bugs and feature requests in the [GitHub issue tracker](https://github.com/mod-posh/xml2doc/issues).
