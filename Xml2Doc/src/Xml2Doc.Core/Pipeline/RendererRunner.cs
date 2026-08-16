@@ -42,7 +42,9 @@ public sealed class RendererRunner
     public RendererRunResult Run(RendererRunRequest request)
     {
         var stopwatch = Stopwatch.StartNew();
+        var planningStopwatch = Stopwatch.StartNew();
         var plannedFiles = Plan(request);
+        planningStopwatch.Stop();
 
         if (request.DryRun)
         {
@@ -51,7 +53,10 @@ public sealed class RendererRunner
                 plannedFiles,
                 writtenFiles: Array.Empty<string>(),
                 dryRun: true,
-                stopwatch.Elapsed);
+                stopwatch.Elapsed) with
+            {
+                PlanningElapsed = planningStopwatch.Elapsed
+            };
         }
 
         RendererWriteResult writeResult;
@@ -67,9 +72,14 @@ public sealed class RendererRunner
             PlannedFiles: plannedFiles,
             WrittenFiles: writeResult.WrittenFiles,
             SkippedFiles: writeResult.SkippedFiles,
-            PrunedFiles: Array.Empty<string>(),
+            PrunedFiles: writeResult.PrunedFiles,
             DryRun: false,
-            Elapsed: stopwatch.Elapsed);
+            Elapsed: stopwatch.Elapsed)
+        {
+            PlanningElapsed = planningStopwatch.Elapsed,
+            RenderingElapsed = writeResult.RenderingElapsed,
+            LifecycleElapsed = writeResult.LifecycleElapsed
+        };
     }
 
     private static RendererRunResult CreateResult(

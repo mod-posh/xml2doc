@@ -18,4 +18,14 @@ public sealed record RendererRunResult(
     IReadOnlyList<string> SkippedFiles,
     IReadOnlyList<string> PrunedFiles,
     bool DryRun,
-    TimeSpan Elapsed);
+    TimeSpan Elapsed)
+{
+    /// <summary>Gets the duration spent planning deterministic outputs.</summary>
+    public TimeSpan PlanningElapsed { get; init; }
+
+    /// <summary>Gets the duration spent generating and writing Markdown.</summary>
+    public TimeSpan RenderingElapsed { get; init; }
+
+    /// <summary>Gets the duration spent applying output lifecycle changes.</summary>
+    public TimeSpan LifecycleElapsed { get; init; }
+}

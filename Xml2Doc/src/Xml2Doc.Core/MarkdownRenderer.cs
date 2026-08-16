@@ -4,6 +4,7 @@ using Xml2Doc.Core.Compat;
 #endif
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.Linking;
@@ -153,10 +154,13 @@ public sealed class MarkdownRenderer
 
     internal RendererWriteResult RenderToDirectoryWithResult(string outDir)
     {
+        var renderingStopwatch = Stopwatch.StartNew();
         ValidateAnchors(singleFile: false);
         var __prev = _singleFileMode;
         var writtenFiles = new List<string>();
         var skippedFiles = new List<string>();
+        IReadOnlyList<string> prunedFiles = Array.Empty<string>();
+        var lifecycleElapsed = TimeSpan.Zero;
         OutputManifestLocation? manifestLocation = null;
         IReadOnlyList<string>? generatedFiles = null;
 
@@ -261,9 +265,15 @@ public sealed class MarkdownRenderer
             if (manifestLocation is not null &&
                 generatedFiles is not null)
             {
-                OutputLifecycleExecutor.ExecuteAfterSuccessfulGeneration(
-                    manifestLocation,
-                    generatedFiles);
+                renderingStopwatch.Stop();
+                var lifecycleStopwatch = Stopwatch.StartNew();
+                var lifecycleResult = OutputLifecycleExecutor
+                    .ExecuteAfterSuccessfulGenerationWithResult(
+                        manifestLocation,
+                        generatedFiles);
+                lifecycleStopwatch.Stop();
+                lifecycleElapsed = lifecycleStopwatch.Elapsed;
+                prunedFiles = lifecycleResult.DeletedFiles;
             }
         }
         finally
@@ -271,7 +281,13 @@ public sealed class MarkdownRenderer
             _singleFileMode = __prev;
         }
 
-        return new RendererWriteResult(writtenFiles, skippedFiles);
+        renderingStopwatch.Stop();
+        return new RendererWriteResult(
+            writtenFiles,
+            skippedFiles,
+            prunedFiles,
+            renderingStopwatch.Elapsed,
+            lifecycleElapsed);
     }
 
     /// <summary>
@@ -289,6 +305,7 @@ public sealed class MarkdownRenderer
         var __prev = _singleFileMode;
         var writtenFiles = new List<string>();
         var skippedFiles = new List<string>();
+        var renderingStopwatch = Stopwatch.StartNew();
         try
         {
             _singleFileMode = true;
@@ -304,7 +321,13 @@ public sealed class MarkdownRenderer
             _singleFileMode = __prev;
         }
 
-        return new RendererWriteResult(writtenFiles, skippedFiles);
+        renderingStopwatch.Stop();
+        return new RendererWriteResult(
+            writtenFiles,
+            skippedFiles,
+            PrunedFiles: Array.Empty<string>(),
+            RenderingElapsed: renderingStopwatch.Elapsed,
+            LifecycleElapsed: TimeSpan.Zero);
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using Shouldly;
 using System.Xml.Linq;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Models;
+using Xml2Doc.Core.OutputLifecycle;
 using Xml2Doc.Core.Pipeline;
 using Xunit;
 
@@ -43,6 +44,9 @@ public class RendererRunnerTests
         result.SkippedFiles.ShouldBeEmpty();
         result.PrunedFiles.ShouldBeEmpty();
         result.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        result.PlanningElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        result.RenderingElapsed.ShouldBe(TimeSpan.Zero);
+        result.LifecycleElapsed.ShouldBe(TimeSpan.Zero);
         Directory.Exists(output.Path).ShouldBeFalse();
     }
 
@@ -121,6 +125,32 @@ public class RendererRunnerTests
     }
 
     [Fact]
+    public void Run_WithPruningReportsOnlyFilesActuallyDeleted()
+    {
+        using var output = TemporaryDirectory.Create();
+        Directory.CreateDirectory(output.Path);
+        var stalePath = Path.Join(output.Path, "Stale.md");
+        File.WriteAllText(stalePath, "stale");
+        var location = OutputManifestLocation.Create(
+            output.Path,
+            "runner-tests");
+        OutputManifestStore.Save(
+            location,
+            new[] { "Missing.md", "Stale.md" });
+        var runner = CreateRunner(new RendererOptions(
+            PruneStaleFiles: true,
+            ManifestIdentity: "runner-tests"));
+
+        var result = runner.Run(new RendererRunRequest(output.Path));
+
+        result.PrunedFiles.ShouldBe(new[] { stalePath });
+        File.Exists(stalePath).ShouldBeFalse();
+        result.PlanningElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        result.RenderingElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+        result.LifecycleElapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.Zero);
+    }
+
+    [Fact]
     public void Run_RelativeSingleFileExecutesTheAbsolutePlan()
     {
         var relativeOutput =
@@ -181,12 +211,13 @@ public class RendererRunnerTests
         exception.ParamName.ShouldBe("OutputPath");
     }
 
-    private static RendererRunner CreateRunner()
+    private static RendererRunner CreateRunner(
+        RendererOptions? options = null)
     {
         var model = new Xml2Doc.Core.Models.Xml2Doc();
         AddType(model, "T:Temp.Zebra");
         AddType(model, "T:Temp.Alpha");
-        return new RendererRunner(new MarkdownRenderer(model));
+        return new RendererRunner(new MarkdownRenderer(model, options));
     }
 
     private static void AddType(
