@@ -65,7 +65,7 @@ namespace Xml2Doc.Cli
         /// <summary>Alias map file for additional type/namespace substitutions. Maps to <c>--alias-map</c>.</summary>
         public string? AliasMap { get; set; }
 
-        /// <summary>External docs base URL or map file for unresolved references. Maps to <c>--external-docs</c>.</summary>
+        /// <summary>External docs base URL for unresolved references. Maps to <c>--external-docs</c>.</summary>
         public string? ExternalDocs { get; set; }
 
         /// <summary>Emit table of contents when true. Maps to <c>--toc</c>.</summary>

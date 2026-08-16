@@ -242,6 +242,113 @@ namespace Xml2Doc.Tests
             markdown.ShouldNotContain("\r");
         }
 
+        [Fact]
+        public void Main_WithExternalDocs_UsesExternalFallbackForUnknownCrefs()
+        {
+            using var output = TemporaryOutput.Create();
+            var xmlPath = WriteExternalLinkFixture(output);
+            var docsPath = output.FullPath("docs");
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", xmlPath,
+                "--out", docsPath,
+                "--external-docs", "https://docs.example/api"
+            });
+
+            exitCode.ShouldBe(0);
+            File.ReadAllText(Path.Join(docsPath, "Temp.Consumer.md"))
+                .ShouldContain(
+                    "[String](https://docs.example/api/System.String)");
+        }
+
+        [Fact]
+        public void Main_WithoutExternalDocs_PreservesInternalLinkBehavior()
+        {
+            using var output = TemporaryOutput.Create();
+            var xmlPath = WriteExternalLinkFixture(output);
+            var docsPath = output.FullPath("docs");
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", xmlPath,
+                "--out", docsPath
+            });
+
+            exitCode.ShouldBe(0);
+            File.ReadAllText(Path.Join(docsPath, "Temp.Consumer.md"))
+                .ShouldContain("[String](System.String.md)");
+        }
+
+        [Fact]
+        public void Main_WithConfiguredExternalDocs_UsesExternalFallback()
+        {
+            using var output = TemporaryOutput.Create();
+            var xmlPath = WriteExternalLinkFixture(output);
+            var docsPath = output.FullPath("docs");
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write(
+                "xml2doc.json",
+                JsonSerializer.Serialize(new CliConfig
+                {
+                    Xml = xmlPath,
+                    Out = docsPath,
+                    ExternalDocs = "https://config.example/api"
+                }));
+
+            var exitCode = Program.Main(new[] { "--config", configPath });
+
+            exitCode.ShouldBe(0);
+            File.ReadAllText(Path.Join(docsPath, "Temp.Consumer.md"))
+                .ShouldContain(
+                    "[String](https://config.example/api/System.String)");
+        }
+
+        [Fact]
+        public void Main_WhenCliOverridesConfiguredExternalDocs_UsesCliBaseUrl()
+        {
+            using var output = TemporaryOutput.Create();
+            var xmlPath = WriteExternalLinkFixture(output);
+            var docsPath = output.FullPath("docs");
+            var configPath = output.FullPath("xml2doc.json");
+            output.Write(
+                "xml2doc.json",
+                JsonSerializer.Serialize(new CliConfig
+                {
+                    Xml = xmlPath,
+                    Out = docsPath,
+                    ExternalDocs = "https://config.example/api"
+                }));
+
+            var exitCode = Program.Main(new[]
+            {
+                "--config", configPath,
+                "--external-docs", "https://cli.example/api"
+            });
+
+            exitCode.ShouldBe(0);
+            var markdown = File.ReadAllText(
+                Path.Join(docsPath, "Temp.Consumer.md"));
+            markdown.ShouldContain(
+                "[String](https://cli.example/api/System.String)");
+            markdown.ShouldNotContain("https://config.example");
+        }
+
+        private static string WriteExternalLinkFixture(TemporaryOutput output)
+        {
+            const string relativePath = "external-links.xml";
+            output.Write(relativePath, """
+                <doc>
+                  <members>
+                    <member name="T:Temp.Consumer">
+                      <summary>Uses <see cref="T:System.String"/>.</summary>
+                    </member>
+                  </members>
+                </doc>
+                """);
+            return output.FullPath(relativePath);
+        }
+
         private static void AssertUsesOnly(
             string content,
             string expectedLineEnding)

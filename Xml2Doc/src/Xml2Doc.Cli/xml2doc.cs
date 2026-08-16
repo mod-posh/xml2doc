@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.OutputLifecycle;
 
 namespace Xml2Doc.Cli
@@ -244,6 +245,9 @@ namespace Xml2Doc.Cli
                     AutoLink: autoLink,
                     AliasMapPath: aliasMapPath,
                     ExternalDocs: externalDocs,
+                    LinkPolicy: string.IsNullOrWhiteSpace(externalDocs)
+                        ? LinkPolicy.InternalOnly
+                        : LinkPolicy.PreferExternalForUnknown,
                     EmitToc: toc,
                     EmitNamespaceIndex: namespaceIndex,
                     BasenameOnly: basenameOnly ?? false,
@@ -390,7 +394,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--front-matter <file>]");
             Console.WriteLine("                   [--auto-link]");
             Console.WriteLine("                   [--alias-map <file>]");
-            Console.WriteLine("                   [--external-docs <url|mapfile>]");
+            Console.WriteLine("                   [--external-docs <base-url>]");
             Console.WriteLine("                   [--toc]");
             Console.WriteLine("                   [--namespace-index]");
             Console.WriteLine("                   [--no-index]");
