@@ -21,6 +21,7 @@ namespace Xml2Doc.Cli
     /// Option precedence (highest first): CLI args → JSON <c>--config</c> → built‑in defaults.
     /// Extended options:
     /// <list type="bullet">
+    ///   <item><description><c>--xml</c>: may be repeated to aggregate multiple XML documentation inputs.</description></item>
     ///   <item><description><c>--file-names</c>: <c>verbatim</c> | <c>clean</c> (generic arity removal).</description></item>
     ///   <item><description><c>--rootns</c> / <c>--trim-rootns-filenames</c>: trim namespace from headings and optionally file names.</description></item>
     ///   <item><description><c>--basename-only</c>: drop all namespace segments (applied after trimming / mode transforms).</description></item>
@@ -48,6 +49,7 @@ namespace Xml2Doc.Cli
     /// <list type="number">
     ///   <item><description>Parse CLI args.</description></item>
     ///   <item><description>Overlay JSON config values for unspecified options.</description></item>
+    ///   <item><description>Load one XML input with the compatible single-input path, or aggregate multiple inputs deterministically.</description></item>
     ///   <item><description>Map <c>--anchor-algorithm</c> token to <see cref="AnchorAlgorithm"/> enum.</description></item>
     ///   <item><description>Instantiate <see cref="RendererOptions"/> and <see cref="MarkdownRenderer"/>.</description></item>
     ///   <item><description>Use <see cref="RendererRunner"/> to plan and execute the invocation.</description></item>
@@ -114,7 +116,7 @@ namespace Xml2Doc.Cli
                 return 1;
             }
 
-            string? xml = null;
+            var xmlInputs = new List<string>();
             string? outArg = null;
             bool single = false;
             bool singleSpecified = false;
@@ -150,7 +152,9 @@ namespace Xml2Doc.Cli
             {
                 switch (args[i])
                 {
-                    case "--xml" when i + 1 < args.Length: xml = args[++i]; break;
+                    case "--xml" when i + 1 < args.Length:
+                        xmlInputs.Add(args[++i]);
+                        break;
                     case "--out" when i + 1 < args.Length: outArg = args[++i]; break;
                     case "--single":
                         single = true;
@@ -242,7 +246,18 @@ namespace Xml2Doc.Cli
                 }
 
                 var config = cfg!;
-                xml ??= config.Xml;
+                if (xmlInputs.Count == 0)
+                {
+                    if (config.XmlInputs is { Length: > 0 })
+                    {
+                        xmlInputs.AddRange(config.XmlInputs.Where(
+                            path => !string.IsNullOrWhiteSpace(path)));
+                    }
+                    else if (!string.IsNullOrWhiteSpace(config.Xml))
+                    {
+                        xmlInputs.Add(config.Xml);
+                    }
+                }
                 outArg ??= config.Out;
                 if (!singleSpecified && config.Single is bool s) single = s;
 
@@ -296,7 +311,9 @@ namespace Xml2Doc.Cli
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(xml) || string.IsNullOrWhiteSpace(outArg))
+            if (xmlInputs.Count == 0 ||
+                xmlInputs.Any(string.IsNullOrWhiteSpace) ||
+                string.IsNullOrWhiteSpace(outArg))
             {
                 Console.Error.WriteLine("Missing --xml or --out");
                 PrintHelp();
@@ -381,9 +398,13 @@ namespace Xml2Doc.Cli
             try
             {
                 // Build options & renderer
-                var model = Xml2Doc.Core.Models.Xml2Doc.Load(
-                    xml,
-                    diagnosticSink);
+                var model = xmlInputs.Count == 1
+                    ? Xml2Doc.Core.Models.Xml2Doc.Load(
+                        xmlInputs[0],
+                        diagnosticSink)
+                    : Xml2Doc.Core.Models.Xml2Doc.LoadAggregate(
+                        xmlInputs,
+                        diagnosticSink);
                 var options = new RendererOptions(
                     FileNameMode: fileNameMode,
                     RootNamespaceToTrim: string.IsNullOrWhiteSpace(rootns) ? null : rootns,
@@ -460,9 +481,20 @@ namespace Xml2Doc.Cli
                 // Report (optional)
                 if (!string.IsNullOrWhiteSpace(reportPath))
                 {
+                    var pathComparer = Path.DirectorySeparatorChar == '\\'
+                        ? StringComparer.OrdinalIgnoreCase
+                        : StringComparer.Ordinal;
+                    var reportXmlInputs = xmlInputs
+                        .Where(path => !string.IsNullOrWhiteSpace(path))
+                        .Select(Path.GetFullPath)
+                        .OrderBy(path => path, pathComparer)
+                        .ThenBy(path => path, StringComparer.Ordinal)
+                        .Distinct(pathComparer)
+                        .ToArray();
                     var report = new
                     {
-                        xml = Path.GetFullPath(xml),
+                        xml = reportXmlInputs[0],
+                        xmlInputs = reportXmlInputs,
                         single,
                         outputFile = single ? Path.GetFullPath(outArg!) : null,
                         outputDir = single ? null : Path.GetFullPath(outArg!),
@@ -743,7 +775,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("Xml2Doc :: Convert C# XML doc comments to Markdown");
             Console.WriteLine();
             Console.WriteLine("Usage:");
-            Console.WriteLine("  Xml2Doc.Cli.exe --xml <path> --out <dir-or-file>");
+            Console.WriteLine("  Xml2Doc.Cli.exe --xml <path> [--xml <path> ...] --out <dir-or-file>");
             Console.WriteLine("                   [--single]");
             Console.WriteLine("                   [--file-names <verbatim|clean>]");
             Console.WriteLine("                   [--rootns <ns>]");

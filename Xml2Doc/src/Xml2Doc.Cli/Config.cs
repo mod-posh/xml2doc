@@ -20,8 +20,14 @@ namespace Xml2Doc.Cli
     /// </remarks>
     public sealed class CliConfig
     {
-        /// <summary>Path to the input XML documentation file. Maps to <c>--xml</c>.</summary>
+        /// <summary>Path to one input XML documentation file. Maps to a single <c>--xml</c>.</summary>
         public string? Xml { get; set; }
+
+        /// <summary>
+        /// Paths to multiple XML documentation files to aggregate. Used when no
+        /// <c>--xml</c> arguments are supplied and takes precedence over <see cref="Xml"/>.
+        /// </summary>
+        public string[]? XmlInputs { get; set; }
 
         /// <summary>Output directory (per-type) or single-file path. Maps to <c>--out</c>.</summary>
         public string? Out { get; set; }
