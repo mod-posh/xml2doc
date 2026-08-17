@@ -144,7 +144,7 @@ New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 Write-Step "Building Xml2Doc.MSBuild task assembly"
 Run-OrThrow -File "dotnet" -Args "build `"$taskProject`" --configuration $Configuration --disable-build-servers" -Cwd $repo -ErrorPrefix "Task assembly build failed."
 
-$libraryProject = @"
+$libraryProject = @'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -152,7 +152,7 @@ $libraryProject = @"
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 </Project>
-"@
+'@
 
 Write-TextFile (Join-Path $alphaDir "Alpha.csproj") $libraryProject
 Write-TextFile (Join-Path $alphaDir "Widget.cs") @"
