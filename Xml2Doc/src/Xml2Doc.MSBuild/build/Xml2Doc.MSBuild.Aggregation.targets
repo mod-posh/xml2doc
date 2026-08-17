@@ -1,0 +1,189 @@
+<Project>
+  <PropertyGroup>
+    <Xml2Doc_AggregateEnabled Condition="'$(Xml2Doc_AggregateEnabled)' == ''">false</Xml2Doc_AggregateEnabled>
+    <Xml2Doc_AggregateValidateIndexOwnership Condition="'$(Xml2Doc_AggregateValidateIndexOwnership)' == ''">true</Xml2Doc_AggregateValidateIndexOwnership>
+    <Xml2Doc_AggregateReportPath Condition="'$(Xml2Doc_AggregateReportPath)' == ''">$(Xml2Doc_OutputDir)\xml2doc-aggregate-report.json</Xml2Doc_AggregateReportPath>
+    <Xml2Doc_AggregateOutputStamp Condition="'$(Xml2Doc_AggregateOutputStamp)' == ''">$(IntermediateOutputPath)xml2doc.aggregate.stamp</Xml2Doc_AggregateOutputStamp>
+    <Xml2Doc_AggregateFingerprintFile Condition="'$(Xml2Doc_AggregateFingerprintFile)' == ''">$(IntermediateOutputPath)xml2doc.aggregate.fingerprint.txt</Xml2Doc_AggregateFingerprintFile>
+    <Xml2Doc_AggregateOutputLedger Condition="'$(Xml2Doc_AggregateOutputLedger)' == ''">$(IntermediateOutputPath)xml2doc.aggregate.outputs.txt</Xml2Doc_AggregateOutputLedger>
+
+    <_Xml2Doc_AggregateTaskTfm Condition="'$(MSBuildRuntimeType)' == 'Core'">net8.0</_Xml2Doc_AggregateTaskTfm>
+    <_Xml2Doc_AggregateTaskTfm Condition="'$(_Xml2Doc_AggregateTaskTfm)' == ''">net472</_Xml2Doc_AggregateTaskTfm>
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
+      </PropertyGroup>
+    </When>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
+      </PropertyGroup>
+    </When>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\bin\Release\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <UsingTask TaskName="GenerateMarkdownFromXmlDocs" AssemblyFile="$(_Xml2Doc_AggregateTaskPath)" />
+
+  <Target Name="_Xml2Doc_ValidateAggregateIndexOwnership"
+          Condition="'$(Xml2Doc_AggregateOwnerOutputDir)' != ''">
+    <PropertyGroup>
+      <_Xml2Doc_ProjectOutputDir Condition="'$(Xml2Doc_OutputDir)' != ''">$([System.IO.Path]::GetFullPath('$(Xml2Doc_OutputDir)'))</_Xml2Doc_ProjectOutputDir>
+      <_Xml2Doc_AggregateOwnerOutputDir>$([System.IO.Path]::GetFullPath('$(Xml2Doc_AggregateOwnerOutputDir)'))</_Xml2Doc_AggregateOwnerOutputDir>
+    </PropertyGroup>
+
+    <Error Condition="
+             '$(Xml2Doc_Enabled)' != '' and '$(Xml2Doc_Enabled)' != 'false' and '$(Xml2Doc_Enabled)' != 'False'
+             and '$(GenerateDocumentationFile)' == 'true'
+             and '$(Xml2Doc_SingleFile)' != 'true' and '$(Xml2Doc_SingleFile)' != 'True'
+             and '$(Xml2Doc_GenerateIndex)' != 'false' and '$(Xml2Doc_GenerateIndex)' != 'False'
+             and '$(_Xml2Doc_ProjectOutputDir)' == '$(_Xml2Doc_AggregateOwnerOutputDir)'"
+           Text="XML2DOC007: Project '$(MSBuildProjectFullPath)' is configured to generate index.md in aggregate output '$(_Xml2Doc_AggregateOwnerOutputDir)'. Set Xml2Doc_GenerateIndex=false or Xml2Doc_Enabled=false so the repository aggregation owner is the only index writer." />
+  </Target>
+
+  <Target Name="Xml2Doc_ValidateAggregateIndexOwnership"
+          BeforeTargets="ResolveProjectReferences"
+          Condition="
+            ('$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True')
+            and ('$(Xml2Doc_AggregateValidateIndexOwnership)' == 'true' or '$(Xml2Doc_AggregateValidateIndexOwnership)' == 'True')
+            and '@(ProjectReference)' != ''">
+    <MSBuild Projects="@(ProjectReference)"
+             Targets="_Xml2Doc_ValidateAggregateIndexOwnership"
+             Properties="Xml2Doc_AggregateOwnerOutputDir=$(Xml2Doc_OutputDir)"
+             BuildInParallel="false"
+             SkipNonexistentTargets="true" />
+  </Target>
+
+  <Target Name="Xml2Doc_CollectAggregateInputs"
+          DependsOnTargets="ResolveReferences"
+          Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'">
+    <ItemGroup>
+      <_Xml2Doc_AutomaticAggregateXml Include="@(_ResolvedProjectReferencePaths->'%(RootDir)%(Directory)%(Filename).xml')" />
+      <_Xml2Doc_AggregateInput Include="@(_Xml2Doc_AutomaticAggregateXml);@(Xml2Doc_AggregateXml)" />
+    </ItemGroup>
+
+    <Error Condition="'@(_Xml2Doc_AggregateInput)' == ''"
+           Text="Xml2Doc: repository aggregation has no XML inputs. Add ProjectReference items or Xml2Doc_AggregateXml items." />
+    <Error Condition="!Exists('%(_Xml2Doc_AggregateInput.Identity)')"
+           Text="Xml2Doc: aggregate XML input '%(_Xml2Doc_AggregateInput.Identity)' does not exist. Ensure every participating project enables GenerateDocumentationFile." />
+  </Target>
+
+  <Target Name="Xml2Doc_ValidateAggregateOutputs"
+          Condition="
+            ('$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True')
+            and '$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'
+            and Exists('$(Xml2Doc_AggregateOutputStamp)')">
+    <ItemGroup>
+      <_Xml2Doc_AggregateRecordedOutput Remove="@(_Xml2Doc_AggregateRecordedOutput)" />
+      <_Xml2Doc_AggregateMissingOutput Remove="@(_Xml2Doc_AggregateMissingOutput)" />
+    </ItemGroup>
+
+    <ReadLinesFromFile File="$(Xml2Doc_AggregateOutputLedger)"
+                       Condition="Exists('$(Xml2Doc_AggregateOutputLedger)')">
+      <Output TaskParameter="Lines" ItemName="_Xml2Doc_AggregateRecordedOutput" />
+    </ReadLinesFromFile>
+
+    <ItemGroup>
+      <_Xml2Doc_AggregateMissingOutput Include="@(_Xml2Doc_AggregateRecordedOutput)"
+                                      Condition="!Exists('%(_Xml2Doc_AggregateRecordedOutput.Identity)')" />
+    </ItemGroup>
+
+    <Delete Files="$(Xml2Doc_AggregateOutputStamp)"
+            Condition="!Exists('$(Xml2Doc_AggregateOutputLedger)') or '@(_Xml2Doc_AggregateMissingOutput)' != ''" />
+  </Target>
+
+  <Target Name="Xml2Doc_PrepareAggregate"
+          DependsOnTargets="Xml2Doc_CollectAggregateInputs;Xml2Doc_ValidateAggregateOutputs"
+          Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'">
+    <PropertyGroup>
+      <_Xml2Doc_AggregateFingerprintDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateFingerprintFile)'))</_Xml2Doc_AggregateFingerprintDir>
+      <_Xml2Doc_AggregateStampDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateOutputStamp)'))</_Xml2Doc_AggregateStampDir>
+      <_Xml2Doc_AggregateLedgerDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateOutputLedger)'))</_Xml2Doc_AggregateLedgerDir>
+      <_Xml2Doc_AggregateOutputFileDir Condition="'$(Xml2Doc_OutputFile)' != ''">$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))</_Xml2Doc_AggregateOutputFileDir>
+      <_Xml2Doc_AggregateInputIdentity>@(_Xml2Doc_AggregateInput->'%(FullPath)', ';')</_Xml2Doc_AggregateInputIdentity>
+      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)</_Xml2Doc_AggregateOptions>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_Xml2Doc_AggregateFingerprintDir)"
+             Condition="'$(_Xml2Doc_AggregateFingerprintDir)' != '' and !Exists('$(_Xml2Doc_AggregateFingerprintDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_AggregateStampDir)"
+             Condition="'$(_Xml2Doc_AggregateStampDir)' != '' and !Exists('$(_Xml2Doc_AggregateStampDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_AggregateLedgerDir)"
+             Condition="'$(_Xml2Doc_AggregateLedgerDir)' != '' and !Exists('$(_Xml2Doc_AggregateLedgerDir)')" />
+
+    <WriteLinesToFile File="$(Xml2Doc_AggregateFingerprintFile)"
+                      Lines="$(_Xml2Doc_AggregateOptions)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true"
+                      Encoding="UTF-8" />
+
+    <GetFileHash Files="$(Xml2Doc_AggregateFingerprintFile)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_Xml2Doc_AggregateFingerprintHashItem" />
+    </GetFileHash>
+
+    <PropertyGroup>
+      <_Xml2Doc_AggregateFingerprint>@(_Xml2Doc_AggregateFingerprintHashItem->'%(Hash)')</_Xml2Doc_AggregateFingerprint>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="Xml2Doc_Aggregate"
+          AfterTargets="Build"
+          DependsOnTargets="Xml2Doc_PrepareAggregate"
+          Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'"
+          Inputs="@(_Xml2Doc_AggregateInput);$(Xml2Doc_AggregateFingerprintFile)"
+          Outputs="$(Xml2Doc_AggregateOutputStamp)">
+    <MakeDir Directories="$(Xml2Doc_OutputDir)"
+             Condition="'$(Xml2Doc_SingleFile)' != 'true' and '$(Xml2Doc_SingleFile)' != 'True' and '$(Xml2Doc_OutputDir)' != '' and !Exists('$(Xml2Doc_OutputDir)')" />
+    <MakeDir Directories="$(_Xml2Doc_AggregateOutputFileDir)"
+             Condition="('$(Xml2Doc_SingleFile)' == 'true' or '$(Xml2Doc_SingleFile)' == 'True') and '$(_Xml2Doc_AggregateOutputFileDir)' != '' and !Exists('$(_Xml2Doc_AggregateOutputFileDir)')" />
+
+    <GenerateMarkdownFromXmlDocs XmlPaths="@(_Xml2Doc_AggregateInput)"
+                                 ReferenceXmlPaths="@(Xml2Doc_ReferenceXml)"
+                                 SingleFile="$(Xml2Doc_SingleFile)"
+                                 OutputFile="$(Xml2Doc_OutputFile)"
+                                 OutputDirectory="$(Xml2Doc_OutputDir)"
+                                 FileNameMode="$(Xml2Doc_FileNameMode)"
+                                 RootNamespaceToTrim="$(Xml2Doc_RootNamespaceToTrim)"
+                                 TrimRootNamespaceInFileNames="$(Xml2Doc_TrimRootNamespaceInFileNames)"
+                                 CodeBlockLanguage="$(Xml2Doc_CodeBlockLanguage)"
+                                 ReportPath="$(Xml2Doc_AggregateReportPath)"
+                                 DryRun="$(Xml2Doc_DryRun)"
+                                 EmitToc="$(Xml2Doc_Toc)"
+                                 EmitNamespaceIndex="$(Xml2Doc_NamespaceIndex)"
+                                 GenerateIndex="$(Xml2Doc_GenerateIndex)"
+                                 PruneStaleFiles="$(Xml2Doc_PruneStaleFiles)"
+                                 ManifestIdentity="$(Xml2Doc_ManifestIdentity)"
+                                 LineEndings="$(Xml2Doc_LineEndings)"
+                                 BasenameOnly="$(Xml2Doc_BasenameOnly)"
+                                 ParallelDegree="$(Xml2Doc_ParallelDegree)"
+                                 AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"
+                                 Fingerprint="$(_Xml2Doc_AggregateFingerprint)"
+                                 IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
+      <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_AggregateGeneratedFiles" />
+      <Output TaskParameter="DidWork" PropertyName="Xml2Doc_AggregateDidWork" />
+    </GenerateMarkdownFromXmlDocs>
+
+    <WriteLinesToFile File="$(Xml2Doc_AggregateOutputLedger)"
+                      Lines="@(Xml2Doc_AggregateGeneratedFiles)"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="'$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />
+
+    <WriteLinesToFile File="$(Xml2Doc_AggregateOutputStamp)"
+                      Lines="generated: @(Xml2Doc_AggregateGeneratedFiles, ';')"
+                      Overwrite="true"
+                      Encoding="UTF-8"
+                      Condition="('$(Xml2Doc_AggregateDidWork)' == 'true' or '$(Xml2Doc_AggregateDidWork)' == 'True') and '$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />
+  </Target>
+</Project>
