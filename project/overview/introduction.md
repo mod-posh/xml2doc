@@ -1,63 +1,29 @@
-[LLAMARC42-METADATA]
-Type: Overview
-
-Concepts: [
-  "xml2doc",
-  "XML documentation",
-  "Markdown generation",
-  "target audience",
-  ".NET developer"
-]
-
-Scope: System
-
-Confidence: Observed
-
-Source: [
-  "code",
-  "docs"
-]
-[/LLAMARC42-METADATA]
-
 # Introduction
 
-## What Is xml2doc?
+Xml2Doc is a deterministic C# XML-documentation to Markdown generator with three public integration surfaces: Core, CLI, and MSBuild.
 
-xml2doc is a .NET tool that transforms XML documentation files (`.xml`) — produced automatically by the C# compiler when `<GenerateDocumentationFile>true</GenerateDocumentationFile>` is set — into deterministic, linkable Markdown (`.md`) files.
+The repository version is `2.3.0`. The latest published release is `2.2.0`; `2.3.0` is the multi-project aggregation release being prepared from the current `main` branch.
 
-It is not a static site generator, a documentation hosting platform, or a prose editing system. It performs one well-defined transformation: XML → Markdown.
+## What Xml2Doc does
 
-## Who Is It For?
+- Parses C# compiler XML documentation.
+- Resolves XML documentation constructs including references and `<inheritdoc />`.
+- Renders per-type or single-file Markdown.
+- Provides stable anchors, links, signatures, aliases, templates, front matter, auto-linking, and external-documentation fallback.
+- Emits structured diagnostics with stable `XML2DOC###` identifiers.
+- Supports planning, dry run, diff, reports, incremental writes, deterministic parallel rendering, and invocation-scoped stale-output ownership.
+- Aggregates multiple primary XML inputs deterministically through Core, repeated CLI `--xml`, or an MSBuild repository aggregation owner.
 
-xml2doc targets any .NET developer who:
+## Public components
 
-- Wants to publish API documentation as Markdown (e.g., in a GitHub repository, a wiki, or a docs site)
-- Needs documentation generation integrated into the build pipeline (MSBuild / `dotnet build`)
-- Wants reproducible, diff-able documentation output
+| Component | Current role |
+| --- | --- |
+| `Xml2Doc.Core` | Parsing, model construction, aggregation, inheritance/reference resolution, rendering, diagnostics, and runner pipeline. |
+| `Xml2Doc.Cli` | Command-line and JSON configuration host over Core. |
+| `Xml2Doc.MSBuild` | Project-build integration for normal single-project generation and opt-in repository aggregation. |
 
-The tool is actively used by the author across several projects and is designed so that any .NET developer can adopt it without special tooling beyond the standard .NET SDK.
+## Current release theme
 
-## Delivery Mechanisms
+`2.3.0` solves the shared-index race for multi-project repositories by making aggregation explicit: multiple primary compiler XML files are combined into one model before rendering, and one owner writes the aggregate output set.
 
-xml2doc provides three entry points for the same Core engine:
-
-| Entry Point | Use Case |
-|------------|----------|
-| **CLI tool** (`xml2doc`) | Manual invocation, scripting, CI pipelines |
-| **MSBuild task** (`Xml2Doc.MSBuild`) | Automatic generation on every `dotnet build` or VS build |
-| **Core library** (`Xml2Doc.Core`) | Embedding the engine in other tools |
-
-## Current State
-
-Version **1.4.0** (unreleased as of documentation date) completes multi-framework support and MSBuild maturity. The project has been through six milestone iterations:
-
-1. Foundation — basic rendering
-2. Renderer options and host parity
-3. Output quality and regression safety
-4. Signature and cref hardening
-5. Link and anchor contract stabilization
-6. Build and platform maturity (current)
-
-A seventh milestone (structured diagnostics, pluggable anchor algorithms) is planned.
-
-> **Cross-reference:** [goals.md](goals.md) · [scope.md](scope.md) · [architecture/solution-strategy.md](../architecture/solution-strategy.md)
+See [`../../Xml2Doc.md`](../../Xml2Doc.md) for user documentation and [`../../docs/msbuild-repository-aggregation.md`](../../docs/msbuild-repository-aggregation.md) for the supported MSBuild owner pattern.

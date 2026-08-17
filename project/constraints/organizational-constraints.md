@@ -1,83 +1,27 @@
-[LLAMARC42-METADATA]
-Type: Constraint
-
-Concepts: [
-  "GPL-3.0",
-  "governance",
-  "ADR",
-  "Constitution",
-  "mod-posh"
-]
-
-Scope: System
-
-Confidence: Mixed
-
-Source: [
-  "docs",
-  "code"
-]
-[/LLAMARC42-METADATA]
-
 # Organizational Constraints
 
-## License
+## License and ownership
 
-xml2doc is licensed under **GPL-3.0-only**.
+Xml2Doc is licensed under `GPL-3.0-only`. Package metadata centralizes that expression in `Directory.Build.props`.
 
-This is a deliberate choice. Nearly all repositories under the `mod-posh` organization use GPL-3.0. Consuming projects must be compatible with GPL-3.0 terms.
+The repository is maintained under the `mod-posh` organization and uses semantic versioning for published packages.
 
-> **Developer confirmation:** GPL-3.0 is an intentional, standing choice for this project and the wider `mod-posh` organization.
+## Governance
 
-The license expression is centralized in `Directory.Build.props`:
+The project uses a Constitution + ADR model:
 
-```xml
-<PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
-```
+1. `docs/CONSTITUTION.md` defines project principles.
+2. `docs/adr/` records durable architecture decisions.
+3. Code and architecture documentation should be updated together when an accepted decision changes.
 
-## Author and Organization
+Contributions are made through GitHub pull requests and should include relevant tests and documentation updates.
 
-| Property | Value |
-|----------|-------|
-| Author | Jeffrey Patton |
-| Organization | mod-posh |
-| Repository | https://github.com/mod-posh/Xml2Doc |
+## Versioning and releases
 
-## Governance Model
+`Directory.Build.props` is the repository version source. The current repository version is `2.3.0`; `2.2.0` is the latest published release until the current milestone closes.
 
-The project uses a **Constitution + ADR** governance model:
+Release automation builds/tests/packages the solution, validates clean consumers, publishes NuGet packages and symbols, creates the GitHub release/tag, and refreshes generated API documentation.
 
-1. **CONSTITUTION.md** defines the project's purpose, principles, and a governance rule.
-2. **Architecture Decision Records (ADRs)** document the *why* behind architectural choices.
-3. **Governance rule:** If code and an ADR disagree, the ADR is the source of truth. Either the code must be updated, or a new ADR must supersede the old one.
+## Dependency management
 
-This means:
-- Developers must check ADRs before changing architecture
-- ADRs must be updated before (or alongside) implementation changes
-- There is no committee or approval process documented — governance is the author's own standard
-
-## Contribution Model
-
-Contributions are accepted via pull request. The process (from `CONTRIBUTING.md`):
-
-1. Fork the repository
-2. Create a branch
-3. Implement changes with tests
-4. Update documentation
-5. Submit a pull request for review
-
-No formal review SLA or merge policy is documented beyond this. The project is currently a single-author project with community contributions welcome.
-
-## Versioning
-
-The project uses [Semantic Versioning](https://semver.org). The current version prefix is `1.4.0` (centralized in `Directory.Build.props`). CI builds produce preview versions in the format `{VersionPrefix}-preview.{RunNumber}-g{SHA7}`.
-
-## Dependency Management
-
-- Dependabot is configured for automated dependency scanning and update PRs.
-
-## Publishing
-
-NuGet packages are published via an automated `release.yml` GitHub Actions workflow. Symbol packages (`.snupkg`) are also published.
-
-> **Cross-reference:** [technical-constraints.md](technical-constraints.md) · [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
+Dependabot is configured for dependency updates. Build-time dependencies and MSBuild-host assemblies must preserve the package-hosting constraints documented in [`technical-constraints.md`](technical-constraints.md).

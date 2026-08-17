@@ -1,226 +1,133 @@
 # Xml2Doc.Core
 
-Core library for the Xml2Doc toolset (part of **mod-posh**).
-Now multi-targeted and verified for consistent output across modern .NET TFMs.
+Core library for Xml2Doc. It parses C# compiler XML documentation, resolves references and inheritance, builds deterministic documentation models, and renders Markdown.
 
-## Overview
+Version `2.3.0` adds deterministic multi-input aggregation while preserving the existing single-input API.
 
-`Xml2Doc.Core` is the engine behind the Xml2Doc CLI and MSBuild task. It parses XML doc comments, resolves references, and renders clean, linkable Markdown—either one file per type or a single combined document.
+## Supported frameworks
 
-## Features
-
-- Parses common XML doc elements: `<summary>`, `<remarks>`, `<example>`, `<seealso>`, `<exception>`, `<inheritdoc/>`.
-- Converts `<see>`, `<paramref>` into inline Markdown links and code spans.
-- Cleans namespaces and shortens generics (`List<T>` vs `System.Collections.Generic.List<T>`).
-- Built-in type aliasing (`System.String` → `string`, etc.) without breaking identifiers (`StringComparer` remains intact).
-- Optional `IAliasProvider` injection for consumer-defined signature, label, and anchor aliases.
-- Overload grouping for cleaner member sections.
-- Two output modes:
-  - **Per-type** (`RenderToDirectory`) → `TypeName.md` with in-file member anchors.
-  - **Single-file** (`RenderToSingleFile` / `RenderToString`) → one Markdown with headings + explicit anchors.
-- Stable, explicit anchors for members; GitHub-style heading slugs for types (single-file).
-- Depth-aware generic formatting (correctly renders nested generics).
-- Paragraph- and code-block–preserving normalization.
-- Configuration via `RendererOptions`:
-  - Filename mode: `Verbatim` or `CleanGenerics`
-  - `RootNamespaceToTrim` (display-only trimming)
-  - Code block language (default `csharp`)
-  - Per-type `index.md` generation (`GenerateIndex`, default `true`)
-  - Markdown line endings (`Lf` default, `CrLf`, or `Native`)
-  - Output mode (single vs. multi-file)
-
-## Supported Target Frameworks
-
-Shipped TFMs:
-
-- `netstandard2.0` — broad library reach
+- `netstandard2.0`
 - `net8.0`
 - `net9.0`
 
-**Guarantee:** Default Markdown output is deterministic and equivalent across these TFMs and hosts,
-including LF line endings. We test cross-TFM output directly without relying on post-render newline
-normalization.
-
-### Language-version notes
-
-- `netstandard2.0`: Source uses C# 10 syntax (file-scoped namespaces/global usings) but avoids runtime-only APIs not present in NS2.0. Where needed, we use compatibility shims and alternate overloads (e.g., prefer `string.Split(char, StringSplitOptions)` and avoid `Index`/`Range` in hot paths).
-- `net8.0` / `net9.0`: SDK defaults.
-
-## Behavior Guarantees Across TFMs
-
-- **Anchors/slugs:** Identical across TFMs and modes.
-- **Linking:** Member `cref` targets resolve to owning type pages (per-type) or in-document anchors (single-file).
-- **Formatting:** Built-in aliases, generic labels, paragraph and code-block handling match exactly.
-
-## Compatibility (netstandard2.0)
-
-To keep `netstandard2.0` first-class:
-
-- Removed reliance on APIs absent in NS2.0 (`AsSpan`, `Range`/`Index`, certain `Split` overloads).
-- Added targeted nullability guards where analyzers flagged potential issues (no behavior changes).
-- Kept rendering logic identical to newer TFMs.
-
-## Anchors & Link Behavior
-
-- **Per-type (`RenderToDirectory`)**
-  - Types render to `*.md` files (filename strategy controlled by `FileNameMode`).
-  - Members link to **anchors inside the type file** (e.g., `Type.md#member-anchor`).
-
-- **Single-file (`RenderToSingleFile` / `RenderToString`)**
-  - Types get **heading-based slugs** (GitHub-style).
-  - Members get **explicit anchors** in the combined document.
-
-## Example
+## Single-input example
 
 ```csharp
 using Xml2Doc.Core;
+using Xml2Doc.Core.Models;
 
-var model = XmlDocModel.Load("MyLibrary.xml");
-
-var options = new RendererOptions(
-    FileNameMode: FileNameMode.CleanGenerics,
-    RootNamespaceToTrim: "MyCompany.MyProduct",
-    CodeBlockLanguage: "csharp"
-);
-
-var renderer = new MarkdownRenderer(model, options);
-
-// Per-type output
-renderer.RenderToDirectory("./docs");
-
-// Single-file output
-renderer.RenderToSingleFile("./docs/api.md");
-````
-
-Custom aliasing is opt-in and uses the same provider for visible signatures, link labels, and member
-anchors so link targets remain aligned:
-
-```csharp
-using Xml2Doc.Core.Aliasing;
-
-var options = new RendererOptions(
-    AliasProvider: new MyAliasProvider());
-```
-
-Implement `IAliasProvider.ApplyAliases` with token-aware replacements. Omitting the provider uses
-`DefaultAliasProvider.Instance` and preserves the existing C# keyword mappings.
-
-Anchor generation is also replaceable while the built-in `AnchorAlgorithm` values remain the
-default:
-
-```csharp
-using Xml2Doc.Core.Anchoring;
-
-var options = new RendererOptions(
-    AnchorGenerator: new MyAnchorGenerator());
-```
-
-Implement both `GenerateHeadingAnchor` and `GenerateMemberAnchor`. Xml2Doc uses the selected
-provider for emitted anchors and internal link targets, keeping them aligned in per-type and
-single-file output.
-
-Templates and front matter are optional. A file template must contain `{{content}}`; it may also
-use `{{title}}` and `{{kind}}`. Front matter is prepended verbatim, so include delimiters such as
-`---` in the front-matter file when targeting YAML-aware documentation systems:
-
-```csharp
-var options = new RendererOptions(
-    TemplatePath: "templates/page.md",
-    FrontMatterPath: "templates/front-matter.yml");
-```
-
-For programmatic layouts, implement `ITemplateRenderer.Render` and pass it through
-`TemplateRenderer`. Programmatic renderers cannot be combined with the file-based options.
-Omitting all template options preserves the built-in Markdown byte-for-byte.
-
-Per-document YAML can be generated with the `FrontMatter` delegate. The context identifies the
-document title and kind, including distinct `Index`, `NamespaceOverview`, `NamespaceIndex`,
-`Type`, and `SingleFile` values:
-
-```csharp
-var options = new RendererOptions(
-    FrontMatter: context => new Dictionary<string, object?>
-    {
-        ["title"] = context.Title,
-        ["kind"] = context.Kind.ToString(),
-        ["generated"] = true
-    });
-```
-
-Keys are ordered ordinally for deterministic output. Supported values include strings, booleans,
-numbers, dates, enums, nulls, and scalar sequences. The delegate cannot be combined with
-`FrontMatterPath`.
-
-Free-text auto-linking is opt-in:
-
-```csharp
-var options = new RendererOptions(AutoLink: true);
-```
-
-The built-in `SimpleAutoLinker` links unambiguous type and member labels using the same
-mode-specific destinations as explicit `cref` links. It does not modify fenced code, inline code,
-existing Markdown links, `paramref`, or `typeparamref` output. To customize the policy, implement
-`IAutoLinker.Apply` and supply `AutoLinker`; the `AutoLink` switch must still be enabled.
-
-External cref fallback is also opt-in:
-
-```csharp
-var options = new RendererOptions(
-    LinkPolicy: LinkPolicy.PreferExternalForUnknown,
-    ExternalDocs: "https://learn.microsoft.com/dotnet/api");
-```
-
-Crefs present in the rendered model always retain their normal per-type or single-file links.
-Only unknown crefs are offered to the external provider. `ExternalDocs` uses
-`BaseUrlExternalSymbolResolver`, which appends the escaped documentation identifier without its
-kind prefix. For other routing rules, implement `IExternalSymbolResolver` and pass it as
-`ExternalSymbolResolver`. If the provider declines a symbol, Xml2Doc preserves its existing
-internal-link fallback.
-
-Signature formatting is extracted behind `ISignatureRenderer`. The default style preserves the
-existing headings and cref labels. Optional detail can be enabled without replacing the service:
-
-```csharp
-var options = new RendererOptions(
-    SignatureStyle: new SignatureStyle(
-        IncludeParamNames: true,
-        IncludeConstraints: true,
-        IncludeDefaultValues: true));
-```
-
-With parameter names enabled, documented indexer properties use C# `this[...]` syntax. Parameter
-modifiers, default values, and generic constraints are read from optional `modifier`, `default`,
-and `constraint` attributes when those metadata values are available. Standard compiler XML does
-not include every source-level signature detail, so consumers that obtain metadata elsewhere can
-implement `ISignatureRenderer` and pass it as `SignatureRenderer`.
-
-Structured diagnostics are opt-in through `IDiagnosticSink`:
-
-```csharp
-var sink = new MyDiagnosticSink();
-var model = Xml2Doc.Core.Models.Xml2Doc.Load("MyLibrary.xml", sink);
+var model = Xml2Doc.Core.Models.Xml2Doc.Load("MyLibrary.xml");
 var renderer = new MarkdownRenderer(
     model,
-    new RendererOptions(DiagnosticSink: sink));
+    new RendererOptions
+    {
+        FileNameMode = "clean",
+        RootNamespaceToTrim = "MyCompany.MyProduct",
+        TrimRootNamespaceInFileNames = true,
+        LineEndings = "lf"
+    });
+
+renderer.RenderToDirectory("docs");
 ```
 
-Diagnostics include a stable code, severity, message, and optional member/source context. Loading
-reports malformed XML before rethrowing the parser exception. Rendering reports unresolved crefs,
-duplicate anchors, missing summaries, and unresolved `inheritdoc` targets. The legacy
-`WarningSink` remains supported for unresolved `inheritdoc` warnings.
+## Multi-input aggregation
 
-## Tests & Snapshots
+```csharp
+using Xml2Doc.Core;
+using Xml2Doc.Core.Models;
 
-- Snapshot tests assert stable Markdown for representative inputs.
-- Cross-TFM test renders via CLI for `net8.0` and `net9.0` and compares outputs (with EOL normalization).
-- A Windows-only, opt-in check ensures the MSBuild task graph stays healthy (especially P2P TFM mapping).
+var model = Xml2Doc.Core.Models.Xml2Doc.LoadAggregate(new[]
+{
+    "ProjectA.xml",
+    "ProjectB.xml"
+});
 
-## Related Work / Issues
+var renderer = new MarkdownRenderer(
+    model,
+    new RendererOptions
+    {
+        FileNameMode = "clean",
+        GenerateIndex = true,
+        LineEndings = "lf"
+    });
 
-- **#33** — Multi-framework support: Core (`netstandard2.0;net8.0;net9.0`), CLI (`net8.0;net9.0`), MSBuild task (`net472;net8.0`).
-- **#46** — `netstandard2.0` compatibility: removed `Index`/`Range` usages, updated `Split` usage, and added nullability guards.
+renderer.RenderToDirectory("docs");
+```
 
-## Maintenance & Support
+`LoadAggregate` canonicalizes, de-duplicates, and ordinally sorts primary input paths before loading. If two primary XML files define the same documentation member ID, loading fails deterministically with `XML2DOC006` rather than selecting a winner based on caller order.
 
-- Tracks current .NET (e.g., `net8.0`, `net9.0`) while keeping `netstandard2.0` for broad compatibility.
-- If you notice any cross-TFM drift in output, please open an issue with a minimal XML sample plus expected vs. actual Markdown.
+## Reference XML and inheritance
+
+Reference-only XML can be loaded after the primary model:
+
+```csharp
+model.LoadReferences(new[]
+{
+    "Framework.Contracts.xml"
+});
+```
+
+Reference members are available to `<inheritdoc />` and reference resolution but do not become primary generated pages.
+
+## Renderer options
+
+`RendererOptions` controls output and rendering behavior, including:
+
+- `SingleFile`
+- `FileNameMode`
+- `RootNamespaceToTrim`
+- `TrimRootNamespaceInFileNames`
+- `CodeBlockLanguage`
+- `AnchorAlgorithm`
+- `GenerateIndex`
+- `GenerateNamespaceIndex`
+- `GenerateToc`
+- `BasenameOnly`
+- `ParallelDegree`
+- `PruneStaleFiles`
+- `ManifestIdentity`
+- `LineEndings`
+- `TemplatePath` / `TemplateRenderer`
+- `FrontMatterPath` / `FrontMatterProvider`
+- `AutoLink` / `AutoLinker`
+- `AliasMapPath` / `AliasProvider`
+- `ExternalDocsBaseUrl` / `ExternalSymbolResolver`
+- `AnchorGenerator`
+- `SignatureRenderer`
+- `SignatureStyle`
+
+Built-in and consumer-provided rendering services use the same renderer pipeline.
+
+## Runner pipeline
+
+`RendererRunner` coordinates output planning and execution around an initialized `MarkdownRenderer`.
+
+```csharp
+using Xml2Doc.Core.Pipeline;
+
+var runner = new RendererRunner(renderer);
+var request = new RendererRunRequest(
+    "docs",
+    RendererRunMode.PerType);
+
+var result = runner.Run(request);
+```
+
+The runner is the shared execution boundary used by host integrations for planning, deterministic rendering, incremental write results, pruning, and dry-run behavior.
+
+## Determinism and output ownership
+
+- Generated Markdown uses LF by default on every platform.
+- Per-type rendering can run in parallel while preserving deterministic output.
+- Unchanged files are skipped instead of rewritten.
+- Stale pruning is per-type only and requires a stable `ManifestIdentity`.
+- Ownership manifests are stored under `<output-root>/.xml2doc/manifests` and authorize deletion only for the matching invocation identity.
+
+## Diagnostics
+
+Core exposes stable diagnostics consumed by the CLI and MSBuild hosts. Aggregation-specific diagnostics are:
+
+- `XML2DOC006` — duplicate documentation-member ownership across primary XML inputs.
+- `XML2DOC007` is MSBuild-specific and is emitted by repository aggregation ownership validation.
+
+See the repository-level [`Xml2Doc.md`](../../../Xml2Doc.md) for the complete diagnostic table and host usage examples.
