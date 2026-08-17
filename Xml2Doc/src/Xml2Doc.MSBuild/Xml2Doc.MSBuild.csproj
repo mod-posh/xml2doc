@@ -1,44 +1,30 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net472;net8.0</TargetFrameworks>
-
-    <!-- Deterministic, symbols, docs -->
     <Deterministic>true</Deterministic>
     <DebugType>portable</DebugType>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-
-    <!-- Build-time helper -->
     <DevelopmentDependency>true</DevelopmentDependency>
     <IsPackable>true</IsPackable>
-
-    <!-- Let SDK place compiled outputs into lib/<tfm>/ so they appear in the nupkg -->
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_PackTaskDependencies</TargetsForTfmSpecificBuildOutput>
-
-    <!-- The task package embeds its runtime dependencies, so dependency groups are intentionally absent. -->
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    
-    <!-- NuGet metadata -->
     <PackageId>Xml2Doc.MSBuild</PackageId>
     <Authors>mod-posh</Authors>
     <Description>MSBuild task that generates Markdown from XML doc comments.</Description>
     <PackageTags>msbuild;xml-doc;markdown;documentation</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-
-    <!-- Symbols -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <!-- net472 needs C# 10+ for nullable -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
     <LangVersion>10.0</LangVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- Build-time only refs kept private -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Framework" Version="17.11.*" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.11.*" PrivateAssets="all" />
@@ -46,7 +32,6 @@
     <PackageReference Include="System.Text.Json" Version="8.0.5" PrivateAssets="all" Condition="'$(TargetFramework)'=='net8.0'" />
   </ItemGroup>
 
-  <!-- Per-TFM Core project reference (produces its assembly; it will be packed into lib/<tfm>/ automatically) -->
   <ItemGroup>
     <ProjectReference Include="..\Xml2Doc.Core\Xml2Doc.Core.csproj"
                       Condition="'$(TargetFramework)'=='net472'">
@@ -60,13 +45,16 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!-- Build assets (targets/props + README) -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="build\Xml2Doc.MSBuild.targets"
           Pack="true"
           PackagePath="build\$(PackageId).targets"
           Condition="Exists('build\Xml2Doc.MSBuild.targets')" />
+    <None Include="build\Xml2Doc.MSBuild.Aggregation.targets"
+          Pack="true"
+          PackagePath="build\$(PackageId).Aggregation.targets"
+          Condition="Exists('build\Xml2Doc.MSBuild.Aggregation.targets')" />
     <None Include="build\Xml2Doc.MSBuild.props"
           Pack="true"
           PackagePath="build\$(PackageId).props"
@@ -75,20 +63,13 @@
 
   <Target Name="_PackTaskDependencies">
     <ItemGroup>
-      <!-- Include task-local dependencies when NuGet gathers each TFM's build output. -->
       <_TaskDependency Include="$(TargetDir)*.dll;$(TargetDir)*.pdb;$(TargetDir)*.xml" />
-
-      <!-- The SDK already includes the task assembly and its symbols/docs. -->
       <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.dll" />
       <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.pdb" />
       <_TaskDependency Remove="$(TargetDir)Xml2Doc.MSBuild.xml" />
-
-      <!-- But exclude MSBuild toolset binaries; let MSBuild provide those -->
       <_TaskDependency Remove="$(TargetDir)Microsoft.Build.*.dll" />
       <_TaskDependency Remove="$(TargetDir)Microsoft.NET.StringTools.dll" />
       <_TaskDependency Remove="$(TargetDir)Microsoft.IO.Redist.dll" />
-
-      <!-- NuGet places BuildOutputInPackage items under lib/<tfm>/. -->
       <BuildOutputInPackage Include="@(_TaskDependency)">
         <FinalOutputPath>%(FullPath)</FinalOutputPath>
         <TargetPath>%(Filename)%(Extension)</TargetPath>
