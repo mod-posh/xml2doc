@@ -22,6 +22,8 @@ public class MultiProjectAggregationTests
         model.Members.Keys.OrderBy(key => key, StringComparer.Ordinal)
             .ShouldBe(new[] { "T:Project.Alpha", "T:Project.Zebra" });
         var index = File.ReadAllText(Path.Join(output, "index.md"));
+        index.ShouldContain("Project.Alpha");
+        index.ShouldContain("Project.Zebra");
         index.IndexOf("Project.Alpha", StringComparison.Ordinal)
             .ShouldBeLessThan(index.IndexOf(
                 "Project.Zebra",
@@ -44,15 +46,18 @@ public class MultiProjectAggregationTests
 
         var forwardFiles = Directory.GetFiles(forwardOutput)
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-            .Select(File.ReadAllBytes)
             .ToArray();
         var reverseFiles = Directory.GetFiles(reverseOutput)
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-            .Select(File.ReadAllBytes)
             .ToArray();
-        reverseFiles.Length.ShouldBe(forwardFiles.Length);
+
+        reverseFiles.Select(Path.GetFileName)
+            .ShouldBe(forwardFiles.Select(Path.GetFileName));
         for (var index = 0; index < forwardFiles.Length; index++)
-            reverseFiles[index].ShouldBe(forwardFiles[index]);
+        {
+            File.ReadAllBytes(reverseFiles[index])
+                .ShouldBe(File.ReadAllBytes(forwardFiles[index]));
+        }
     }
 
     [Fact]
@@ -75,6 +80,30 @@ public class MultiProjectAggregationTests
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
         diagnostic.MemberId.ShouldBe("T:Shared.Widget");
         diagnostic.SourcePath.ShouldBe(second);
+    }
+
+    [Fact]
+    public void Load_DuplicateMemberWithinOneInputReportsClearErrorAndFails()
+    {
+        using var workspace = TemporaryWorkspace.Create();
+        var input = workspace.WriteXml(
+            "Duplicate.xml",
+            "T:Shared.Widget",
+            "T:Shared.Widget");
+        var sink = new RecordingDiagnosticSink();
+
+        var exception = Should.Throw<InvalidDataException>(() =>
+            Xml2Doc.Core.Models.Xml2Doc.LoadAggregate(
+                new[] { input },
+                sink));
+
+        exception.Message.ShouldBe(
+            $"XML documentation member 'T:Shared.Widget' is defined more than once in '{input}'.");
+        var diagnostic = sink.Diagnostics.Single();
+        diagnostic.Code.ShouldBe(DiagnosticIds.DuplicateInputMember);
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
+        diagnostic.MemberId.ShouldBe("T:Shared.Widget");
+        diagnostic.SourcePath.ShouldBe(input);
     }
 
     private sealed class RecordingDiagnosticSink : IDiagnosticSink
@@ -100,15 +129,17 @@ public class MultiProjectAggregationTests
         public string FullPath(string relativePath) =>
             System.IO.Path.Join(Path, relativePath);
 
-        public string WriteXml(string fileName, string memberId)
+        public string WriteXml(string fileName, params string[] memberIds)
         {
             Directory.CreateDirectory(Path);
             var path = FullPath(fileName);
+            var members = string.Concat(memberIds.Select(memberId =>
+                $"<member name=\"{memberId}\">" +
+                "<summary>Documented type.</summary>" +
+                "</member>"));
             File.WriteAllText(
                 path,
-                $"<doc><members><member name=\"{memberId}\">" +
-                "<summary>Documented type.</summary>" +
-                "</member></members></doc>");
+                $"<doc><members>{members}</members></doc>");
             return path;
         }
 
