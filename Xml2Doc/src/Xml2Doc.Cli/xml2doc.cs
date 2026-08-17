@@ -311,7 +311,9 @@ namespace Xml2Doc.Cli
                 }
             }
 
-            if (xmlInputs.Count == 0 || string.IsNullOrWhiteSpace(outArg))
+            if (xmlInputs.Count == 0 ||
+                xmlInputs.Any(string.IsNullOrWhiteSpace) ||
+                string.IsNullOrWhiteSpace(outArg))
             {
                 Console.Error.WriteLine("Missing --xml or --out");
                 PrintHelp();
