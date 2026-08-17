@@ -4,72 +4,102 @@ Command-line interface for Xml2Doc, part of the **mod-posh** organization.
 
 ## Overview
 
-`Xml2Doc.Cli` converts C# XML documentation into Markdown using the `Xml2Doc.Core` engine.
-It’s ideal for developers and CI systems that want quick, repeatable Markdown docs from existing XML output.
+`Xml2Doc.Cli` converts C# XML documentation into deterministic Markdown using `Xml2Doc.Core`.
+Version `2.3.0` supports both single-input generation and deterministic aggregation of multiple XML documentation files.
 
-The CLI can also aggregate multiple XML documentation files into one deterministic output. Repeat
-`--xml` for each participating project, or use `XmlInputs` in JSON configuration.
-
-## Target Frameworks (multi-TFM)
-
-The CLI is **multi-targeted** and ships for:
+The CLI is multi-targeted for:
 
 - `net8.0`
 - `net9.0`
 
-> The rendered Markdown is identical across these TFMs. Choose whichever runtime you have available on the machine that runs the tool.
+Rendered Markdown is expected to be identical across supported CLI TFMs for the same options and inputs.
 
-### Running the CLI (pick one TFM)
+## Install as a .NET tool
 
-Build first, then run the produced DLL for the desired framework:
-
-```bash
-# Build both TFMs (default for the project)
-dotnet build Xml2Doc/src/Xml2Doc.Cli/Xml2Doc.Cli.csproj -c Release
-
-# Run the built artifact (net8.0)
-dotnet Xml2Doc/src/Xml2Doc.Cli/bin/Release/net8.0/Xml2Doc.Cli.dll --xml path\to\MyLib.xml --out .\docs
-
-# Or run the net9.0 artifact
-dotnet Xml2Doc/src/Xml2Doc.Cli/bin/Release/net9.0/Xml2Doc.Cli.dll --xml path\to\MyLib.xml --out .\docs
-````
-
-> Tip: Prefer running the built DLL as shown above. Using `dotnet run` can be confusing with multi-targeted projects; if you do use it, you **must** specify a single `--framework` that exists in the csproj.
-
-## Usage
-
-```bash
-# Per-type documentation
-Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs
-
-# Aggregate multiple projects into one deterministic output
-Xml2Doc.exe --xml .\src\ProjectA\bin\Release\net9.0\ProjectA.xml \
-  --xml .\src\ProjectB\bin\Release\net9.0\ProjectB.xml \
-  --out .\docs
-
-# Single combined file
-Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --file-names clean
+```powershell
+dotnet tool install --global Xml2Doc.Cli --version 2.3.0
 ```
 
-### Options
+The installed command is `xml2doc`.
 
-| Option                           | Description                                                   |
-| -------------------------------- | ------------------------------------------------------------- |
-| `--xml <path>`                   | XML documentation input; repeat to aggregate multiple files   |
-| `--out <path>`                   | Output directory (multi-file) or output file (single-file)    |
-| `--single`                       | Combine all documentation into a single Markdown file         |
-| `--file-names <verbatim\|clean>` | Filename mode — preserve generics or shorten to readable form |
-| `--rootns <namespace>`           | Optional root namespace to trim                               |
-| `--lang <language>`              | Code block language (default: `csharp`)                       |
-| `--config <file>`                | Path to a JSON configuration file                             |
-| `--prune-stale`                  | Remove stale files previously owned by this invocation        |
-| `--manifest-id <identity>`       | Stable ownership identity required with `--prune-stale`       |
-| `--line-endings <style>`         | Markdown newlines: `lf` (default), `crlf`, or `native`        |
-| `--help`                         | Display help text                                             |
+## Basic usage
 
-### Example Config File
+Generate per-type documentation from one XML file:
 
-**`xml2doc.json`**
+```powershell
+xml2doc `
+  --xml .\bin\Release\net9.0\MyLibrary.xml `
+  --out .\docs
+```
+
+Generate one combined Markdown file:
+
+```powershell
+xml2doc `
+  --xml .\bin\Release\net9.0\MyLibrary.xml `
+  --out .\docs\api.md `
+  --single `
+  --file-names clean
+```
+
+Aggregate multiple projects into one deterministic output set by repeating `--xml`:
+
+```powershell
+xml2doc `
+  --xml .\src\ProjectA\bin\Release\net9.0\ProjectA.xml `
+  --xml .\src\ProjectB\bin\Release\net9.0\ProjectB.xml `
+  --out .\docs `
+  --file-names clean `
+  --line-endings lf
+```
+
+One XML input uses the compatible single-input loading path. Two or more primary inputs use Core aggregation. Input paths are canonicalized before loading so input order does not control output order.
+
+If two primary inputs define the same XML documentation member, generation fails with `XML2DOC006` instead of selecting an owner based on argument order.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--xml <path>` | Primary XML documentation input. Repeat to aggregate multiple files. |
+| `--out <path>` | Output directory, or output file when used with `--single`. |
+| `--single` | Generate one consolidated Markdown file. |
+| `--file-names <verbatim\|clean>` | Filename mode. |
+| `--rootns <namespace>` | Trim a namespace prefix from displayed type names. |
+| `--trim-rootns-filenames` | Also trim the root namespace from filenames. |
+| `--lang <language>` | Fenced-code language. Default: `csharp`. |
+| `--anchor-algorithm <mode>` | `default`, `github`, `gfm`, or `kramdown`. |
+| `--template <path>` | Apply a file-based template. |
+| `--front-matter <path>` | Prepend configured front matter. |
+| `--auto-link` | Enable safe free-text symbol linking. |
+| `--alias-map <path>` | Load an additional alias map. |
+| `--external-docs <base-url>` | Route unresolved references to an external documentation base URL. |
+| `--toc` | Emit member tables of contents. Directory output only. |
+| `--namespace-index` | Emit namespace index/pages. Directory output only. |
+| `--no-index` | Suppress the per-type `index.md`. |
+| `--basename-only` | Use basename-only output names and links. |
+| `--parallel <N>` | Maximum per-type render parallelism. Must be positive. |
+| `--prune-stale` | Remove stale files owned by the selected manifest identity. Directory output only. |
+| `--manifest-id <identity>` | Stable ownership identity required with `--prune-stale`. |
+| `--line-endings <style>` | `lf` (default), `crlf`, or `native`. |
+| `--report <path>` | Write a JSON execution report. |
+| `--dry-run` | Plan output without writing Markdown. |
+| `--diff` | Compare generated output with current files without modifying them. |
+| `--config <path>` | Load JSON configuration. CLI arguments take precedence. |
+| `--help`, `-h` | Display help. |
+
+`--dry-run` and `--diff` are mutually exclusive. `--toc`, `--namespace-index`, and `--prune-stale` require directory output.
+
+Exit codes:
+
+- `0` — success, or no differences for `--diff`.
+- `1` — invalid command-line/configuration input.
+- `2` — diagnostic or runtime error.
+- `3` — differences found by `--diff`.
+
+## JSON configuration
+
+Single-input example:
 
 ```json
 {
@@ -78,12 +108,12 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
   "Single": true,
   "FileNames": "clean",
   "RootNamespace": "MyCompany.MyProduct",
-  "CodeLanguage": "csharp"
+  "CodeLanguage": "csharp",
+  "LineEndings": "lf"
 }
 ```
 
-For aggregation, use `XmlInputs`. When `XmlInputs` contains values it takes precedence over the
-legacy single-input `Xml` property:
+Multi-input aggregation example:
 
 ```json
 {
@@ -91,38 +121,81 @@ legacy single-input `Xml` property:
     "src/ProjectA/bin/Release/net9.0/ProjectA.xml",
     "src/ProjectB/bin/Release/net9.0/ProjectB.xml"
   ],
-  "Out": "docs"
+  "Out": "docs",
+  "FileNames": "clean",
+  "GenerateIndex": true,
+  "Parallel": 4,
+  "LineEndings": "lf"
 }
 ```
 
-CLI `--xml` arguments take precedence over both `XmlInputs` and `Xml` from configuration. One XML
-input continues to use the compatible single-input loading path; two or more inputs use deterministic
-Core aggregation.
+When no CLI `--xml` arguments are supplied, non-empty `XmlInputs` takes precedence over the legacy single-input `Xml` property. Repeated CLI `--xml` arguments take precedence over both configuration properties.
 
-For safe stale-output pruning in directory mode, opt in with a stable identity:
+Run a configuration file with:
 
-```bash
-Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs \
-  --prune-stale --manifest-id MyCompany.MyLib
+```powershell
+xml2doc --config .\xml2doc.json
 ```
 
-Only files recorded in the manifest for that exact identity can be removed. Untracked files and
-files owned by other identities are preserved. Pruning is not available with `--single`.
+Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, and `LineEndings`.
 
-Run with:
+Unknown JSON properties and invalid values are rejected rather than ignored silently.
 
-```bash
-Xml2Doc.exe --config xml2doc.json
+## Reports, dry run, and diff
+
+When `--report` is configured, reports include deterministic planned and actual result sets plus runner timing information. Aggregate reports include canonical `xmlInputs` while retaining the compatible `xml` field for the first canonical input.
+
+Dry runs do not modify Markdown or ownership state. Reports leave actual-result arrays empty and populate `wouldWrite` and `wouldDelete` as applicable.
+
+`--diff` performs a non-mutating comparison against current generated output. The report/console result classifies added, changed, unchanged, and removed files. Removed files are limited to stale outputs owned by the selected manifest identity when pruning is enabled.
+
+## Stale-output ownership
+
+For safe pruning in directory mode, use a stable identity:
+
+```powershell
+xml2doc `
+  --xml .\bin\Release\net9.0\MyLibrary.xml `
+  --out .\docs `
+  --prune-stale `
+  --manifest-id MyCompany.MyLibrary
 ```
 
-CLI flags always override values from the config file.
+Only paths recorded by the manifest for that exact identity can be removed. Untracked files and files owned by other identities are preserved. Pruning is unavailable with `--single`.
 
-Generated Markdown uses LF on every platform by default. Use `--line-endings crlf` only when a
-consumer requires CRLF, or `--line-endings native` for host-specific compatibility. A
-`.gitattributes` rule such as `*.md text eol=lf` can reinforce repository policy, but is not required
-for deterministic Xml2Doc output.
+## Diagnostics
 
-## Notes for CI
+CLI diagnostics are written to standard error in the stable form:
 
-- Build once (`dotnet build -c Release`), then run the desired **built** CLI DLL (net8.0 or net9.0).
-- Output is deterministic across TFMs, so your pipelines can choose the runtime that’s already available.
+```text
+xml2doc <severity> <code>: <message>
+```
+
+Source locations and member IDs are included when available. Warnings do not fail generation.
+
+Aggregation-specific diagnostics include:
+
+- `XML2DOC006` — multiple primary XML inputs define the same documentation member.
+
+The remaining stable diagnostic IDs are documented in the repository-level [Xml2Doc.md](../../../Xml2Doc.md).
+
+## Running a locally built CLI
+
+Build the project, then run one produced TFM explicitly:
+
+```powershell
+dotnet build .\Xml2Doc\src\Xml2Doc.Cli\Xml2Doc.Cli.csproj -c Release
+
+dotnet .\Xml2Doc\src\Xml2Doc.Cli\bin\Release\net9.0\Xml2Doc.Cli.dll `
+  --xml .\path\to\MyLibrary.xml `
+  --out .\docs
+```
+
+Using the built DLL avoids ambiguity when working directly with a multi-targeted executable project.
+
+## Determinism notes
+
+- Markdown uses LF on every platform by default.
+- Aggregate input paths are canonicalized before loading.
+- Per-type rendering may use `--parallel`, but output ordering remains deterministic.
+- CLI reports omit timestamps by default so equivalent invocations remain comparable.

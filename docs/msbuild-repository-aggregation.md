@@ -1,8 +1,10 @@
 # MSBuild repository aggregation
 
-Use repository aggregation when more than one project contributes XML documentation to one Markdown output set. The key rule is simple: **one MSBuild project owns the aggregate output**. Participating projects produce XML documentation; the owner calls Xml2Doc once with all of those XML inputs.
+Use repository aggregation when more than one project contributes XML documentation to one Markdown output set. The rule is simple: **one MSBuild project owns the aggregate output**. Participating projects emit compiler XML; the owner calls Xml2Doc once with all primary XML inputs.
 
 This avoids the unsafe pattern where independent projects all write the same `index.md` and whichever project finishes last wins.
+
+Repository aggregation is available in `Xml2Doc.MSBuild` `2.3.0`.
 
 ## Aggregation owner
 
@@ -20,6 +22,7 @@ Add `Xml2Doc.MSBuild` to a small repository-level project and reference every pr
 
     <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\..\docs\api</Xml2Doc_OutputDir>
     <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
+    <Xml2Doc_LineEndings>lf</Xml2Doc_LineEndings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,7 +30,7 @@ Add `Xml2Doc.MSBuild` to a small repository-level project and reference every pr
     <ProjectReference Include="..\src\Zulu\Zulu.csproj" />
 
     <PackageReference Include="Xml2Doc.MSBuild"
-                      Version="VERSION"
+                      Version="2.3.0"
                       PrivateAssets="all" />
   </ItemGroup>
 </Project>
@@ -39,7 +42,7 @@ Build the owner normally:
 dotnet build .\docs\ApiDocs.csproj -c Release
 ```
 
-`Xml2Doc_Aggregate` runs after the owner build. XML documentation next to resolved project-reference assemblies is collected automatically, normalized, de-duplicated, and passed to Core's multi-input aggregation path in one logical operation.
+`Xml2Doc_Aggregate` runs after the owner build. XML documentation next to resolved project-reference assemblies is collected automatically, canonicalized, de-duplicated, and passed to Core's multi-input aggregation path in one logical operation.
 
 Every referenced project that participates must emit XML documentation:
 
@@ -49,9 +52,9 @@ Every referenced project that participates must emit XML documentation:
 </PropertyGroup>
 ```
 
-If an expected XML file is missing, aggregation fails instead of silently producing an incomplete repository index.
+If an expected primary XML file is missing, aggregation fails instead of silently producing an incomplete repository index.
 
-## Explicit XML inputs
+## Explicit primary XML inputs
 
 Inputs that are not project references can be added explicitly:
 
@@ -61,11 +64,32 @@ Inputs that are not project references can be added explicitly:
 </ItemGroup>
 ```
 
-Automatic project-reference XML and explicit `Xml2Doc_AggregateXml` items are combined before Core loads the aggregate model.
+Automatic project-reference XML and explicit `Xml2Doc_AggregateXml` items are combined as primary inputs before Core loads the aggregate model. Primary inputs produce Markdown pages.
+
+Reference-only XML remains separate:
+
+```xml
+<ItemGroup>
+  <Xml2Doc_ReferenceXml Include="$(RepoRoot)\artifacts\Framework.Contracts.xml" />
+</ItemGroup>
+```
+
+`Xml2Doc_ReferenceXml` participates in inheritance/reference resolution but does not generate additional pages. Its identity and file changes participate in aggregate incremental tracking.
 
 ## Index ownership
 
-The aggregation owner should be the only invocation that writes the aggregate `index.md`. For projects that still run their own Xml2Doc generation into the same directory, disable their index generation:
+The aggregation owner should be the only invocation that writes the aggregate `index.md`.
+
+The cleanest participant setup is to emit compiler XML while disabling normal Markdown generation:
+
+```xml
+<PropertyGroup>
+  <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  <Xml2Doc_Enabled>false</Xml2Doc_Enabled>
+</PropertyGroup>
+```
+
+If a participating project still writes its own type pages into the aggregate directory, disable its index generation:
 
 ```xml
 <PropertyGroup>
@@ -74,24 +98,23 @@ The aggregation owner should be the only invocation that writes the aggregate `i
 </PropertyGroup>
 ```
 
-A cleaner repository setup is to disable per-project Markdown generation entirely and let the owner generate the complete output once:
+When the owner uses project references, `Xml2Doc_AggregateValidateIndexOwnership` checks referenced Xml2Doc projects before their normal project-reference build. If a referenced project is enabled, targets the same normalized output directory, and still owns `index.md`, the build fails with `XML2DOC007` and identifies the conflicting project/output path.
 
-```xml
-<PropertyGroup>
-  <Xml2Doc_Enabled>false</Xml2Doc_Enabled>
-  <GenerateDocumentationFile>true</GenerateDocumentationFile>
-</PropertyGroup>
-```
-
-When the owner uses project references, `Xml2Doc_AggregateValidateIndexOwnership` checks referenced Xml2Doc projects before their normal project-reference build. If a referenced project is enabled, targets the same output directory, and still owns `index.md`, the build fails with `XML2DOC007` and tells the project to disable `Xml2Doc_GenerateIndex` or `Xml2Doc_Enabled`.
+Equivalent output paths with or without trailing directory separators are normalized before comparison.
 
 Set `Xml2Doc_AggregateValidateIndexOwnership=false` only when repository orchestration already guarantees exclusive index ownership.
 
+## Duplicate member ownership
+
+If two primary XML inputs define the same XML documentation member ID, Core aggregation fails with `XML2DOC006`.
+
+This is deliberate. Aggregation does not select a winning project based on input order because that would make output ownership nondeterministic.
+
 ## Determinism
 
-Core canonicalizes aggregate XML paths before parsing them and emits the combined model in stable ordinal order. The MSBuild aggregate report records the canonical input list as `xmlInputs`.
+Core canonicalizes aggregate primary XML paths before parsing them and emits the combined model in stable ordinal order. The MSBuild aggregate report records the canonical primary input list as `xmlInputs`.
 
-Repository integration coverage builds the same two-project owner once with parallel MSBuild scheduling and once with `/m:1`, then requires identical generated file sets and identical bytes. It also checks that both projects appear in `index.md` in stable ordinal order.
+Repository integration coverage builds the same owner once with normal parallel MSBuild scheduling and once with `/m:1`, on Windows and Linux. The workflow requires identical generated file sets, identical bytes, and stable index ordering.
 
 ## Aggregate lifecycle files
 
@@ -106,6 +129,23 @@ The aggregation owner uses separate lifecycle files from ordinary per-project ge
 | `Xml2Doc_AggregateFingerprintFile` | `$(IntermediateOutputPath)xml2doc.aggregate.fingerprint.txt` |
 | `Xml2Doc_AggregateOutputLedger` | `$(IntermediateOutputPath)xml2doc.aggregate.outputs.txt` |
 
-The owner reuses the normal renderer properties such as `Xml2Doc_SingleFile`, `Xml2Doc_OutputDir`, `Xml2Doc_OutputFile`, `Xml2Doc_FileNameMode`, `Xml2Doc_GenerateIndex`, `Xml2Doc_LineEndings`, and pruning options.
+The owner reuses normal renderer properties such as `Xml2Doc_SingleFile`, `Xml2Doc_OutputDir`, `Xml2Doc_OutputFile`, `Xml2Doc_FileNameMode`, `Xml2Doc_RootNamespaceToTrim`, `Xml2Doc_GenerateIndex`, `Xml2Doc_PruneStaleFiles`, `Xml2Doc_ManifestIdentity`, `Xml2Doc_ParallelDegree`, and `Xml2Doc_LineEndings`.
 
-The aggregate fingerprint includes the participating input identities plus rendering options. The XML files themselves are MSBuild target inputs, so changed XML, changed participation, changed rendering options, or a missing recorded output causes the owner target to regenerate.
+The aggregate fingerprint includes canonical primary input identities, explicit reference XML identities, significant rendering options, and the host newline token when `Xml2Doc_LineEndings=native`. Primary/reference XML files are also target inputs, so content changes trigger regeneration.
+
+A missing file recorded by the aggregate output ledger invalidates the aggregate stamp so the next build recreates the output.
+
+## Compatibility without an aggregation owner
+
+Independent projects may still share one output directory if they have distinct ownership identities and all disable project-owned index generation:
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_OutputDir>$(RepoRoot)\docs\api</Xml2Doc_OutputDir>
+  <Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>
+  <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
+  <Xml2Doc_ManifestIdentity>$(MSBuildProjectName)</Xml2Doc_ManifestIdentity>
+</PropertyGroup>
+```
+
+This remains a supported compatibility mitigation, but it does not produce a unified repository index. Use an aggregation owner when one complete index is required.

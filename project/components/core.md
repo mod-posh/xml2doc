@@ -1,192 +1,49 @@
-[LLAMARC42-METADATA]
-Type: Component
+# Core Component
 
-Concepts: [
-  "Xml2Doc.Core",
-  "MarkdownRenderer",
-  "RendererOptions",
-  "ILinkResolver",
-  "XMember",
-  "rendering engine",
-  "anchor algorithm"
-]
+`Xml2Doc.Core` owns XML documentation parsing, deterministic model construction, reference/inheritance resolution, diagnostics, Markdown rendering, aggregation, and the shared execution pipeline.
 
-Scope: Component
+It targets `netstandard2.0`, `net8.0`, and `net9.0`.
 
-Confidence: Observed
+## Model loading
 
-Source: [
-  "code",
-  "docs"
-]
-[/LLAMARC42-METADATA]
+The primary model type is `Xml2Doc.Core.Models.Xml2Doc`.
 
-# Component: Xml2Doc.Core
+- `Xml2Doc.Load(path)` loads one primary compiler XML file.
+- `Xml2Doc.LoadAggregate(paths)` loads multiple primary XML files as one deterministic model.
+- `model.LoadReferences(paths)` adds reference-only XML used for inheritance/reference resolution without creating primary output pages.
 
-## Identity
+Aggregate primary inputs are converted to full paths, de-duplicated with the platform path comparer, sorted deterministically, and then merged. Duplicate documentation-member ownership across primary inputs fails with `XML2DOC006`.
 
-| Property | Value |
-|----------|-------|
-| Assembly | `Xml2Doc.Core` |
-| Type | NuGet library |
-| Frameworks | `netstandard2.0`, `net8.0`, `net9.0` |
-| NuGet package | `Xml2Doc.Core` |
-| Version | 1.4.0 (current) |
+## Rendering
 
-## Role
+`MarkdownRenderer` renders the initialized model to either per-type files or one single file. `RendererOptions` controls output shape and built-in services.
 
-Core is the sole rendering engine. It owns XML loading, Markdown generation, link resolution, anchor computation, signature formatting, and all rendering options. CLI and MSBuild are hosts that only translate their native inputs into `RendererOptions` and invoke Core.
+Current replaceable rendering services include:
 
-## Public API Surface
+- `IAnchorGenerator`
+- `IAliasProvider`
+- `ITemplateRenderer`
+- `IAutoLinker`
+- `IExternalSymbolResolver`
+- `ISignatureRenderer`
+- front-matter callbacks and signature style options.
 
-### Types
+Built-in behavior and consumer-provided implementations run through the same rendering path.
 
-#### `Xml2Doc` (class, sealed)
+## Runner pipeline
 
-Entry point for loading a documentation model.
+`RendererRunner` coordinates output planning and execution around a renderer. It reports planned/written/skipped/pruned files and timing data, supports dry-run behavior, and is used by host integrations as the common execution boundary.
 
-```csharp
-public sealed class Xml2Doc
-{
-    public Dictionary<string, XMember> Members { get; }
-    public static Xml2Doc Load(string xmlPath)
-}
-```
+Per-type rendering supports bounded parallel execution while preserving deterministic file contents and ordering. Unchanged files are skipped rather than rewritten.
 
-- `Load` reads the compiler-generated `.xml` file and returns a model with all documented members indexed by their doc ID (`"T:Ns.Type"`, `"M:Ns.Type.Method(...)"`).
+## Diagnostics
 
-#### `XMember` (record, sealed)
+Core diagnostics use stable IDs (`XML2DOC001` through `XML2DOC006` in Core-owned behavior). Hosts preserve diagnostic meaning while mapping severity/message/location into their native output surfaces.
 
-Represents one documented member.
+`XML2DOC007` is an MSBuild aggregation-ownership diagnostic rather than a Core parser/render diagnostic.
 
-```csharp
-public sealed record XMember(string Name, XElement Element)
-{
-    public string Kind { get; }  // "T", "M", "P", "F", "E", "N"
-    public string Id { get; }    // identifier after the colon
-}
-```
+## Output lifecycle
 
-#### `MarkdownRenderer` (class, sealed)
+Per-type stale pruning requires a stable manifest identity. Ownership manifests authorize deletion only for files previously recorded for that exact invocation identity. The lifecycle model is designed to remain safe across clean checkouts and moved repositories.
 
-The rendering engine.
-
-```csharp
-public sealed class MarkdownRenderer
-{
-    public MarkdownRenderer(Models.Xml2Doc model, RendererOptions? options = null)
-    public void RenderToDirectory(string outDir)
-    public void RenderToSingleFile(string outFile)
-    public string RenderToString()
-    public List<string> PlanOutputs(string outDir = "", string? singleFilePath = null)
-}
-```
-
-#### `RendererOptions` (record, sealed)
-
-All rendering configuration, immutable by design.
-
-```csharp
-public sealed record RendererOptions(
-    FileNameMode FileNameMode = FileNameMode.Verbatim,
-    string? RootNamespaceToTrim = null,
-    string CodeBlockLanguage = "csharp",
-    bool TrimRootNamespaceInFileNames = false,
-    AnchorAlgorithm AnchorAlgorithm = AnchorAlgorithm.Default,
-    string? TemplatePath = null,       // declared; not yet implemented
-    string? FrontMatterPath = null,    // declared; not yet implemented
-    bool AutoLink = false,             // declared; not yet implemented
-    string? AliasMapPath = null,       // declared; not yet implemented
-    string? ExternalDocs = null,       // declared; not yet implemented
-    bool EmitToc = false,
-    bool EmitNamespaceIndex = false,
-    bool BasenameOnly = false,
-    int? ParallelDegree = null
-)
-```
-
-Options marked "declared; not yet implemented" are accepted as future work. They do not affect rendering behavior in the current version.
-
-#### `FileNameMode` (enum)
-
-```csharp
-public enum FileNameMode
-{
-    Verbatim,      // preserve doc ID as-is (e.g., MyLib.Widget`1.md)
-    CleanGenerics  // remove generic arity (e.g., MyLib.Widget.md)
-}
-```
-
-#### `AnchorAlgorithm` (enum)
-
-```csharp
-public enum AnchorAlgorithm
-{
-    Default  = 0,  // lowercase, whitespace→dash, strip non [a-z0-9-]
-    Github   = 1,  // Unicode normalize, remove diacritics, lowercase
-    Kramdown = 2,  // like GitHub but preserves underscores
-    Gfm      = 3   // alias of GitHub
-}
-```
-
-## Internal Components (Not Public API)
-
-| Type | Role |
-|------|------|
-| `ILinkResolver` | Interface for cref → Markdown link resolution |
-| `DefaultLinkResolver` | Concrete resolver; uses four delegates from `MarkdownRenderer` |
-| `LinkContext` | Ambient context: current type, single-file flag, base path |
-| `MarkdownLink` | Result: href + label |
-| `InheritDocResolver` | Heuristic `<inheritdoc>` resolution |
-| `NetStandard20Compat` | Polyfills for NS2.0 |
-
-`ILinkResolver` is internal and is confirmed **stable** in its current form. It is not part of the public API and is not designed for external extensibility at this time.
-
-## Rendering Behaviors
-
-### Overload Grouping
-
-Methods with the same name are grouped under one heading. Individual overloads are listed as bullets beneath the heading with their full signatures.
-
-### XML Tag Handling
-
-| XML Tag | Markdown Output |
-|---------|----------------|
-| `<summary>` | Body text |
-| `<remarks>` | Italic note block |
-| `<param>` | Parameter table row |
-| `<returns>` | Returns section |
-| `<exception>` | Exception table row |
-| `<see cref="...">` | Resolved Markdown link |
-| `<seealso cref="...">` | See Also section link |
-| `<example>` | Example section |
-| `<code>` | Fenced code block with `CodeBlockLanguage` |
-| `<list>` | Markdown list (bullet or numbered) |
-| `<inheritdoc>` | Resolved and merged from parent member |
-
-### Normalization
-
-- Blank lines between paragraphs are preserved
-- Intra-line whitespace is collapsed in prose
-- Stray spaces before punctuation are removed
-- Inline `<c>` is rendered as backtick code
-- Fenced code blocks preserve verbatim content
-
-### Anchor Computation
-
-Two anchor functions:
-- `IdToAnchor(string id)` — for member anchors: token-aware aliasing, `{}` → `[]`, lowercase
-- `HeadingSlug(string text)` — for heading anchors: applies selected `AnchorAlgorithm`
-
-## Dependencies
-
-| Package | Version | Scope |
-|---------|---------|-------|
-| `System.Text.Json` | 8.0.5 | All TFMs |
-| `System.Text.Encodings.Web` | 8.0.0 | All TFMs |
-| `System.Buffers` | 4.5.1 | NS2.0 only |
-| `System.Memory` | 4.5.5 | NS2.0 only |
-| `System.Numerics.Vectors` | 4.5.0 | NS2.0 only |
-| `System.Runtime.CompilerServices.Unsafe` | 6.0.0 | NS2.0 only |
-
-> **Cross-reference:** [architecture/component-view.md](../architecture/component-view.md) · [components/cli.md](cli.md) · [components/msbuild.md](msbuild.md)
+Generated Markdown uses LF by default for cross-platform byte determinism.

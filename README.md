@@ -1,26 +1,27 @@
 | Latest Version | Gallery | Issues | Testing | License | Discord |
 |-----------------|-----------------|----------------|----------------|----------------|----------------|
-| [![Latest Version](https://img.shields.io/github/v/tag/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/tags) | [![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Core?label=Xml2Doc.Core)](https://www.nuget.org/packages/Xml2Doc.Core)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Cli?label=Xml2Doc.Cli)](https://www.nuget.org/packages/Xml2Doc.Cli)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.MSBuild?label=Xml2Doc.MSBuild)](https://www.nuget.org/packages/Xml2Doc.MSBuild) | [![GitHub issues](https://img.shields.io/github/issues/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/issues) | [![Merge Test Workflow](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml/badge.svg)](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml) | [![GitHub license](https://img.shields.io/github/license/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/blob/master/LICENSE) | [![Discord Server](https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5493894cf60b300587_full_logo_white_RGB.svg)](https://discord.com/channels/1044305359021555793/1044305781627035811) |
+| [![Latest Version](https://img.shields.io/github/v/tag/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/tags) | [![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Core?label=Xml2Doc.Core)](https://www.nuget.org/packages/Xml2Doc.Core)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.Cli?label=Xml2Doc.Cli)](https://www.nuget.org/packages/Xml2Doc.Cli)<br/>[![Nuget.org](https://img.shields.io/nuget/dt/Xml2Doc.MSBuild?label=Xml2Doc.MSBuild)](https://www.nuget.org/packages/Xml2Doc.MSBuild) | [![GitHub issues](https://img.shields.io/github/issues/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/issues) | [![Merge Test Workflow](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml/badge.svg)](https://github.com/mod-posh/xml2doc/actions/workflows/test.yml) | [![GitHub license](https://img.shields.io/github/license/mod-posh/xml2doc)](https://github.com/mod-posh/xml2doc/blob/main/LICENSE) | [![Discord Server](https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5493894cf60b300587_full_logo_white_RGB.svg)](https://discord.com/channels/1044305359021555793/1044305781627035811) |
 # Xml2Doc
 
 Xml2Doc converts C# compiler XML documentation into deterministic, linkable Markdown. It is available as a library, CLI, and MSBuild package.
 
-## Current status
+## Version 2.3.0
 
-The current stable package line is `2.1.0`. This release adds programmatic rendering extension
-points while preserving the default `2.0.x` output contract:
+`2.3.0` is the multi-project aggregation release. It builds on the diagnostics and runner pipeline delivered in `2.2.0` and adds one deterministic aggregation boundary for repositories whose documentation spans multiple projects.
 
-- `Xml2Doc.Core` provides parsing, rendering, output ownership, stale-file pruning, and line-ending normalization.
-- `Xml2Doc.Cli` provides repeatable command-line generation for development and CI.
-- `Xml2Doc.MSBuild` generates documentation automatically after compilation.
-- Per-type and single-file output are supported.
-- Markdown uses LF on every platform by default.
-- Multiple projects can safely share an output directory when they have distinct manifest identities and disable their project-owned indexes.
-- Unified multi-project index aggregation is planned for `2.3.0`. Until then, maintain or generate the repository index separately.
-- Portable ownership manifests were added in `2.0.3` and migrate safe 2.0.x manifests when they
-  are next saved.
-- `2.1.0` makes anchors, aliases, templates, free-text linking, external symbol resolution, and
-  signature formatting replaceable through `RendererOptions`.
+Highlights:
+
+- `Xml2Doc.Core` can load multiple primary XML documentation inputs as one aggregate model.
+- `Xml2Doc.Cli` accepts repeated `--xml` arguments or `XmlInputs` in JSON configuration.
+- `Xml2Doc.MSBuild` supports an explicit repository aggregation owner with `Xml2Doc_AggregateEnabled=true`.
+- Aggregate inputs are normalized, de-duplicated, and ordered deterministically before rendering.
+- A single aggregate `index.md` can contain every participating project in stable ordinal order.
+- Parallel and serial MSBuild aggregation are required to produce byte-identical output.
+- `XML2DOC006` reports duplicate member ownership across primary XML inputs.
+- `XML2DOC007` reports conflicting MSBuild ownership of the same aggregate `index.md`.
+- The `2.2.0` structured diagnostics, runner-backed dry-run/diff/reporting, bounded parallel rendering, incremental writes, templates, front matter, auto-linking, alias maps, and external-documentation fallback remain available.
+
+Existing single-project behavior remains compatible. `Xml2Doc_GenerateIndex=false` is still supported when independent project invocations intentionally share an output directory.
 
 ## Supported frameworks
 
@@ -30,7 +31,7 @@ points while preserving the default `2.0.x` output contract:
 | `Xml2Doc.Cli` | `net8.0`, `net9.0` | Command-line host |
 | `Xml2Doc.MSBuild` | `net472`, `net8.0` | Visual Studio/MSBuild.exe and `dotnet build` task hosts |
 
-The MSBuild package selects its task assembly automatically. Do not define a custom `GenerateMarkdownFromXmlDoc` target or manually call `Xml2Doc_ComputeFingerprint`.
+The MSBuild package selects its task assembly automatically. Do not define a custom `GenerateMarkdownFromXmlDoc` target or manually call Xml2Doc's internal fingerprint targets.
 
 ## Install the MSBuild package
 
@@ -42,51 +43,55 @@ The MSBuild package selects its task assembly automatically. Do not define a cus
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.1.0" PrivateAssets="all">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
 
-`GenerateDocumentationFile` must be `true`. The package imports its own generation and incremental-build targets.
+`GenerateDocumentationFile` must be `true` for projects whose compiler XML is used as documentation input. The package imports its own generation and incremental-build targets.
 
-## Where properties belong
+## MSBuild configuration
 
-Most Xml2Doc properties can be placed in either:
+Most Xml2Doc properties can be placed in either a project file or a solution-level `Directory.Build.props`. Project properties override values imported earlier from `Directory.Build.props`.
 
-- A `.csproj` for project-specific behavior.
-- A solution-level `Directory.Build.props` for shared behavior.
+The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2Doc_BasenameOnly` to `false` in its imported defaults. Set those three in the project file or `Directory.Build.targets` when enabling them globally.
 
-Project properties override `Directory.Build.props`. Avoid defining a property in both unless the override is intentional.
+### Generation and output properties
 
-Keep string values such as the root namespace on one line. Surrounding whitespace is preserved and can prevent prefix matching:
-
-```xml
-<Xml2Doc_RootNamespaceToTrim>Rackspace.BAT.Core</Xml2Doc_RootNamespaceToTrim>
-```
-
-The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2Doc_BasenameOnly` unconditionally in its imported defaults. To enable them, set them in the `.csproj` or `Directory.Build.targets`; a `Directory.Build.props` value may be overwritten.
-
-## Complete MSBuild property reference
-
-### Generation and output
-
-| Property | Default | Values | Behavior |
-| --- | --- | --- | --- |
-| `GenerateDocumentationFile` | SDK-dependent | `true`, `false` | Required compiler property. Set it to `true` for participating projects. |
-| `Xml2Doc_Enabled` | `true` | `true`, `false` | Enables or disables automatic generation. |
-| `Xml2Doc_SingleFile` | `false` | `true`, `false` | `false` writes one file per type; `true` writes one combined file. |
-| `Xml2Doc_OutputDir` | `$(MSBuildProjectDirectory)\docs` | Directory path | Output root for per-type mode. |
-| `Xml2Doc_OutputFile` | `$(MSBuildProjectDirectory)\docs\api.md` | File path | Output used in single-file mode. |
-| `Xml2Doc_GenerateIndex` | `true` | `true`, `false` | Writes `index.md` in per-type mode. Set `false` when independent projects share a directory. |
+| Property | Default | Behavior |
+| --- | --- | --- |
+| `GenerateDocumentationFile` | SDK-dependent | Compiler property. Set `true` for every project that contributes XML documentation. |
+| `Xml2Doc_Enabled` | `true` | Enables normal per-project Markdown generation. |
+| `Xml2Doc_SingleFile` | `false` | `false` writes one file per type; `true` writes one combined file. |
+| `Xml2Doc_OutputDir` | `$(MSBuildProjectDirectory)\docs` | Output root for per-type mode. |
+| `Xml2Doc_OutputFile` | `$(MSBuildProjectDirectory)\docs\api.md` | Output path for single-file mode. |
+| `Xml2Doc_GenerateIndex` | `true` | Writes `index.md` in per-type mode. |
+| `Xml2Doc_FileNameMode` | `clean` | `clean` or `verbatim`. |
+| `Xml2Doc_RootNamespaceToTrim` | Empty | Namespace prefix trimmed from displayed type names. |
+| `Xml2Doc_TrimRootNamespaceInFileNames` | `false` | Also trims the configured root namespace from filenames. |
+| `Xml2Doc_CodeBlockLanguage` | `csharp` | Fenced-code language. |
+| `Xml2Doc_AnchorAlgorithm` | `default` | `default`, `github`, `gfm`, or `kramdown`. |
+| `Xml2Doc_Toc` | `false` | Emits member tables of contents where supported. |
+| `Xml2Doc_NamespaceIndex` | `false` | Emits namespace index output in per-type mode. |
+| `Xml2Doc_BasenameOnly` | `false` | Uses only basename segments for generated type files and links. |
+| `Xml2Doc_ParallelDegree` | `1` | Maximum concurrent per-type renders. |
+| `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. `lf` is deterministic across hosts. |
+| `Xml2Doc_PruneStaleFiles` | `false` | Removes stale files previously owned by the same invocation. Per-type mode only. |
+| `Xml2Doc_ManifestIdentity` | Empty | Stable identity required when pruning is enabled. |
+| `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path for normal project generation. |
+| `Xml2Doc_ReportIncludeTimestamp` | `false` | Adds a timestamp to reports when enabled. |
+| `Xml2Doc_DryRun` | `false` | Plans generation without writing Markdown. |
+| `Xml2Doc_Diff` | `false` | Reserved in the MSBuild task; currently has no effect. |
+| `Xml2Doc_Dump` | `false` | Logs evaluated paths and key generation inputs. |
+| `Xml2Doc_LogChosenTask` | `false` | Logs the selected task TFM and assembly path. |
 
 Stale-file pruning is supported only in per-type mode. Single-file mode replaces its configured output directly.
 
-Xml2Doc automatically loads XML documentation found beside referenced project
-assemblies for `<inheritdoc />` resolution. Referenced members participate only in
-inheritance lookup and do not generate additional Markdown pages. Extra XML files can
-be supplied explicitly when an assembly and its documentation are not colocated:
+### Reference XML for inheritance
+
+Xml2Doc automatically loads XML documentation found beside referenced project assemblies for `<inheritdoc />` resolution. Referenced members participate in inheritance lookup but do not generate additional Markdown pages.
+
+Extra reference XML can be supplied explicitly:
 
 ```xml
 <ItemGroup>
@@ -94,78 +99,7 @@ be supplied explicitly when an assembly and its documentation are not colocated:
 </ItemGroup>
 ```
 
-Missing explicit files and unresolved `<inheritdoc />` targets produce MSBuild warnings.
-Reference XML contents are included in incremental fingerprinting.
-
-### Naming, links, and rendering
-
-| Property | Default | Values | Behavior |
-| --- | --- | --- | --- |
-| `Xml2Doc_FileNameMode` | `clean` | `clean`, `verbatim` | `clean` removes generic arity and normalizes generic notation; `verbatim` preserves documentation identifiers. |
-| `Xml2Doc_RootNamespaceToTrim` | Empty | Namespace prefix | Removes a matching prefix from displayed type names. |
-| `Xml2Doc_TrimRootNamespaceInFileNames` | `false` | `true`, `false` | Also removes the configured root namespace from filenames. |
-| `Xml2Doc_CodeBlockLanguage` | `csharp` | Fence language | Default fenced-code language. |
-| `Xml2Doc_AnchorAlgorithm` | `default` | `default`, `github`, `gfm`, `kramdown` | Controls heading/member anchors. Changing it can break published fragment links. |
-| `Xml2Doc_Toc` | `false` | `true`, `false` | Emits a member table of contents where supported. Set in `.csproj` or `Directory.Build.targets`. |
-| `Xml2Doc_NamespaceIndex` | `false` | `true`, `false` | Emits namespace index output in per-type mode. Set in `.csproj` or `Directory.Build.targets`. |
-| `Xml2Doc_BasenameOnly` | `false` | `true`, `false` | Drops namespace segments from filenames and increases collision risk. Set in `.csproj` or `Directory.Build.targets`. |
-| `Xml2Doc_ParallelDegree` | `1` | Positive integer | Maximum concurrent per-type renders. Values greater than `1` opt into bounded parallel generation; custom rendering extensions must be thread-safe. |
-| `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, `native` | Normalizes generated Markdown at the output boundary. `lf` is deterministic across hosts. |
-
-Filename processing order is: filename-mode normalization, optional root-namespace trimming, then optional basename-only reduction.
-
-### Ownership and stale cleanup
-
-| Property | Default | Values | Behavior |
-| --- | --- | --- | --- |
-| `Xml2Doc_PruneStaleFiles` | `false` | `true`, `false` | After successful per-type generation, removes files previously owned by the same identity that are no longer generated. |
-| `Xml2Doc_ManifestIdentity` | Empty | Stable string | Required for pruning. Use a distinct stable value for every project sharing an output directory, such as `$(MSBuildProjectName)`. |
-
-Xml2Doc deletes only stale paths recorded in the prior manifest for the same identity. It does not claim hand-authored documents or files owned by another project.
-
-Lifecycle metadata is stored under:
-
-```text
-<output-root>/.xml2doc/
-├── manifests/
-│   └── <identity-sha256>.json
-└── transactions/
-```
-
-The transactions directory is normally empty after a successful build. Temporary child directories
-stage stale files while the manifest is replaced and are then removed. Starting in 2.0.3, commit
-`.xml2doc/manifests` when generated Markdown is versioned so a clean checkout retains ownership
-history. Always ignore `.xml2doc/transactions`; it is local, best-effort staging state.
-
-### Reports and diagnostics
-
-| Property | Default | Values | Behavior |
-| --- | --- | --- | --- |
-| `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | File path | Writes a JSON report. Use unique names for projects sharing a directory. Reports are not needed for pruning. |
-| `Xml2Doc_ReportIncludeTimestamp` | `false` | `true`, `false` | Adds a timestamp. Leave false for deterministic reports. |
-| `Xml2Doc_DryRun` | `false` | `true`, `false` | Plans output without writing Markdown; a configured report can still be written. |
-| `Xml2Doc_Dump` | `false` | `true`, `false` | Logs evaluated paths and key generation inputs. |
-| `Xml2Doc_LogChosenTask` | `false` | `true`, `false` | Logs the selected task TFM and assembly path. |
-| `Xml2Doc_Diff` | `false` | Reserved | Has no effect in `2.1.0`. |
-
-Reports and transaction staging may be ignored:
-
-```gitignore
-docs/xml2doc-report*.json
-docs/.xml2doc/transactions/
-```
-
-### Incremental-build controls
-
-These are advanced settings; most consumers should retain the defaults.
-
-| Property | Default | Behavior |
-| --- | --- | --- |
-| `Xml2Doc_OutputStamp` | `$(IntermediateOutputPath)xml2doc.stamp` | Successful-generation stamp used by MSBuild input/output tracking. Relative paths are rooted under `IntermediateOutputPath`. |
-| `Xml2Doc_FingerprintFile` | `$(IntermediateOutputPath)xml2doc.fingerprint.txt` | Stores a fingerprint of XML content and significant options. Relative paths are rooted under `IntermediateOutputPath`. |
-| `Xml2Doc_OutputLedger` | `$(IntermediateOutputPath)xml2doc.outputs.txt` | Records generated files so a missing output invalidates the incremental stamp. Keep this under the project/configuration-specific intermediate directory. |
-
-Do not add an `Xml2Doc_WriteFingerprint` target. The imported targets already manage fingerprinting and generation.
+Missing explicit reference files and unresolved `<inheritdoc />` targets produce warnings. Reference XML contents participate in incremental fingerprinting.
 
 ## Recommended single-project configuration
 
@@ -185,144 +119,120 @@ Do not add an `Xml2Doc_WriteFingerprint` target. The imported targets already ma
 </PropertyGroup>
 ```
 
-## Recommended shared-output configuration
+## Repository aggregation with MSBuild
 
-Put shared settings in the solution-level `Directory.Build.props`:
+Use one small project as the aggregation owner. Participating projects emit compiler XML; the owner performs the Markdown render once.
 
 ```xml
-<Project>
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
-    <Xml2Doc_SingleFile>false</Xml2Doc_SingleFile>
-    <Xml2Doc_OutputDir>$(MSBuildThisFileDirectory)docs</Xml2Doc_OutputDir>
+    <TargetFramework>net9.0</TargetFramework>
 
+    <!-- The owner orchestrates documentation; it does not render its own compiler XML. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Xml2Doc_Enabled>false</Xml2Doc_Enabled>
+    <Xml2Doc_AggregateEnabled>true</Xml2Doc_AggregateEnabled>
+
+    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)\..\docs\api</Xml2Doc_OutputDir>
     <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
-    <Xml2Doc_RootNamespaceToTrim>Rackspace.BAT.Core</Xml2Doc_RootNamespaceToTrim>
-    <Xml2Doc_TrimRootNamespaceInFileNames>true</Xml2Doc_TrimRootNamespaceInFileNames>
-    <Xml2Doc_CodeBlockLanguage>csharp</Xml2Doc_CodeBlockLanguage>
-
-    <Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>
-    <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
-    <Xml2Doc_ManifestIdentity>$(MSBuildProjectName)</Xml2Doc_ManifestIdentity>
-
-    <Xml2Doc_ReportPath>$(Xml2Doc_OutputDir)\xml2doc-report-$(MSBuildProjectName).json</Xml2Doc_ReportPath>
     <Xml2Doc_LineEndings>lf</Xml2Doc_LineEndings>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\ProjectA\ProjectA.csproj" />
+    <ProjectReference Include="..\src\ProjectB\ProjectB.csproj" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
+  </ItemGroup>
 </Project>
 ```
 
-Each participating `.csproj` still needs:
+Each participating project must emit XML documentation:
 
 ```xml
 <PropertyGroup>
   <GenerateDocumentationFile>true</GenerateDocumentationFile>
 </PropertyGroup>
-
-<ItemGroup>
-  <PackageReference Include="Xml2Doc.MSBuild" Version="2.1.0" PrivateAssets="all">
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-  </PackageReference>
-</ItemGroup>
 ```
 
-Retaining a project-distinguishing namespace segment prevents collisions. Trimming `Rackspace.BAT.Core`, for example, produces:
-
-```text
-Abstractions.Attributes.RequiredAttribute.md
-Engine.Execution.BatExecutionService.md
-```
-
-Do not enable `Xml2Doc_BasenameOnly` for a shared flat directory unless duplicate type names are impossible.
-
-Each invocation sees only its own compiler XML, so it cannot safely build an index containing the other projects. Keep `Xml2Doc_GenerateIndex=false` and maintain `docs/index.md` separately until multi-input aggregation is available.
-
-## Rendering extensibility in 2.1.0
-
-`Xml2Doc.Core` consumers can replace individual rendering services through `RendererOptions`.
-All extension points are optional; omitting them preserves the built-in output contract.
-
-| Option | Extension point | Default behavior |
-| --- | --- | --- |
-| `AliasProvider` | `IAliasProvider` | C# keyword aliases from `DefaultAliasProvider` |
-| `AnchorGenerator` | `IAnchorGenerator` | Selected built-in `AnchorAlgorithm` |
-| `TemplateRenderer` | `ITemplateRenderer` | Built-in layout, or file-based template/front matter when paths are configured |
-| `FrontMatter` | Metadata callback | No generated YAML front matter |
-| `AutoLinker` | `IAutoLinker` | `SimpleAutoLinker` when `AutoLink=true` |
-| `ExternalSymbolResolver` | `IExternalSymbolResolver` | Base-URL resolver when `ExternalDocs` is configured |
-| `SignatureRenderer` | `ISignatureRenderer` | `DefaultSignatureRenderer` |
-| `SignatureStyle` | Signature detail switches | Compatibility output without parameter names, constraints, or default values |
-
-Example:
-
-```csharp
-var options = new RendererOptions(
-    AnchorGenerator: new MyAnchorGenerator(),
-    AliasProvider: new MyAliasProvider(),
-    AutoLink: true,
-    AutoLinker: new MyAutoLinker(),
-    LinkPolicy: LinkPolicy.PreferExternalForUnknown,
-    ExternalSymbolResolver: new MyExternalSymbolResolver(),
-    SignatureStyle: new SignatureStyle(
-        IncludeParamNames: true,
-        IncludeConstraints: true,
-        IncludeDefaultValues: true),
-    SignatureRenderer: new MySignatureRenderer());
-```
-
-File-based templates, front matter, auto-linking, alias maps, and built-in anchor algorithms are
-available through the CLI. Custom service implementations and external link-policy selection
-require direct use of `Xml2Doc.Core`; broader CLI and MSBuild exposure is tracked for `2.2.0`.
-
-## Conditional generation
+If a participant also uses Xml2Doc and points at the aggregate output directory, either disable its normal Markdown generation:
 
 ```xml
-<PropertyGroup Condition="'$(Configuration)' == 'Release'">
-  <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
-</PropertyGroup>
-<PropertyGroup Condition="'$(Configuration)' != 'Release'">
+<PropertyGroup>
+  <GenerateDocumentationFile>true</GenerateDocumentationFile>
   <Xml2Doc_Enabled>false</Xml2Doc_Enabled>
 </PropertyGroup>
 ```
 
-Disable it for one command:
-
-```powershell
-dotnet build -p:Xml2Doc_Enabled=false
-```
-
-Inspect evaluated configuration:
-
-```powershell
-dotnet msbuild .\src\MyProject\MyProject.csproj `
-  -getProperty:Xml2Doc_Enabled `
-  -getProperty:Xml2Doc_OutputDir `
-  -getProperty:Xml2Doc_RootNamespaceToTrim `
-  -getProperty:Xml2Doc_GenerateIndex `
-  -getProperty:Xml2Doc_PruneStaleFiles `
-  -getProperty:Xml2Doc_ManifestIdentity `
-  -getProperty:Xml2Doc_LineEndings
-```
-
-## Single-file configuration
+or delegate only index ownership to the aggregate owner:
 
 ```xml
 <PropertyGroup>
-  <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  <Xml2Doc_SingleFile>true</Xml2Doc_SingleFile>
-  <Xml2Doc_OutputFile>$(MSBuildProjectDirectory)\docs\api.md</Xml2Doc_OutputFile>
-  <Xml2Doc_FileNameMode>clean</Xml2Doc_FileNameMode>
-  <Xml2Doc_RootNamespaceToTrim>MyCompany.MyProduct</Xml2Doc_RootNamespaceToTrim>
-  <Xml2Doc_LineEndings>lf</Xml2Doc_LineEndings>
+  <Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>
 </PropertyGroup>
 ```
 
-Do not enable stale pruning in single-file mode; validation will fail.
+The owner validates referenced Xml2Doc projects before normal referenced-project builds begin. A participant that still claims the same `index.md` fails with `XML2DOC007`.
+
+Additional primary XML inputs that are not project references can be supplied with `Xml2Doc_AggregateXml`:
+
+```xml
+<ItemGroup>
+  <Xml2Doc_AggregateXml Include="$(RepoRoot)\artifacts\External.Contracts.xml" />
+</ItemGroup>
+```
+
+Primary aggregate inputs generate pages. `Xml2Doc_ReferenceXml` remains separate and is used only for inheritance/reference resolution.
+
+### Aggregate properties
+
+| Property | Default | Behavior |
+| --- | --- | --- |
+| `Xml2Doc_AggregateEnabled` | `false` | Makes the project the repository aggregation owner. |
+| `Xml2Doc_AggregateValidateIndexOwnership` | `true` | Checks referenced Xml2Doc projects for conflicting `index.md` ownership. |
+| `Xml2Doc_AggregateReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-aggregate-report.json` | Aggregate JSON report path. |
+| `Xml2Doc_AggregateOutputStamp` | `$(IntermediateOutputPath)xml2doc.aggregate.stamp` | Aggregate incremental-build stamp. |
+| `Xml2Doc_AggregateFingerprintFile` | `$(IntermediateOutputPath)xml2doc.aggregate.fingerprint.txt` | Aggregate input/options fingerprint. |
+| `Xml2Doc_AggregateOutputLedger` | `$(IntermediateOutputPath)xml2doc.aggregate.outputs.txt` | Recorded aggregate output paths. |
+
+The aggregate owner reuses normal renderer settings such as output mode, filename mode, namespace trimming, index generation, line endings, pruning, and reporting timestamp behavior. Aggregate input identities, explicit reference XML identities, rendering options, and host-native newline policy participate in the aggregate fingerprint.
+
+Build the owner normally:
+
+```powershell
+dotnet build .\docs\ApiDocs.csproj -c Release
+```
+
+The aggregate report includes canonical `xmlInputs`. Serial and parallel repository builds are expected to produce the same file set and bytes.
+
+For a focused explanation of this pattern, see [docs/msbuild-repository-aggregation.md](docs/msbuild-repository-aggregation.md).
+
+## Compatibility pattern for independent shared-output projects
+
+Repositories do not have to adopt an aggregation owner immediately. Independent projects may continue to share a directory if each has a distinct manifest identity and does not attempt to generate a shared index:
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_OutputDir>$(MSBuildThisFileDirectory)docs</Xml2Doc_OutputDir>
+  <Xml2Doc_GenerateIndex>false</Xml2Doc_GenerateIndex>
+  <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
+  <Xml2Doc_ManifestIdentity>$(MSBuildProjectName)</Xml2Doc_ManifestIdentity>
+  <Xml2Doc_ReportPath>$(Xml2Doc_OutputDir)\xml2doc-report-$(MSBuildProjectName).json</Xml2Doc_ReportPath>
+</PropertyGroup>
+```
+
+This prevents index races but intentionally does not create a unified repository index. Prefer the aggregation-owner pattern when one complete index is required.
 
 ## CLI quick start
 
-```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.1.0
+Install the .NET tool:
 
+```powershell
+dotnet tool install --global Xml2Doc.Cli --version 2.3.0
+```
+
+Generate per-type documentation from one XML file:
+
+```powershell
 xml2doc `
   --xml .\bin\Release\net9.0\MyLibrary.xml `
   --out .\docs `
@@ -332,92 +242,163 @@ xml2doc `
   --line-endings lf
 ```
 
-Safe per-type pruning additionally requires:
+Aggregate multiple projects directly from the CLI by repeating `--xml`:
 
 ```powershell
---prune-stale --manifest-id MyCompany.MyLibrary
+xml2doc `
+  --xml .\src\ProjectA\bin\Release\net9.0\ProjectA.xml `
+  --xml .\src\ProjectB\bin\Release\net9.0\ProjectB.xml `
+  --out .\docs `
+  --file-names clean `
+  --line-endings lf
 ```
 
-Use `--external-docs <base-url>` to route unresolved `cref` targets to an
-external documentation site. Known symbols continue to use internal links.
-The equivalent JSON configuration property is `ExternalDocs`. When the option
-is omitted, all links retain the existing internal-only behavior.
+One XML input uses the compatible single-input loading path. Two or more primary inputs use deterministic Core aggregation.
 
-Structured diagnostics are written to standard error in a stable CI-friendly
-format: `xml2doc <severity> <code>: <message>`. Source locations and member IDs
-are included when available. Warnings do not fail generation; diagnostic errors
-return exit code `2`. Invalid CLI arguments return exit code `1`.
+### CLI options
 
-CLI validation rejects unknown options, missing option values, unsupported
-filename or anchor modes, non-positive parallelism, missing or malformed JSON
-configuration, and unknown JSON properties. `--toc`, `--namespace-index`, and
-`--prune-stale` require directory output. `--dry-run` and `--diff` are mutually
-exclusive because diff already performs a non-mutating comparison. Validation
-failures do not create or modify generated output.
+| Option | Behavior |
+| --- | --- |
+| `--xml <path>` | Primary XML input. Repeat to aggregate multiple inputs. |
+| `--out <path>` | Output directory, or output file with `--single`. |
+| `--single` | Generate one combined Markdown file. |
+| `--file-names <verbatim\|clean>` | Filename mode. |
+| `--rootns <namespace>` | Trim a root namespace from display names. |
+| `--trim-rootns-filenames` | Also trim the root namespace from filenames. |
+| `--lang <language>` | Fenced-code language. |
+| `--anchor-algorithm <mode>` | `default`, `github`, `gfm`, or `kramdown`. |
+| `--template <path>` | Apply a file-based template. |
+| `--front-matter <path>` | Prepend configured front matter. |
+| `--auto-link` | Enable safe free-text symbol linking. |
+| `--alias-map <path>` | Load an additional alias map. |
+| `--external-docs <base-url>` | Route unresolved references to external documentation. |
+| `--toc` | Emit member tables of contents. Directory output only. |
+| `--namespace-index` | Emit namespace index/pages. Directory output only. |
+| `--no-index` | Suppress per-type `index.md`. |
+| `--basename-only` | Use basename-only output names and links. |
+| `--parallel <N>` | Maximum per-type render parallelism. |
+| `--prune-stale` | Remove stale output owned by the selected manifest identity. Directory output only. |
+| `--manifest-id <identity>` | Stable ownership identity used with pruning. |
+| `--line-endings <style>` | `lf`, `crlf`, or `native`. |
+| `--report <path>` | Write a JSON execution report. |
+| `--dry-run` | Plan without writing output. |
+| `--diff` | Compare generated output with current files without modifying them. |
+| `--config <path>` | Load JSON configuration. CLI arguments take precedence. |
+| `--help`, `-h` | Show help. |
 
-CLI arguments take precedence over equivalent JSON configuration properties.
-Boolean command-line switches enable their feature even when the JSON value is
-`false`; value-bearing options such as filename mode, language, anchor
-algorithm, output mode, paths, parallelism, and line endings retain the explicit
-command-line value. Omitted values continue to use the `2.1.0` defaults.
+`--dry-run` and `--diff` are mutually exclusive. Diff returns exit code `0` when output is current and `3` when differences are found. Invalid CLI arguments return `1`; diagnostic/runtime errors return `2`.
 
-When `--report` is configured, the CLI report includes deterministic
-`plannedFiles`, `writtenFiles`, `skippedFiles`, and `prunedFiles` arrays plus
-runner timing fields. Dry runs leave the actual-result arrays empty and populate
-`wouldWrite` and `wouldDelete` without modifying Markdown or ownership state.
-CLI reports omit timestamps so otherwise identical invocations do not differ
-solely because of wall-clock time.
+### CLI JSON aggregation example
 
-Use `--diff` to compare the Markdown that would be generated with the current
-output without modifying generated files, ownership manifests, or transaction
-state. The console summary and optional report classify absolute paths as
-`addedFiles`, `changedFiles`, `unchangedFiles`, or `removedFiles`. Removed files
-are limited to stale outputs owned by the selected manifest identity when
-pruning is enabled. Diff returns exit code `0` when output is current and `3`
-when differences are found, making it suitable for CI drift checks.
+```json
+{
+  "XmlInputs": [
+    "src/ProjectA/bin/Release/net9.0/ProjectA.xml",
+    "src/ProjectB/bin/Release/net9.0/ProjectB.xml"
+  ],
+  "Out": "docs",
+  "FileNames": "clean",
+  "GenerateIndex": true,
+  "Parallel": 4,
+  "LineEndings": "lf"
+}
+```
 
-Use `--single` when `--out` names one combined file. Pruning is unavailable in single-file mode.
+`XmlInputs` takes precedence over the legacy single-input `Xml` property when no `--xml` arguments are supplied. Repeated CLI `--xml` arguments take precedence over both JSON properties.
+
+When a CLI report is enabled for aggregate input, it includes canonical `xmlInputs` while retaining the compatible `xml` field for the first canonical input.
+
+## Diagnostics
+
+Xml2Doc uses stable diagnostic identifiers:
+
+| ID | Meaning |
+| --- | --- |
+| `XML2DOC001` | Unresolved `cref`. |
+| `XML2DOC002` | Duplicate generated anchor. |
+| `XML2DOC003` | Malformed XML documentation input. |
+| `XML2DOC004` | Documented symbol is missing a summary. |
+| `XML2DOC005` | Unresolved `<inheritdoc />` target. |
+| `XML2DOC006` | Multiple primary XML inputs define the same documentation member. |
+| `XML2DOC007` | Multiple MSBuild projects claim the same generated aggregate index. |
+
+CLI diagnostics use the stable format `xml2doc <severity> <code>: <message>`. Warnings do not fail generation; diagnostic errors return exit code `2`. MSBuild maps diagnostics to normal warning/error logging.
+
+## Output ownership and incremental behavior
+
+When stale pruning is enabled, Xml2Doc records output ownership under the output root:
+
+```text
+<output-root>/.xml2doc/
+├── manifests/
+│   └── <identity-sha256>.json
+└── transactions/
+```
+
+Commit `.xml2doc/manifests` when generated Markdown is versioned and ownership must survive a clean checkout. Ignore `.xml2doc/transactions`; it is local best-effort staging state.
+
+Normal MSBuild generation keeps its stamp, fingerprint, and output ledger under `IntermediateOutputPath`. Repository aggregation uses separate `xml2doc.aggregate.*` lifecycle files so one aggregate owner has one independent incremental state boundary.
+
+Generated Markdown uses LF on every platform by default. Use `native` only when host-specific bytes are intentional.
+
+## Rendering extensibility
+
+Core consumers can replace individual rendering services through `RendererOptions`. Built-in extension points include:
+
+- `IAnchorGenerator`
+- `IAliasProvider`
+- `ITemplateRenderer`
+- `IAutoLinker`
+- `IExternalSymbolResolver`
+- `ISignatureRenderer`
+- `SignatureStyle`
+
+The CLI exposes the applicable built-in behaviors through flags and JSON configuration. Consumer-provided service implementations remain a direct `Xml2Doc.Core` integration concern.
 
 ## Troubleshooting
 
-### Full namespaces remain in filenames
+### Multiple projects overwrite `index.md`
 
-Embedded newlines or indentation can prevent an exact prefix match. Inspect the evaluated values:
+Use a single repository aggregation owner with `Xml2Doc_AggregateEnabled=true`. If a referenced project still targets the same output and owns its index, Xml2Doc fails with `XML2DOC007`. Disable that project's normal generation or set `Xml2Doc_GenerateIndex=false`.
 
-```powershell
-dotnet msbuild .\MyProject.csproj `
-  -getProperty:Xml2Doc_RootNamespaceToTrim `
-  -getProperty:Xml2Doc_TrimRootNamespaceInFileNames
+### Aggregate XML input is missing
+
+Ensure every participating project has:
+
+```xml
+<GenerateDocumentationFile>true</GenerateDocumentationFile>
 ```
 
-### Shared projects overwrite `index.md`
+The aggregate owner fails rather than silently producing an incomplete index.
 
-Set `Xml2Doc_GenerateIndex=false` for every independent project using the directory. A combined index requires a separate aggregation step until 2.3.0.
+### Duplicate members across aggregate inputs
+
+`XML2DOC006` means two primary XML inputs document the same member ID. Remove the duplicate primary input or correct the project/input boundary. Xml2Doc fails deterministically instead of selecting an owner based on input order.
 
 ### Removed source types leave Markdown behind
 
 Use per-type mode with pruning enabled and a stable manifest identity. The first run establishes ownership; files predating the manifest require one manual cleanup.
 
-### The task cannot load `Xml2Doc.Core`
+### The MSBuild task cannot load `Xml2Doc.Core`
 
-Use `Xml2Doc.MSBuild` 2.0.2 or later. Version 2.0.2 packages the task's runtime dependencies beside each task assembly.
+Use a current `Xml2Doc.MSBuild` package. Task runtime dependencies are packaged beside each task assembly for supported hosts.
 
-### Debug task selection or paths
-
-Temporarily enable:
+### Debug task selection or evaluated paths
 
 ```xml
-<Xml2Doc_Dump>true</Xml2Doc_Dump>
-<Xml2Doc_LogChosenTask>true</Xml2Doc_LogChosenTask>
+<PropertyGroup>
+  <Xml2Doc_Dump>true</Xml2Doc_Dump>
+  <Xml2Doc_LogChosenTask>true</Xml2Doc_LogChosenTask>
+</PropertyGroup>
 ```
 
-## Roadmap
+## Release history and roadmap
 
-See [TODO.md](TODO.md) and [the ADR index](docs/adr/README.md). Notable planned work includes:
+- `2.0.3` — documentation and lifecycle correctness.
+- `2.1.0` — rendering extensibility.
+- `2.2.0` — structured diagnostics and runner/pipeline completion.
+- `2.3.0` — deterministic multi-project aggregation across Core, CLI, and MSBuild.
 
-- `2.0.3`: released documentation and lifecycle correctness.
-- `2.1.0`: released rendering extensibility.
-- `2.2.0`: current diagnostics and pipeline milestone.
-- `2.3.0`: deterministic multi-project aggregation and a unified index.
+See [TODO.md](TODO.md), [docs/roadmap.md](docs/roadmap.md), and [the ADR index](docs/adr/README.md) for project history and future work.
 
 Report bugs and feature requests in the [GitHub issue tracker](https://github.com/mod-posh/xml2doc/issues).

@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.3.0) - Unreleased
+
+### Added
+
+- Deterministic Core aggregation for multiple primary XML documentation inputs.
+- Repeated CLI `--xml` arguments and JSON `XmlInputs` for multi-project aggregation.
+- Canonical aggregate `xmlInputs` in CLI and MSBuild reports.
+- Opt-in MSBuild repository aggregation ownership through `Xml2Doc_AggregateEnabled=true`.
+- Automatic aggregate XML discovery from resolved project references and explicit
+  `Xml2Doc_AggregateXml` primary inputs.
+- `XML2DOC006` for duplicate documentation-member ownership across primary aggregate inputs.
+- `XML2DOC007` for conflicting MSBuild ownership of the aggregate `index.md`.
+- Separate aggregate stamp, fingerprint, output ledger, and report lifecycle state.
+
+### Changed
+
+- Repository-level documentation can now be rendered once from all participating compiler XML
+  files instead of merging independently generated indexes.
+- Aggregate input ordering is canonical and ordinal, so caller/project scheduling order does not
+  control generated type or index ordering.
+- Aggregate incremental tracking includes primary/reference XML participation, significant render
+  options, and the host newline token when `Xml2Doc_LineEndings=native`.
+- `Xml2Doc_GenerateIndex=false` remains the supported compatibility mitigation for independent
+  projects sharing an output directory without repository aggregation.
+
+### Tests
+
+- Added Core aggregation ordering, input-order independence, and duplicate-member tests.
+- Added CLI aggregation, JSON precedence, report, and deterministic ordering integration coverage.
+- Added Windows/Linux MSBuild aggregation coverage comparing parallel builds with `/m:1`
+  byte-for-byte.
+- Expanded package integration to build a repository aggregation owner from the packed
+  `Xml2Doc.MSBuild` package.
+
+---
+
+## [2.2.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.2.0) - 2026-08-17
+
+### Added
+
+- Stable structured diagnostics across Core, CLI, and MSBuild, including severity, diagnostic IDs,
+  source/member context, and host-specific warning/error mapping.
+- Runner-backed planning, rendering, dry-run, diff, reporting, and output-lifecycle coordination.
+- Bounded parallel per-type rendering with deterministic output ordering and bytes.
+- Incremental writes that skip unchanged generated files.
+- CLI support for templates, front matter, auto-linking, alias maps, external documentation,
+  anchor algorithms, namespace indexes, TOCs, reports, parallelism, lifecycle controls, dry run,
+  and diff behavior.
+- Stable CLI diff exit code `3` when generated output differs from the current files.
+
+### Changed
+
+- CLI and MSBuild diagnostics use the same Core diagnostic contract.
+- Reports distinguish planned, written, skipped, pruned, and non-mutating comparison results.
+- Dry run, diff, pruning, reporting, and normal generation share one runner execution model.
+- Invalid CLI/configuration values fail with actionable validation messages instead of being
+  accepted silently.
+
+### Tests
+
+- Added serial/parallel parity coverage and unchanged-file write avoidance tests.
+- Added diagnostic mapping and validation coverage across Core, CLI, and MSBuild.
+- Added CLI flag/config precedence and smoke coverage for the expanded option surface.
+
+---
+
 ## [2.1.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.1.0) - 2026-08-16
 
 ### Added
@@ -278,7 +344,7 @@ This release is a focused bugfix to clean up how nested generic types and parent
 ### Changed
 
 - Refactored renderer to separate type-level and member-level rendering.
-- Standardized internal naming conventions across Core, CLI, and MSBuild projects.
+- Standardized internal naming conventions across Core/CLI/MSBuild projects.
 - Updated CLI argument parsing and error handling for better consistency.
 - Cleaned up namespace trimming and display logic for more readable type names.
 - Snapshot tests updated to reflect grouped output and new formatting rules.
@@ -316,7 +382,7 @@ This release is a focused bugfix to clean up how nested generic types and parent
 - Updated all projects to target **.NET 9.0**.
 - Improved display names for generic types and shortened namespace output.
 - Standardized built-in type aliasing (`System.String` → `string`, etc.).
-- Reorganized project structure for consistency across Core, CLI, and MSBuild.
+- Reorganized project structure for consistency across Core/CLI/MSBuild.
 - Cleaned up `.csproj` files and centralized shared properties into `Directory.Build.props`.
 
 ### Fixed
