@@ -45,11 +45,11 @@ public class GenerateMarkdownFromXmlDocsTests
     public void AggregateInputs_RenderOneCanonicalOutputRegardlessOfInputOrder()
     {
         var root = CreateRoot();
-        var alpha = Path.Combine(root, "Alpha.xml");
-        var zulu = Path.Combine(root, "Zulu.xml");
-        var firstOutput = Path.Combine(root, "first");
-        var secondOutput = Path.Combine(root, "second");
-        var report = Path.Combine(root, "aggregate-report.json");
+        var alpha = Path.Join(root, "Alpha.xml");
+        var zulu = Path.Join(root, "Zulu.xml");
+        var firstOutput = Path.Join(root, "first");
+        var secondOutput = Path.Join(root, "second");
+        var report = Path.Join(root, "aggregate-report.json");
         Directory.CreateDirectory(root);
 
         File.WriteAllText(alpha, """
@@ -96,11 +96,13 @@ public class GenerateMarkdownFromXmlDocsTests
 
             foreach (var file in firstFiles)
             {
-                File.ReadAllBytes(Path.Combine(firstOutput, file!))
-                    .ShouldBe(File.ReadAllBytes(Path.Combine(secondOutput, file!)));
+                var fileName = Path.GetFileName(file);
+                fileName.ShouldNotBeNullOrWhiteSpace();
+                File.ReadAllBytes(Path.Join(firstOutput, fileName))
+                    .ShouldBe(File.ReadAllBytes(Path.Join(secondOutput, fileName)));
             }
 
-            var index = File.ReadAllText(Path.Combine(firstOutput, "index.md"));
+            var index = File.ReadAllText(Path.Join(firstOutput, "index.md"));
             var alphaIndex = index.IndexOf("Alpha.Api.Widget", StringComparison.Ordinal);
             var zuluIndex = index.IndexOf("Zulu.Api.Widget", StringComparison.Ordinal);
             alphaIndex.ShouldBeGreaterThanOrEqualTo(0);
@@ -129,9 +131,9 @@ public class GenerateMarkdownFromXmlDocsTests
     public void AggregateInputs_WhenAnyInputIsMissing_FailsWithoutPartialOutput()
     {
         var root = CreateRoot();
-        var alpha = Path.Combine(root, "Alpha.xml");
-        var missing = Path.Combine(root, "Missing.xml");
-        var output = Path.Combine(root, "docs");
+        var alpha = Path.Join(root, "Alpha.xml");
+        var missing = Path.Join(root, "Missing.xml");
+        var output = Path.Join(root, "docs");
         Directory.CreateDirectory(root);
         File.WriteAllText(alpha, """
             <doc><members>
@@ -164,15 +166,15 @@ public class GenerateMarkdownFromXmlDocsTests
     [Fact]
     public void BuildAssets_ExposeRepositoryAggregationAndIndexOwnershipDiagnostic()
     {
-        var buildDirectory = Path.Combine(
+        var buildDirectory = Path.Join(
             RepositoryRoot,
             "src",
             "Xml2Doc.MSBuild",
             "build");
-        var targets = XDocument.Load(Path.Combine(
+        var targets = XDocument.Load(Path.Join(
             buildDirectory,
             "Xml2Doc.MSBuild.Aggregation.targets"));
-        var project = XDocument.Load(Path.Combine(
+        var project = XDocument.Load(Path.Join(
             RepositoryRoot,
             "src",
             "Xml2Doc.MSBuild",
@@ -216,7 +218,7 @@ public class GenerateMarkdownFromXmlDocsTests
         };
 
     private static string CreateRoot()
-        => Path.Combine(
+        => Path.Join(
             Path.GetTempPath(),
             "Xml2Doc.Tests",
             Path.GetRandomFileName());

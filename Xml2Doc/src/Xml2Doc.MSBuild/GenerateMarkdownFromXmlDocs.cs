@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Xml;
 using Xml2Doc.Core;
 
 namespace Xml2Doc.MSBuild;
@@ -255,11 +256,40 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
 
             return !Log.HasLoggedErrors;
         }
-        catch (Exception exception)
+        catch (ArgumentException exception)
         {
-            Log.LogErrorFromException(exception, showStackTrace: true);
-            return false;
+            return LogExecutionFailure(exception);
         }
+        catch (InvalidDataException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (IOException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (NotSupportedException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (XmlException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (JsonException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+    }
+
+    private bool LogExecutionFailure(Exception exception)
+    {
+        Log.LogErrorFromException(exception, showStackTrace: true);
+        return false;
     }
 
     private bool TryResolveLineEndings(out LineEndingStyle lineEndingStyle)
@@ -339,11 +369,32 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
             File.WriteAllText(reportFull, json);
             ReportPathOut = reportFull;
         }
-        catch (Exception exception)
+        catch (ArgumentException exception)
         {
-            Log.LogWarning(
-                $"Xml2Doc: failed to write aggregate report '{ReportPath}': {exception.Message}");
+            LogReportWarning(exception);
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            LogReportWarning(exception);
+        }
+        catch (IOException exception)
+        {
+            LogReportWarning(exception);
+        }
+        catch (NotSupportedException exception)
+        {
+            LogReportWarning(exception);
+        }
+        catch (JsonException exception)
+        {
+            LogReportWarning(exception);
+        }
+    }
+
+    private void LogReportWarning(Exception exception)
+    {
+        Log.LogWarning(
+            $"Xml2Doc: failed to write aggregate report '{ReportPath}': {exception.Message}");
     }
 
     private static string[] ResolvePaths(
