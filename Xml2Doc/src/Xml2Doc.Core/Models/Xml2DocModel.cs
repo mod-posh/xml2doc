@@ -90,8 +90,9 @@ namespace Xml2Doc.Core.Models
             var paths = xmlPaths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Select(Path.GetFullPath)
+                .OrderBy(path => path, pathComparer)
+                .ThenBy(path => path, StringComparer.Ordinal)
                 .Distinct(pathComparer)
-                .OrderBy(path => path, StringComparer.Ordinal)
                 .ToArray();
 
             if (paths.Length == 0)
@@ -116,9 +117,9 @@ namespace Xml2Doc.Core.Models
 
                     if (memberOwners.TryGetValue(name!, out var owner))
                     {
-                        var message =
-                            $"XML documentation member '{name}' is defined by " +
-                            $"both '{owner}' and '{path}'.";
+                        var message = pathComparer.Equals(owner, path)
+                            ? $"XML documentation member '{name}' is defined more than once in '{path}'."
+                            : $"XML documentation member '{name}' is defined by both '{owner}' and '{path}'.";
                         diagnosticSink?.Report(new Xml2DocDiagnostic(
                             DiagnosticIds.DuplicateInputMember,
                             DiagnosticSeverity.Error,
