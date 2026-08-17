@@ -94,9 +94,8 @@ public class GenerateMarkdownFromXmlDocsTests
             firstFiles.ShouldContain("Zulu.Api.Widget.md");
             firstFiles.ShouldContain("index.md");
 
-            foreach (var file in firstFiles)
+            foreach (var fileName in firstFiles.Select(Path.GetFileName))
             {
-                var fileName = Path.GetFileName(file);
                 fileName.ShouldNotBeNullOrWhiteSpace();
                 File.ReadAllBytes(Path.Join(firstOutput, fileName))
                     .ShouldBe(File.ReadAllBytes(Path.Join(secondOutput, fileName)));
