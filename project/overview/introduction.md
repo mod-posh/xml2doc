@@ -2,7 +2,7 @@
 
 Xml2Doc is a deterministic C# XML-documentation to Markdown generator with three public integration surfaces: Core, CLI, and MSBuild.
 
-The repository version is `2.3.0`. The latest published release is `2.2.0`; `2.3.0` is the multi-project aggregation release being prepared from the current `main` branch.
+The repository and release target are `2.3.0`, focused on deterministic multi-project aggregation.
 
 ## What Xml2Doc does
 

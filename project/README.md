@@ -5,8 +5,7 @@ This directory documents Xml2Doc's architecture, runtime flows, constraints, qua
 | Item | Current state |
 | --- | --- |
 | Repository version | `2.3.0` |
-| Latest published release | `2.2.0` |
-| Current release work | `2.3.0` multi-project aggregation closeout |
+| Release target | `2.3.0` multi-project aggregation |
 | Core TFMs | `netstandard2.0`, `net8.0`, `net9.0` |
 | CLI TFMs | `net8.0`, `net9.0` |
 | MSBuild task TFMs | `net472`, `net8.0` |

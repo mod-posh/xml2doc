@@ -18,7 +18,7 @@ Contributions are made through GitHub pull requests and should include relevant 
 
 ## Versioning and releases
 
-`Directory.Build.props` is the repository version source. The current repository version is `2.3.0`; `2.2.0` is the latest published release until the current milestone closes.
+`Directory.Build.props` is the repository version source. The repository/release target is `2.3.0`.
 
 Release automation builds/tests/packages the solution, validates clean consumers, publishes NuGet packages and symbols, creates the GitHub release/tag, and refreshes generated API documentation.
 
