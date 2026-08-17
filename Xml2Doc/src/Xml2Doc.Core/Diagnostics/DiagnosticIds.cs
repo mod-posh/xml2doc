@@ -17,4 +17,7 @@ public static class DiagnosticIds
 
     /// <summary>An inheritdoc target could not be resolved.</summary>
     public const string UnresolvedInheritDoc = "XML2DOC005";
+
+    /// <summary>Multiple XML documentation inputs define the same member.</summary>
+    public const string DuplicateInputMember = "XML2DOC006";
 }
