@@ -34,10 +34,15 @@ public class CliAggregationTests
                 StringComparison.Ordinal));
 
         using var report = JsonDocument.Parse(File.ReadAllText(reportPath));
-        var inputs = report.RootElement.GetProperty("xmlInputs");
-        inputs.GetArrayLength().ShouldBe(2);
-        inputs[0].GetString().ShouldBe(Path.GetFullPath(alpha));
-        inputs[1].GetString().ShouldBe(Path.GetFullPath(zebra));
+        var inputs = report.RootElement.GetProperty("xmlInputs")
+            .EnumerateArray()
+            .Select(element => element.GetString())
+            .ToArray();
+        inputs.ShouldBe(new[]
+        {
+            Path.GetFullPath(alpha),
+            Path.GetFullPath(zebra)
+        });
     }
 
     [Fact]
