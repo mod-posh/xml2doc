@@ -31,7 +31,7 @@ Add a package reference to your project:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Xml2Doc.MSBuild" Version="1.1.0" PrivateAssets="all" />
+  <PackageReference Include="Xml2Doc.MSBuild" Version="2.2.0" PrivateAssets="all" />
 </ItemGroup>
 ```
 
@@ -99,7 +99,7 @@ Use one project as the owner when multiple projects contribute to the same docum
   <ItemGroup>
     <ProjectReference Include="..\Alpha\Alpha.csproj" />
     <ProjectReference Include="..\Zulu\Zulu.csproj" />
-    <PackageReference Include="Xml2Doc.MSBuild" Version="1.1.0" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.2.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```

@@ -126,7 +126,10 @@ try
     "lib/net472/Xml2Doc.Core.dll",
     "lib/net472/System.Text.Json.dll",
     "lib/net8.0/Xml2Doc.MSBuild.dll",
-    "lib/net8.0/Xml2Doc.Core.dll"
+    "lib/net8.0/Xml2Doc.Core.dll",
+    "build/Xml2Doc.MSBuild.props",
+    "build/Xml2Doc.MSBuild.targets",
+    "build/assets/Xml2Doc.MSBuild.Aggregation.targets"
   )
 
   foreach ($entry in $requiredEntries)
@@ -207,6 +210,75 @@ public sealed class Example
   $generatedReport = Join-Path $consumerRoot "docs/xml2doc-report.json"
   Assert-True (Test-Path -LiteralPath $generatedIndex -PathType Leaf) "Clean consumer did not generate docs/index.md."
   Assert-True (Test-Path -LiteralPath $generatedReport -PathType Leaf) "Clean consumer did not generate xml2doc-report.json."
+
+  Write-Step "Creating clean packaged aggregation consumer"
+  $aggregateRoot = Join-Path $runRoot "aggregate-consumer"
+  $aggregateChildRoot = Join-Path $aggregateRoot "Child"
+  $aggregateOwnerRoot = Join-Path $aggregateRoot "Owner"
+  New-Item -ItemType Directory -Force -Path $aggregateChildRoot | Out-Null
+  New-Item -ItemType Directory -Force -Path $aggregateOwnerRoot | Out-Null
+
+  $aggregateChildProject = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>
+'@
+
+  $aggregateChildSource = @'
+namespace PackageAggregateChild;
+
+/// <summary>Type used to prove packaged repository aggregation can load and execute.</summary>
+public sealed class Widget
+{
+    /// <summary>Returns a deterministic value.</summary>
+    public int GetValue() => 7;
+}
+'@
+
+  $aggregateOwnerProject = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Xml2Doc_Enabled>false</Xml2Doc_Enabled>
+    <Xml2Doc_AggregateEnabled>true</Xml2Doc_AggregateEnabled>
+    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)/docs</Xml2Doc_OutputDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Child/Child.csproj" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="__PACKAGE_VERSION__" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
+'@.Replace("__PACKAGE_VERSION__", $PackageVersion)
+
+  Set-Content -LiteralPath (Join-Path $aggregateChildRoot "Child.csproj") -Value $aggregateChildProject -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $aggregateChildRoot "Widget.cs") -Value $aggregateChildSource -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $aggregateOwnerRoot "Owner.csproj") -Value $aggregateOwnerProject -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $aggregateRoot "NuGet.Config") -Value $nugetConfig -Encoding utf8
+
+  Write-Step "Restoring packaged aggregation consumer"
+  Invoke-DotNet -WorkingDirectory $aggregateRoot -Arguments @(
+    "restore", "Owner/Owner.csproj",
+    "--configfile", "NuGet.Config"
+  )
+
+  Write-Step "Building packaged aggregation consumer"
+  Invoke-DotNet -WorkingDirectory $aggregateRoot -Arguments @(
+    "build", "Owner/Owner.csproj",
+    "--configuration", $Configuration,
+    "--no-restore",
+    "--disable-build-servers"
+  )
+
+  $aggregateIndex = Join-Path $aggregateOwnerRoot "docs/index.md"
+  $aggregateReport = Join-Path $aggregateOwnerRoot "docs/xml2doc-aggregate-report.json"
+  Assert-True (Test-Path -LiteralPath $aggregateIndex -PathType Leaf) "Packaged aggregation consumer did not generate docs/index.md."
+  Assert-True (Test-Path -LiteralPath $aggregateReport -PathType Leaf) "Packaged aggregation consumer did not generate xml2doc-aggregate-report.json."
+  $aggregateIndexText = Get-Content -LiteralPath $aggregateIndex -Raw
+  Assert-True ($aggregateIndexText.Contains("PackageAggregateChild.Widget")) "Packaged aggregation output did not contain the referenced child type."
 
   Write-Step "MSBuild package integration completed successfully"
   Write-Host "Package: $packagePath"

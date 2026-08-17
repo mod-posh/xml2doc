@@ -12,6 +12,11 @@
   </PropertyGroup>
 
   <Choose>
+    <When Condition="Exists('$(MSBuildThisFileDirectory)..\..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll')">
+      <PropertyGroup>
+        <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
+      </PropertyGroup>
+    </When>
     <When Condition="Exists('$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll')">
       <PropertyGroup>
         <_Xml2Doc_AggregateTaskPath>$(MSBuildThisFileDirectory)..\lib\$(_Xml2Doc_AggregateTaskTfm)\Xml2Doc.MSBuild.dll</_Xml2Doc_AggregateTaskPath>
@@ -39,8 +44,12 @@
   <Target Name="_Xml2Doc_ValidateAggregateIndexOwnership"
           Condition="'$(Xml2Doc_AggregateOwnerOutputDir)' != ''">
     <PropertyGroup>
-      <_Xml2Doc_ProjectOutputDir Condition="'$(Xml2Doc_OutputDir)' != ''">$([System.IO.Path]::GetFullPath('$(Xml2Doc_OutputDir)'))</_Xml2Doc_ProjectOutputDir>
-      <_Xml2Doc_AggregateOwnerOutputDir>$([System.IO.Path]::GetFullPath('$(Xml2Doc_AggregateOwnerOutputDir)'))</_Xml2Doc_AggregateOwnerOutputDir>
+      <_Xml2Doc_ProjectOutputDirFull Condition="'$(Xml2Doc_OutputDir)' != ''">$([System.IO.Path]::GetFullPath('$(Xml2Doc_OutputDir)'))</_Xml2Doc_ProjectOutputDirFull>
+      <_Xml2Doc_AggregateOwnerOutputDirFull>$([System.IO.Path]::GetFullPath('$(Xml2Doc_AggregateOwnerOutputDir)'))</_Xml2Doc_AggregateOwnerOutputDirFull>
+      <_Xml2Doc_ProjectOutputSentinel Condition="'$(_Xml2Doc_ProjectOutputDirFull)' != ''">$([System.IO.Path]::Combine('$(_Xml2Doc_ProjectOutputDirFull)', '.xml2doc-path-probe'))</_Xml2Doc_ProjectOutputSentinel>
+      <_Xml2Doc_AggregateOwnerOutputSentinel>$([System.IO.Path]::Combine('$(_Xml2Doc_AggregateOwnerOutputDirFull)', '.xml2doc-path-probe'))</_Xml2Doc_AggregateOwnerOutputSentinel>
+      <_Xml2Doc_ProjectOutputDir Condition="'$(_Xml2Doc_ProjectOutputSentinel)' != ''">$([System.IO.Path]::GetDirectoryName('$(_Xml2Doc_ProjectOutputSentinel)'))</_Xml2Doc_ProjectOutputDir>
+      <_Xml2Doc_AggregateOwnerOutputDir>$([System.IO.Path]::GetDirectoryName('$(_Xml2Doc_AggregateOwnerOutputSentinel)'))</_Xml2Doc_AggregateOwnerOutputDir>
     </PropertyGroup>
 
     <Error Condition="
@@ -112,7 +121,9 @@
       <_Xml2Doc_AggregateLedgerDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateOutputLedger)'))</_Xml2Doc_AggregateLedgerDir>
       <_Xml2Doc_AggregateOutputFileDir Condition="'$(Xml2Doc_OutputFile)' != ''">$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_OutputFile)'))</_Xml2Doc_AggregateOutputFileDir>
       <_Xml2Doc_AggregateInputIdentity>@(_Xml2Doc_AggregateInput->'%(FullPath)', ';')</_Xml2Doc_AggregateInputIdentity>
-      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)</_Xml2Doc_AggregateOptions>
+      <_Xml2Doc_AggregateReferenceIdentity>@(Xml2Doc_ReferenceXml->'%(FullPath)', ';')</_Xml2Doc_AggregateReferenceIdentity>
+      <_Xml2Doc_AggregateNativeLineEndingToken Condition="'$(Xml2Doc_LineEndings)' == 'native'">native-$([System.Environment]::NewLine.Length)</_Xml2Doc_AggregateNativeLineEndingToken>
+      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(_Xml2Doc_AggregateReferenceIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_AggregateNativeLineEndingToken)</_Xml2Doc_AggregateOptions>
     </PropertyGroup>
 
     <MakeDir Directories="$(_Xml2Doc_AggregateFingerprintDir)"
@@ -141,7 +152,7 @@
           AfterTargets="Build"
           DependsOnTargets="Xml2Doc_PrepareAggregate"
           Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'"
-          Inputs="@(_Xml2Doc_AggregateInput);$(Xml2Doc_AggregateFingerprintFile)"
+          Inputs="@(_Xml2Doc_AggregateInput);@(Xml2Doc_ReferenceXml);$(Xml2Doc_AggregateFingerprintFile)"
           Outputs="$(Xml2Doc_AggregateOutputStamp)">
     <MakeDir Directories="$(Xml2Doc_OutputDir)"
              Condition="'$(Xml2Doc_SingleFile)' != 'true' and '$(Xml2Doc_SingleFile)' != 'True' and '$(Xml2Doc_OutputDir)' != '' and !Exists('$(Xml2Doc_OutputDir)')" />

@@ -184,10 +184,21 @@ public class GenerateMarkdownFromXmlDocsTests
         targets.Descendants("Xml2Doc_AggregateValidateIndexOwnership")
             .Single().Value.ShouldBe("true");
 
+        targets.Descendants("_Xml2Doc_AggregateTaskPath")
+            .Any(element => element.Value.Contains("..\\..\\lib\\", StringComparison.Ordinal))
+            .ShouldBeTrue();
+        targets.Descendants("_Xml2Doc_ProjectOutputSentinel")
+            .Single().Value.ShouldContain("Path]::Combine");
+        targets.Descendants("_Xml2Doc_AggregateReferenceIdentity")
+            .Single().Value.ShouldContain("%(FullPath)");
+        targets.Descendants("_Xml2Doc_AggregateNativeLineEndingToken")
+            .Single().Value.ShouldContain("System.Environment");
+
         var aggregateTarget = targets.Descendants("Target")
             .Single(element => element.Attribute("Name")?.Value == "Xml2Doc_Aggregate");
         aggregateTarget.Attribute("AfterTargets")!.Value.ShouldBe("Build");
         aggregateTarget.Attribute("Inputs")!.Value.ShouldContain("@(_Xml2Doc_AggregateInput)");
+        aggregateTarget.Attribute("Inputs")!.Value.ShouldContain("@(Xml2Doc_ReferenceXml)");
 
         var task = aggregateTarget.Descendants("GenerateMarkdownFromXmlDocs").Single();
         task.Attribute("XmlPaths")!.Value.ShouldBe("@(_Xml2Doc_AggregateInput)");
