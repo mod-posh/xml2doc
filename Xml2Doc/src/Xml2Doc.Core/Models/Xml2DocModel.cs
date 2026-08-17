@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
@@ -53,15 +54,97 @@ namespace Xml2Doc.Core.Models
             var doc = LoadDocument(xmlPath, diagnosticSink);
             var model = new Xml2Doc();
 
-            foreach (var m in doc.Descendants("member"))
+            AddMembers(model, doc);
+            return model;
+        }
+
+        /// <summary>
+        /// Loads and deterministically merges multiple XML documentation files.
+        /// </summary>
+        /// <param name="xmlPaths">Paths to participating XML documentation files.</param>
+        /// <returns>An aggregate model containing members from every input.</returns>
+        /// <exception cref="ArgumentException">No XML documentation paths were supplied.</exception>
+        /// <exception cref="InvalidDataException">
+        /// Multiple inputs define the same documentation member identifier.
+        /// </exception>
+        public static Xml2Doc LoadAggregate(IEnumerable<string> xmlPaths)
+            => LoadAggregate(xmlPaths, diagnosticSink: null);
+
+        /// <summary>
+        /// Loads and deterministically merges multiple XML documentation files,
+        /// reporting malformed inputs and conflicting member ownership.
+        /// </summary>
+        /// <param name="xmlPaths">Paths to participating XML documentation files.</param>
+        /// <param name="diagnosticSink">Optional receiver for structured diagnostics.</param>
+        /// <returns>An aggregate model containing members from every input.</returns>
+        public static Xml2Doc LoadAggregate(
+            IEnumerable<string> xmlPaths,
+            IDiagnosticSink? diagnosticSink)
+        {
+            if (xmlPaths is null)
+                throw new ArgumentNullException(nameof(xmlPaths));
+
+            var pathComparer = Path.DirectorySeparatorChar == '\\'
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
+            var paths = xmlPaths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(Path.GetFullPath)
+                .Distinct(pathComparer)
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+
+            if (paths.Length == 0)
+            {
+                throw new ArgumentException(
+                    "At least one XML documentation path must be specified.",
+                    nameof(xmlPaths));
+            }
+
+            var model = new Xml2Doc();
+            var memberOwners = new Dictionary<string, string>(
+                StringComparer.Ordinal);
+
+            foreach (var path in paths)
+            {
+                var document = LoadDocument(path, diagnosticSink);
+                foreach (var element in document.Descendants("member"))
+                {
+                    var name = (string?)element.Attribute("name");
+                    if (string.IsNullOrWhiteSpace(name))
+                        continue;
+
+                    if (memberOwners.TryGetValue(name!, out var owner))
+                    {
+                        var message =
+                            $"XML documentation member '{name}' is defined by " +
+                            $"both '{owner}' and '{path}'.";
+                        diagnosticSink?.Report(new Xml2DocDiagnostic(
+                            DiagnosticIds.DuplicateInputMember,
+                            DiagnosticSeverity.Error,
+                            message,
+                            MemberId: name,
+                            SourcePath: path));
+                        throw new InvalidDataException(message);
+                    }
+
+                    memberOwners.Add(name!, path);
+                    model.Members.Add(name!, new XMember(name!, element));
+                }
+            }
+
+            return model;
+        }
+
+        private static void AddMembers(Xml2Doc model, XDocument document)
+        {
+            foreach (var m in document.Descendants("member"))
             {
                 var name = (string?)m.Attribute("name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
                 model.Members[name!] = new XMember(name!, m);
             }
-
-            return model;
         }
 
         /// <summary>
