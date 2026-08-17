@@ -67,6 +67,10 @@
           Pack="true"
           PackagePath="build\$(PackageId).targets"
           Condition="Exists('build\Xml2Doc.MSBuild.targets')" />
+    <None Include="build\Xml2Doc.MSBuild.Aggregation.targets"
+          Pack="true"
+          PackagePath="build\assets\$(PackageId).Aggregation.targets"
+          Condition="Exists('build\Xml2Doc.MSBuild.Aggregation.targets')" />
     <None Include="build\Xml2Doc.MSBuild.props"
           Pack="true"
           PackagePath="build\$(PackageId).props"

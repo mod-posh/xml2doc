@@ -1,0 +1,50 @@
+name: MSBuild Aggregation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "Xml2Doc/src/Xml2Doc.Core/**"
+      - "Xml2Doc/src/Xml2Doc.MSBuild/**"
+      - "Xml2Doc/tests/Xml2Doc.Tests/**"
+      - "scripts/test-msbuild-aggregation.ps1"
+      - ".github/workflows/msbuild-aggregation.yml"
+      - "global.json"
+      - "Directory.Build.props"
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate_parallel_serial:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      MSBUILDDISABLENODEREUSE: "1"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./global.json
+
+      - name: Print .NET info
+        run: dotnet --info
+
+      - name: Shutdown build servers
+        run: dotnet build-server shutdown
+
+      - name: Repository aggregation integration
+        shell: pwsh
+        run: ./scripts/test-msbuild-aggregation.ps1 -Configuration Release -KeepArtifacts
+
+      - name: Upload aggregation artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: msbuild-aggregation-${{ matrix.os }}
+          path: artifacts/msbuild-aggregation/**

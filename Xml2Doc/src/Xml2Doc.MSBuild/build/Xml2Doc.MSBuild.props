@@ -53,4 +53,9 @@
     <!-- 3) Optional: flip to 'true' to log which task TFM/assembly was chosen (helps when debugging). -->
     <Xml2Doc_LogChosenTask Condition="'$(Xml2Doc_LogChosenTask)'==''">false</Xml2Doc_LogChosenTask>
   </PropertyGroup>
+
+  <!-- The repository aggregation target is packed as an implementation asset so this
+       package-owned props file controls exactly when and where it is imported. -->
+  <Import Project="$(MSBuildThisFileDirectory)assets\Xml2Doc.MSBuild.Aggregation.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)assets\Xml2Doc.MSBuild.Aggregation.targets')" />
 </Project>
