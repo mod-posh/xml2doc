@@ -109,6 +109,7 @@ Reference XML contents are included in incremental fingerprinting.
 | `Xml2Doc_Toc` | `false` | `true`, `false` | Emits a member table of contents where supported. Set in `.csproj` or `Directory.Build.targets`. |
 | `Xml2Doc_NamespaceIndex` | `false` | `true`, `false` | Emits namespace index output in per-type mode. Set in `.csproj` or `Directory.Build.targets`. |
 | `Xml2Doc_BasenameOnly` | `false` | `true`, `false` | Drops namespace segments from filenames and increases collision risk. Set in `.csproj` or `Directory.Build.targets`. |
+| `Xml2Doc_ParallelDegree` | `1` | Positive integer | Maximum concurrent per-type renders. Values greater than `1` opt into bounded parallel generation; custom rendering extensions must be thread-safe. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, `native` | Normalizes generated Markdown at the output boundary. `lf` is deterministic across hosts. |
 
 Filename processing order is: filename-mode normalization, optional root-namespace trimming, then optional basename-only reduction.
@@ -179,6 +180,7 @@ Do not add an `Xml2Doc_WriteFingerprint` target. The imported targets already ma
   <Xml2Doc_TrimRootNamespaceInFileNames>true</Xml2Doc_TrimRootNamespaceInFileNames>
   <Xml2Doc_PruneStaleFiles>true</Xml2Doc_PruneStaleFiles>
   <Xml2Doc_ManifestIdentity>$(MSBuildProjectName)</Xml2Doc_ManifestIdentity>
+  <Xml2Doc_ParallelDegree>4</Xml2Doc_ParallelDegree>
   <Xml2Doc_LineEndings>lf</Xml2Doc_LineEndings>
 </PropertyGroup>
 ```
@@ -326,6 +328,7 @@ xml2doc `
   --out .\docs `
   --file-names clean `
   --rootns MyCompany.MyProduct `
+  --parallel 4 `
   --line-endings lf
 ```
 
@@ -334,6 +337,44 @@ Safe per-type pruning additionally requires:
 ```powershell
 --prune-stale --manifest-id MyCompany.MyLibrary
 ```
+
+Use `--external-docs <base-url>` to route unresolved `cref` targets to an
+external documentation site. Known symbols continue to use internal links.
+The equivalent JSON configuration property is `ExternalDocs`. When the option
+is omitted, all links retain the existing internal-only behavior.
+
+Structured diagnostics are written to standard error in a stable CI-friendly
+format: `xml2doc <severity> <code>: <message>`. Source locations and member IDs
+are included when available. Warnings do not fail generation; diagnostic errors
+return exit code `2`. Invalid CLI arguments return exit code `1`.
+
+CLI validation rejects unknown options, missing option values, unsupported
+filename or anchor modes, non-positive parallelism, missing or malformed JSON
+configuration, and unknown JSON properties. `--toc`, `--namespace-index`, and
+`--prune-stale` require directory output. `--dry-run` and `--diff` are mutually
+exclusive because diff already performs a non-mutating comparison. Validation
+failures do not create or modify generated output.
+
+CLI arguments take precedence over equivalent JSON configuration properties.
+Boolean command-line switches enable their feature even when the JSON value is
+`false`; value-bearing options such as filename mode, language, anchor
+algorithm, output mode, paths, parallelism, and line endings retain the explicit
+command-line value. Omitted values continue to use the `2.1.0` defaults.
+
+When `--report` is configured, the CLI report includes deterministic
+`plannedFiles`, `writtenFiles`, `skippedFiles`, and `prunedFiles` arrays plus
+runner timing fields. Dry runs leave the actual-result arrays empty and populate
+`wouldWrite` and `wouldDelete` without modifying Markdown or ownership state.
+CLI reports omit timestamps so otherwise identical invocations do not differ
+solely because of wall-clock time.
+
+Use `--diff` to compare the Markdown that would be generated with the current
+output without modifying generated files, ownership manifests, or transaction
+state. The console summary and optional report classify absolute paths as
+`addedFiles`, `changedFiles`, `unchangedFiles`, or `removedFiles`. Removed files
+are limited to stale outputs owned by the selected manifest identity when
+pruning is enabled. Diff returns exit code `0` when output is current and `3`
+when differences are found, making it suitable for CI drift checks.
 
 Use `--single` when `--out` names one combined file. Pruning is unavailable in single-file mode.
 
