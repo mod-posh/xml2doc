@@ -21,10 +21,10 @@ var renderer = new MarkdownRenderer(
     model,
     new RendererOptions
     {
-        FileNameMode = "clean",
+        FileNameMode = FileNameMode.CleanGenerics,
         RootNamespaceToTrim = "MyCompany.MyProduct",
         TrimRootNamespaceInFileNames = true,
-        LineEndings = "lf"
+        LineEndings = LineEndingStyle.Lf
     });
 
 renderer.RenderToDirectory("docs");
@@ -46,9 +46,9 @@ var renderer = new MarkdownRenderer(
     model,
     new RendererOptions
     {
-        FileNameMode = "clean",
+        FileNameMode = FileNameMode.CleanGenerics,
         GenerateIndex = true,
-        LineEndings = "lf"
+        LineEndings = LineEndingStyle.Lf
     });
 
 renderer.RenderToDirectory("docs");
@@ -71,30 +71,39 @@ Reference members are available to `<inheritdoc />` and reference resolution but
 
 ## Renderer options
 
-`RendererOptions` controls output and rendering behavior, including:
+`RendererOptions` is a strongly typed record. Its public options are:
 
-- `SingleFile`
 - `FileNameMode`
 - `RootNamespaceToTrim`
-- `TrimRootNamespaceInFileNames`
 - `CodeBlockLanguage`
+- `TrimRootNamespaceInFileNames`
 - `AnchorAlgorithm`
-- `GenerateIndex`
-- `GenerateNamespaceIndex`
-- `GenerateToc`
+- `TemplatePath`
+- `FrontMatterPath`
+- `AutoLink`
+- `AliasMapPath`
+- `ExternalDocs`
+- `EmitToc`
+- `EmitNamespaceIndex`
 - `BasenameOnly`
 - `ParallelDegree`
+- `GenerateIndex`
 - `PruneStaleFiles`
 - `ManifestIdentity`
 - `LineEndings`
-- `TemplatePath` / `TemplateRenderer`
-- `FrontMatterPath` / `FrontMatterProvider`
-- `AutoLink` / `AutoLinker`
-- `AliasMapPath` / `AliasProvider`
-- `ExternalDocsBaseUrl` / `ExternalSymbolResolver`
+- `WarningSink`
+- `AliasProvider`
 - `AnchorGenerator`
-- `SignatureRenderer`
+- `TemplateRenderer`
+- `FrontMatter`
+- `AutoLinker`
+- `LinkPolicy`
+- `ExternalSymbolResolver`
 - `SignatureStyle`
+- `SignatureRenderer`
+- `DiagnosticSink`
+
+`FileNameMode`, `AnchorAlgorithm`, and `LineEndings` use the `FileNameMode`, `AnchorAlgorithm`, and `LineEndingStyle` enums respectively. Single-file output is selected through `MarkdownRenderer.RenderToSingleFile(...)` or `RendererRunMode.SingleFile`; it is not a `RendererOptions` property.
 
 Built-in and consumer-provided rendering services use the same renderer pipeline.
 
