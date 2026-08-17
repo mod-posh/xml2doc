@@ -1,171 +1,137 @@
 # Project Roadmap
 
-This roadmap reconstructs the historical evolution of xml2doc using release notes, milestones, and issue history. It helps contributors understand **what stage of maturity the project is in** and how current work fits into the larger direction.
+This roadmap summarizes Xml2Doc's evolution and the architectural themes delivered by each release line. For the active release checklist, see [`../TODO.md`](../TODO.md).
 
----
-
-## Milestone 1 — Foundation (v1.0.0)
+## Foundation — 1.0.0
 
 Initial repository and architecture creation.
 
 Key outcomes:
 
-• repository structure
-• Core rendering engine
-• CLI entrypoint
-• MSBuild integration
-• initial XML → Markdown transformation
+- Core rendering engine;
+- CLI entry point;
+- MSBuild integration;
+- XML documentation to Markdown transformation;
+- per-type documentation generation and index output.
 
 Architectural themes:
 
-• Core / CLI / MSBuild separation
-• basic Markdown renderer
-• per‑type documentation generation
+- Core / CLI / MSBuild separation;
+- deterministic Markdown as the primary output contract.
 
-Related ADRs:
-
-• ADR‑001 Scope and non‑goals
-• ADR‑002 Solution structure
-
----
-
-## Milestone 2 — Renderer Options & Host Parity (v1.1.0)
-
-This milestone introduced a **shared configuration model**.
+## Configuration and output modes — 1.1.x to 1.2.x
 
 Key outcomes:
 
-• RendererOptions
-• CLI flags mapped to renderer options
-• MSBuild properties mapped to renderer options
-• improved XML tag handling
+- shared `RendererOptions` model;
+- single-file and per-type output modes;
+- JSON CLI configuration;
+- grouped member rendering;
+- broader XML documentation tag support;
+- snapshot regression coverage.
 
 Architectural themes:
 
-• configuration surface consistency
-• host parity
+- host configuration parity;
+- repeatable output and regression safety.
 
-Related ADRs:
-
-• ADR‑003 Output modes
-• ADR‑004 Configuration model
-
----
-
-## Milestone 3 — Output Quality & Regression Safety (v1.2.0)
-
-Focus shifted toward output correctness and stability.
+## Link, anchor, and signature hardening — 1.3.x
 
 Key outcomes:
 
-• snapshot tests
-• sample project for testing
-• grouped rendering improvements
-• CLI config support
+- stable member anchors;
+- token-aware aliases;
+- correct internal links across output modes;
+- nested-generic formatting and label fixes;
+- stronger anchor/link snapshot coverage.
 
 Architectural themes:
 
-• deterministic rendering
-• regression safety
+- link stability as an output contract;
+- deterministic signature formatting.
 
-Related ADRs:
-
-• ADR‑005 Regression strategy
-
----
-
-## Milestone 4 — Signature & CREF Hardening (v1.2.1)
-
-This milestone focused on fixing signature rendering issues.
+## Build and platform maturity — 1.4.x to 2.0.x
 
 Key outcomes:
 
-• generic rendering fixes
-• cref label fixes
-• additional snapshot coverage
+- Core targets `netstandard2.0`, `net8.0`, and `net9.0`;
+- CLI targets `net8.0` and `net9.0`;
+- MSBuild task targets `net472` and `net8.0` for Visual Studio and `dotnet` hosts;
+- explicit LF/CRLF/native line-ending policy;
+- portable output-ownership manifests and stale-output pruning;
+- project-reference XML loading for `<inheritdoc />`;
+- incremental output ledgers that recreate missing generated files;
+- self-contained MSBuild task package layout.
 
 Architectural themes:
 
-• signature correctness
-• rendering reliability
+- host portability;
+- deterministic bytes across operating systems;
+- invocation-scoped output ownership;
+- safe incremental generation.
 
-Related ADRs:
+Related ADRs include generated-output ownership/lifecycle and multi-target compatibility decisions.
 
-• ADR‑006 Link and anchor stability
-
----
-
-## Milestone 5 — Link & Anchor Contract Stabilization (v1.3.x)
-
-This milestone hardened the internal link model.
+## Rendering extensibility — 2.1.0
 
 Key outcomes:
 
-• explicit member anchors
-• alias normalization
-• internal link correctness
-• additional anchor tests
+- `IAnchorGenerator`;
+- `IAliasProvider`;
+- `ITemplateRenderer` and deterministic front matter;
+- `IAutoLinker`;
+- `IExternalSymbolResolver` and link policy;
+- `ISignatureRenderer` and `SignatureStyle`;
+- parity tests across built-in anchor algorithms and output modes.
 
 Architectural themes:
 
-• stable internal links
-• anchor consistency
+- built-in and consumer-provided rendering services share the same pipeline;
+- default output compatibility remains protected while extension points are replaceable.
 
-Related ADRs:
+## Diagnostics and runner pipeline — 2.2.0
 
-• ADR‑006 Link and anchor stability
+Released August 17, 2026.
 
----
+Key outcomes:
 
-## Milestone 6 — Build & Platform Maturity (v1.4.x)
-
-Current milestone.
-
-Focus areas:
-
-• incremental MSBuild execution
-• report output
-• multi‑target compatibility
-• improved test infrastructure
-• explicit ownership controls for shared output directories
+- stable structured diagnostics surfaced through Core, CLI, and MSBuild;
+- a runner that coordinates planning, rendering, dry run, diff, reporting, and lifecycle operations;
+- bounded parallel per-type rendering with deterministic output;
+- incremental writes that skip unchanged files;
+- reports that distinguish planned, written, skipped, pruned, and comparison results;
+- full CLI exposure for applicable templates, front matter, auto-linking, alias maps, external docs, anchors, reports, parallelism, and lifecycle controls.
 
 Architectural themes:
 
-• build performance
-• host compatibility
+- one execution pipeline for mutating and non-mutating workflows;
+- structured diagnostics as a stable CI contract;
+- deterministic parallelism.
 
-Related ADRs:
+## Multi-project aggregation — 2.3.0
 
-• ADR‑007 MSBuild incremental generation
-• ADR‑008 Multi‑target compatibility
-• ADR‑011 Generated output ownership and lifecycle
-• ADR‑012 Invocation-scoped manifest identity and storage
+Current repository version and release-preparation milestone.
 
----
+Key outcomes:
 
-## Milestone 7 — Diagnostics & Output Strategy (Future)
+- Core multi-input aggregation with canonical path ordering and deterministic duplicate-member failure;
+- repeated CLI `--xml` inputs and JSON `XmlInputs`;
+- one aggregate report with canonical `xmlInputs`;
+- an opt-in MSBuild repository aggregation owner;
+- automatic project-reference XML collection plus explicit `Xml2Doc_AggregateXml` inputs;
+- separate aggregate incremental lifecycle files;
+- `XML2DOC006` for duplicate primary member ownership;
+- `XML2DOC007` for conflicting aggregate index ownership;
+- Windows/Linux integration coverage proving parallel and `/m:1` builds produce identical file sets and bytes.
 
-Emerging architectural work.
+Architectural themes:
 
-Potential areas:
+- one owner for one aggregate output set;
+- aggregation occurs before rendering rather than merging independently generated Markdown;
+- compatibility with existing single-project generation and `Xml2Doc_GenerateIndex=false` shared-directory mitigation.
 
-• structured diagnostics
-• pluggable anchor algorithms
-• improved reporting
+See [`msbuild-repository-aggregation.md`](msbuild-repository-aggregation.md) for the supported MSBuild owner pattern.
 
-Related ADRs:
+## Future work
 
-• ADR‑009 Structured diagnostics
-• ADR‑010 Pluggable anchor algorithms
-
----
-
-## Future opportunities
-
-• richer CLI reporting
-• improved diagnostics output
-• documentation generation reports
-
-• richer CLI reporting
-• improved diagnostics output
-• documentation generation reports
+Future capabilities should be represented by GitHub issues and milestones before they are added here. This keeps the roadmap tied to accepted scope rather than speculative feature lists.
