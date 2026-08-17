@@ -20,4 +20,7 @@ public static class DiagnosticIds
 
     /// <summary>Multiple XML documentation inputs define the same member.</summary>
     public const string DuplicateInputMember = "XML2DOC006";
+
+    /// <summary>Multiple MSBuild projects claim ownership of the same generated index.</summary>
+    public const string ConflictingIndexOwnership = "XML2DOC007";
 }
