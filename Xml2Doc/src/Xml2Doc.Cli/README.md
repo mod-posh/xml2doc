@@ -7,6 +7,9 @@ Command-line interface for Xml2Doc, part of the **mod-posh** organization.
 `Xml2Doc.Cli` converts C# XML documentation into Markdown using the `Xml2Doc.Core` engine.
 It’s ideal for developers and CI systems that want quick, repeatable Markdown docs from existing XML output.
 
+The CLI can also aggregate multiple XML documentation files into one deterministic output. Repeat
+`--xml` for each participating project, or use `XmlInputs` in JSON configuration.
+
 ## Target Frameworks (multi-TFM)
 
 The CLI is **multi-targeted** and ships for:
@@ -39,6 +42,11 @@ dotnet Xml2Doc/src/Xml2Doc.Cli/bin/Release/net9.0/Xml2Doc.Cli.dll --xml path\to\
 # Per-type documentation
 Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs
 
+# Aggregate multiple projects into one deterministic output
+Xml2Doc.exe --xml .\src\ProjectA\bin\Release\net9.0\ProjectA.xml \
+  --xml .\src\ProjectB\bin\Release\net9.0\ProjectB.xml \
+  --out .\docs
+
 # Single combined file
 Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --file-names clean
 ```
@@ -47,16 +55,16 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
 
 | Option                           | Description                                                   |
 | -------------------------------- | ------------------------------------------------------------- |
-| `--xml <path>`                   | Path to the XML documentation file                            |
+| `--xml <path>`                   | XML documentation input; repeat to aggregate multiple files   |
 | `--out <path>`                   | Output directory (multi-file) or output file (single-file)    |
 | `--single`                       | Combine all documentation into a single Markdown file         |
 | `--file-names <verbatim\|clean>` | Filename mode — preserve generics or shorten to readable form |
 | `--rootns <namespace>`           | Optional root namespace to trim                               |
 | `--lang <language>`              | Code block language (default: `csharp`)                       |
 | `--config <file>`                | Path to a JSON configuration file                             |
-| `--prune-stale`                 | Remove stale files previously owned by this invocation        |
-| `--manifest-id <identity>`      | Stable ownership identity required with `--prune-stale`       |
-| `--line-endings <style>`       | Markdown newlines: `lf` (default), `crlf`, or `native`         |
+| `--prune-stale`                  | Remove stale files previously owned by this invocation        |
+| `--manifest-id <identity>`       | Stable ownership identity required with `--prune-stale`       |
+| `--line-endings <style>`         | Markdown newlines: `lf` (default), `crlf`, or `native`        |
 | `--help`                         | Display help text                                             |
 
 ### Example Config File
@@ -73,6 +81,23 @@ Xml2Doc.exe --xml .\bin\Release\net9.0\MyLib.xml --out .\docs\api.md --single --
   "CodeLanguage": "csharp"
 }
 ```
+
+For aggregation, use `XmlInputs`. When `XmlInputs` contains values it takes precedence over the
+legacy single-input `Xml` property:
+
+```json
+{
+  "XmlInputs": [
+    "src/ProjectA/bin/Release/net9.0/ProjectA.xml",
+    "src/ProjectB/bin/Release/net9.0/ProjectB.xml"
+  ],
+  "Out": "docs"
+}
+```
+
+CLI `--xml` arguments take precedence over both `XmlInputs` and `Xml` from configuration. One XML
+input continues to use the compatible single-input loading path; two or more inputs use deterministic
+Core aggregation.
 
 For safe stale-output pruning in directory mode, opt in with a stable identity:
 
