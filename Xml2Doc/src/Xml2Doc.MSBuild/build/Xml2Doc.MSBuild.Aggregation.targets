@@ -174,6 +174,10 @@
       <Output TaskParameter="DidWork" PropertyName="Xml2Doc_AggregateDidWork" />
     </GenerateMarkdownFromXmlDocs>
 
+    <PropertyGroup>
+      <_Xml2Doc_AggregateGeneratedFilesLine>@(Xml2Doc_AggregateGeneratedFiles, ';')</_Xml2Doc_AggregateGeneratedFilesLine>
+    </PropertyGroup>
+
     <WriteLinesToFile File="$(Xml2Doc_AggregateOutputLedger)"
                       Lines="@(Xml2Doc_AggregateGeneratedFiles)"
                       Overwrite="true"
@@ -181,7 +185,7 @@
                       Condition="'$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />
 
     <WriteLinesToFile File="$(Xml2Doc_AggregateOutputStamp)"
-                      Lines="generated: @(Xml2Doc_AggregateGeneratedFiles, ';')"
+                      Lines="generated: $(_Xml2Doc_AggregateGeneratedFilesLine)"
                       Overwrite="true"
                       Encoding="UTF-8"
                       Condition="('$(Xml2Doc_AggregateDidWork)' == 'true' or '$(Xml2Doc_AggregateDidWork)' == 'True') and '$(Xml2Doc_DryRun)' != 'true' and '$(Xml2Doc_DryRun)' != 'True'" />

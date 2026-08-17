@@ -50,6 +50,7 @@ public class GenerateMarkdownFromXmlDocsTests
         var firstOutput = Path.Combine(root, "first");
         var secondOutput = Path.Combine(root, "second");
         var report = Path.Combine(root, "aggregate-report.json");
+        Directory.CreateDirectory(root);
 
         File.WriteAllText(alpha, """
             <doc><members>
