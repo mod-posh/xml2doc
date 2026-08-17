@@ -202,7 +202,11 @@ $ownerProject = @"
   <Import Project="$aggregateTargetsImport" />
 </Project>
 "@
-Write-TextFile (Join-Path $ownerDir "Owner.csproj") $ownerProject
+$ownerProjectPath = Join-Path $ownerDir "Owner.csproj"
+Write-TextFile $ownerProjectPath $ownerProject
+
+Write-Step "Restoring repository aggregation projects"
+Run-OrThrow -File "dotnet" -Args "restore `"$ownerProjectPath`" --disable-build-servers" -Cwd $repo -ErrorPrefix "Repository aggregation restore failed."
 
 function Invoke-OwnerBuild
 {
@@ -214,7 +218,6 @@ function Invoke-OwnerBuild
   )
 
   Write-Step $Label
-  $ownerProjectPath = Join-Path $ownerDir "Owner.csproj"
   $args =
     "msbuild `"$ownerProjectPath`" /t:Rebuild /p:Configuration=$Configuration " +
     "/p:Xml2Doc_OutputDir=`"$OutputDirectory`" " +

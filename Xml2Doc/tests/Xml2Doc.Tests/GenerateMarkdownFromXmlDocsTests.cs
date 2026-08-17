@@ -192,13 +192,15 @@ public class GenerateMarkdownFromXmlDocsTests
         task.Attribute("GenerateIndex")!.Value.ShouldBe("$(Xml2Doc_GenerateIndex)");
 
         targets.Descendants("Error")
-            .ShouldContain(element =>
-                element.Attribute("Text")?.Value.Contains("XML2DOC007", StringComparison.Ordinal) == true);
+            .Any(element =>
+                element.Attribute("Text")?.Value.Contains("XML2DOC007", StringComparison.Ordinal) == true)
+            .ShouldBeTrue();
 
         project.Descendants("None")
-            .ShouldContain(element =>
+            .Any(element =>
                 element.Attribute("Include")?.Value == "build\\Xml2Doc.MSBuild.Aggregation.targets" &&
-                element.Attribute("Pack")?.Value == "true");
+                element.Attribute("Pack")?.Value == "true")
+            .ShouldBeTrue();
     }
 
     private static GenerateMarkdownFromXmlDocs CreateTask(
