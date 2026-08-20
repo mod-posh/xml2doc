@@ -1,15 +1,17 @@
 # Xml2Doc Roadmap
 
-This roadmap tracks the release sequence and the work that is complete in the repository.
+This roadmap tracks the release sequence and the work that is complete or planned in the repository.
 
-The latest published release is `2.2.0`. The repository is being prepared for `2.3.0` — Multi-project Aggregation.
+The latest published release is `2.3.0`. The next planned releases are `2.3.1` — Stabilization and Output Correctness, followed by `2.4.0` — Metadata and Output Extensibility.
 
 ## Release sequence
 
 1. `2.0.3` — Documentation and Lifecycle Correctness (released)
 2. `2.1.0` — Rendering Extensibility (released)
 3. `2.2.0` — Diagnostics and Pipeline (released)
-4. `2.3.0` — Multi-project Aggregation (release preparation)
+4. `2.3.0` — Multi-project Aggregation (released)
+5. `2.3.1` — Stabilization and Output Correctness (planned)
+6. `2.4.0` — Metadata and Output Extensibility (planned)
 
 ## 2.0.3 — Documentation and Lifecycle Correctness
 
@@ -64,9 +66,9 @@ Key outcomes:
 
 ## 2.3.0 — Multi-project Aggregation
 
-Implementation is complete and merged; the remaining work is release closeout.
+Released on August 17, 2026.
 
-- [x] [#63 — Multiple projects targeting one output directory overwrite `index.md` nondeterministically](https://github.com/mod-posh/xml2doc/issues/63) — implementation complete; issue/milestone closeout remains.
+- [x] [#63 — Multiple projects targeting one output directory overwrite `index.md` nondeterministically](https://github.com/mod-posh/xml2doc/issues/63)
 
 Key outcomes:
 
@@ -87,9 +89,67 @@ Release closeout:
 - [x] Cross-platform parallel/serial integration coverage added.
 - [x] User documentation updated for `2.3.0`.
 - [x] `VersionPrefix` prepared for `2.3.0`.
-- [ ] Close #63 after its issue checklist reflects the merged implementation.
-- [ ] Close milestone 14 after required checks pass.
-- [ ] Verify the milestone-triggered tag, GitHub release, NuGet packages, README refresh, release notes, and API documentation.
+- [x] #63 closed after its issue checklist reflected the merged implementation.
+- [x] Milestone 14 closed after required checks passed.
+- [x] Milestone-triggered tag, GitHub release, NuGet packages, README refresh, release notes, and API documentation verified.
+
+## 2.3.1 — Stabilization and Output Correctness
+
+Planned patch release for regressions and correctness defects affecting existing `2.3.0` behavior. Work proceeds in ascending issue order.
+
+- [ ] [#118 — Multi-input aggregation makes bare `<inheritdoc />` ambiguous across unrelated member signatures](https://github.com/mod-posh/xml2doc/issues/118)
+- [ ] [#119 — Xml2Doc.MSBuild incremental state survives `dotnet clean` and can leave generated Markdown stale](https://github.com/mod-posh/xml2doc/issues/119)
+- [ ] [#120 — Xml2Doc flattens XML documentation bullet lists into malformed Markdown](https://github.com/mod-posh/xml2doc/issues/120)
+
+Architecture and quality notes:
+
+- #118 belongs in Core inheritance resolution; prefer a contained resolver correction. Create an ADR only if the fix introduces a stronger symbol-ownership or relationship model.
+- #119 belongs in the MSBuild lifecycle layer and must not delete generated Markdown during normal `Clean`.
+- #120 belongs in Core XML-to-Markdown rendering and requires careful snapshot review because generated Markdown is a public output contract.
+- Every issue requires focused regression coverage; #118 and #119 also require multi-input or multi-project integration coverage.
+
+Milestone preparation:
+
+- [ ] Create the `2.3.1` milestone.
+- [ ] Assign #118, #119, and #120 to `2.3.1`.
+- [ ] Confirm issue scope and acceptance criteria before implementation.
+- [ ] Implement and close issues in the order #118, #119, #120.
+- [ ] Update the changelog and release documentation.
+- [ ] Prepare `VersionPrefix` for `2.3.1`.
+- [ ] Complete the standard milestone release workflow.
+
+## 2.4.0 — Metadata and Output Extensibility
+
+Planned architectural release for machine-addressable document metadata and deterministic output-layout extensibility.
+
+- [ ] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
+- [ ] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
+- [ ] [#117 — Add pluggable document output-path/layout strategy](https://github.com/mod-posh/xml2doc/issues/117)
+
+Implementation sequence and dependencies:
+
+1. #115 defines the shared Core document identity and metadata context.
+2. #116 builds on #115 and carries one metadata representation through Core, CLI, configuration, and MSBuild.
+3. #117 introduces the authoritative document path model used by output planning, rendering, links, manifests, pruning, reports, and writes.
+
+Architecture and quality notes:
+
+- Begin the milestone with an ADR covering the document metadata/context model and host parity.
+- Treat #117 as a distinct architectural decision because path generation and link routing are part of the public output contract.
+- Keep all rendering, metadata composition, document identity, path planning, and link-resolution behavior in Core.
+- CLI and MSBuild must expose shared Core capabilities without duplicating rendering behavior.
+- Preserve the existing flat layout and existing template/front-matter behavior as backward-compatible defaults.
+- Protect default output with unit, snapshot, parity, and sample-project coverage.
+
+Milestone preparation:
+
+- [ ] Create the `2.4.0` milestone.
+- [ ] Assign #115, #116, and #117 to `2.4.0`.
+- [ ] Draft and accept the required ADRs before implementation.
+- [ ] Implement issues in dependency order: #115, #116, #117.
+- [ ] Update the roadmap, API documentation, README examples, and migration guidance.
+- [ ] Prepare `VersionPrefix` for `2.4.0`.
+- [ ] Complete the standard milestone release workflow.
 
 ## Milestone workflow
 
