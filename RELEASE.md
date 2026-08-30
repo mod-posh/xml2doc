@@ -1,33 +1,30 @@
-# 2.3.1 — Stabilization and Output Correctness
+# 2.3.0 — Multi-project Aggregation
 
-Correct regressions and output defects affecting the `2.3.0` multi-project aggregation release while preserving its public configuration and output contracts.
+Provide first-class deterministic aggregation for solutions where multiple projects publish documentation to one shared output directory.
 
 ## Scope
 
-- Resolve bare `<inheritdoc />` through a unique conventional interface type in aggregate inputs.
-- Remove configuration-scoped normal and aggregate incremental state during `dotnet clean`.
-- Preserve generated Markdown and other configurations' incremental state during cleanup.
-- Render structured XML documentation bullet lists as valid Markdown lists.
-- Preserve deterministic output and existing single-project behavior.
+- Consume multiple XML documentation inputs through one aggregation boundary.
+- Generate one canonically ordered index containing every participating project.
+- Ensure serial and parallel aggregation produce identical output.
+- Detect conflicting output or member ownership with actionable diagnostics.
+- Preserve existing single-project behavior.
+- Preserve `Xml2Doc_GenerateIndex=false` as the supported compatibility mitigation.
 
 ## Issues
 
-- [x] #118 — Multi-input aggregation makes bare `<inheritdoc />` ambiguous across unrelated member signatures
-- [x] #119 — Xml2Doc.MSBuild incremental state survives `dotnet clean` and can leave generated Markdown stale
-- [x] #120 — Xml2Doc flattens XML documentation bullet lists into malformed Markdown
+- [ ] #63 — Multiple projects targeting one output directory overwrite `index.md` nondeterministically
 
 ## Completion criteria
 
-- Core and CLI aggregation regressions resolve unique conventional-interface inheritance without secondary missing-summary or unresolved-inheritance diagnostics.
-- `dotnet clean` removes only Xml2Doc-owned derived state for the selected configuration.
-- A post-clean build regenerates required state and preserves unchanged-build no-op behavior.
-- Bullet lists preserve item boundaries, inline markup, surrounding paragraphs, and deterministic bytes.
-- Packaged MSBuild integration and the full test suite pass.
-- User, component, architecture, roadmap, changelog, and release documentation describe `2.3.1`.
+- Native aggregation produces a deterministic unified index.
+- Type and index ordering is stable and ordinal.
+- Parallel and serial integration tests produce byte-identical output.
+- Conflicting ownership fails with a stable structured diagnostic.
+- CLI and MSBuild configuration are documented.
 - All GitHub Actions checks pass.
 
-## Fixed
+## BUG, AREA:MSBUILD
 
-- #118: Bare aggregate `<inheritdoc />` resolution across unrelated same-signature members.
-- #119: Configuration-scoped MSBuild clean lifecycle for normal and aggregate incremental state.
-- #120: Structured XML documentation bullet-list rendering.
+* issue-63: MSBuild: multiple projects targeting one output directory overwrite `index.md` nondeterministically
+

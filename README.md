@@ -5,15 +5,12 @@
 
 Xml2Doc converts C# compiler XML documentation into deterministic, linkable Markdown. It is available as a library, CLI, and MSBuild package.
 
-## Version 2.3.1
+## Version 2.3.0
 
-`2.3.1` is a stabilization release for the multi-project aggregation, MSBuild lifecycle, and Markdown rendering behavior introduced in `2.3.0`.
+`2.3.0` is the multi-project aggregation release. It builds on the diagnostics and runner pipeline delivered in `2.2.0` and adds one deterministic aggregation boundary for repositories whose documentation spans multiple projects.
 
 Highlights:
 
-- Bare `<inheritdoc />` in aggregate inputs now resolves through a unique conventional interface type when unrelated members expose the same signature.
-- `dotnet clean` removes configuration-scoped Xml2Doc incremental state while preserving generated Markdown and state for other configurations.
-- XML documentation bullet lists render as distinct Markdown bullets while preserving inline markup and paragraph boundaries.
 - `Xml2Doc.Core` can load multiple primary XML documentation inputs as one aggregate model.
 - `Xml2Doc.Cli` accepts repeated `--xml` arguments or `XmlInputs` in JSON configuration.
 - `Xml2Doc.MSBuild` supports an explicit repository aggregation owner with `Xml2Doc_AggregateEnabled=true`.
@@ -46,7 +43,7 @@ The MSBuild package selects its task assembly automatically. Do not define a cus
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
@@ -144,7 +141,7 @@ Use one small project as the aggregation owner. Participating projects emit comp
   <ItemGroup>
     <ProjectReference Include="..\src\ProjectA\ProjectA.csproj" />
     <ProjectReference Include="..\src\ProjectB\ProjectB.csproj" />
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
@@ -230,7 +227,7 @@ This prevents index races but intentionally does not create a unified repository
 Install the .NET tool:
 
 ```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.3.1
+dotnet tool install --global Xml2Doc.Cli --version 2.3.0
 ```
 
 Generate per-type documentation from one XML file:
@@ -403,7 +400,6 @@ Use a current `Xml2Doc.MSBuild` package. Task runtime dependencies are packaged 
 - `2.1.0` — rendering extensibility.
 - `2.2.0` — structured diagnostics and runner/pipeline completion.
 - `2.3.0` — deterministic multi-project aggregation across Core, CLI, and MSBuild.
-- `2.3.1` — aggregation, MSBuild clean, and Markdown list correctness fixes.
 
 See [TODO.md](TODO.md), [docs/roadmap.md](docs/roadmap.md), and [the ADR index](docs/adr/README.md) for project history and future work.
 
