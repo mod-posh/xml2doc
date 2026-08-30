@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Canonical architecture decision records live under [`../../docs/adr/`](../../docs/adr/). This page summarizes the decisions most relevant to the current `2.3.0` architecture.
+Canonical architecture decision records live under [`../../docs/adr/`](../../docs/adr/). This page summarizes the decisions most relevant to the current `2.3.1` architecture.
 
 | ADR | Decision | Status |
 | --- | --- | --- |

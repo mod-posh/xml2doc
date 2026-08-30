@@ -110,7 +110,7 @@ Architectural themes:
 
 ## Multi-project aggregation — 2.3.0
 
-Current repository version and release-preparation milestone.
+Released August 17, 2026.
 
 Key outcomes:
 
@@ -131,6 +131,23 @@ Architectural themes:
 - compatibility with existing single-project generation and `Xml2Doc_GenerateIndex=false` shared-directory mitigation.
 
 See [`msbuild-repository-aggregation.md`](msbuild-repository-aggregation.md) for the supported MSBuild owner pattern.
+
+## Stabilization and output correctness — 2.3.1
+
+Release preparation is complete for a focused patch to the `2.3.0` aggregation and rendering line.
+
+Key outcomes:
+
+- bare `<inheritdoc />` in an aggregate resolves through a unique conventional interface type when unrelated members expose the same signature;
+- normal and aggregate MSBuild incremental state is configuration-scoped and removed by `dotnet clean` without deleting generated Markdown;
+- structured XML documentation bullet lists render as valid Markdown lists while preserving inline markup and paragraph boundaries;
+- focused Core, CLI, renderer, and packaged MSBuild regressions protect the corrected behavior.
+
+Architectural themes:
+
+- contained corrections preserve the existing public aggregation and rendering contracts;
+- generated documentation remains durable across `Clean`, while derived incremental state follows the normal MSBuild lifecycle;
+- generated Markdown structure remains deterministic across repeated renders.
 
 ## Future work
 
