@@ -1239,16 +1239,16 @@ public sealed class MarkdownRenderer
         var renderedItems = list.Elements("item")
             .Select(item => item.Element("description") ?? item)
             .Select(description => NormalizeXmlToMarkdown(description))
-            .Where(description => !string.IsNullOrWhiteSpace(description));
-
-        var renderedList = new StringBuilder();
-        foreach (var description in renderedItems)
-        {
-            var lines = description
+            .Where(description => !string.IsNullOrWhiteSpace(description))
+            .Select(description => description
                 .Replace("\r\n", "\n")
                 .Replace("\r", "\n")
                 .Trim('\n')
-                .Split('\n');
+                .Split('\n'));
+
+        var renderedList = new StringBuilder();
+        foreach (var lines in renderedItems)
+        {
             var firstLineIsFence = lines[0].TrimStart().StartsWith("```", StringComparison.Ordinal);
 
             if (renderedList.Length > 0)

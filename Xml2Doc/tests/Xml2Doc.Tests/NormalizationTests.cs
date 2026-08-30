@@ -208,12 +208,16 @@ public class NormalizationTests
                 "- [String](System.String.md) value.\n" +
                 "- Use `null` for `value`.\n" +
                 "- Final value.\n" +
-                "- Example:\n\n" +
+                "- Example:");
+            firstMarkdown.ShouldContain(
                 "  ```csharp\n" +
                 "  line1\n" +
                 "  line2\n" +
-                "  ```\n" +
-                "Values are evaluated in order.");
+                "  ```");
+            Regex.IsMatch(
+                    firstMarkdown,
+                    "  ```\\n+Values are evaluated in order\\.")
+                .ShouldBeTrue("Text after the list should begin after the final fenced continuation.");
             secondMarkdown.ShouldBe(firstMarkdown);
         }
         finally
