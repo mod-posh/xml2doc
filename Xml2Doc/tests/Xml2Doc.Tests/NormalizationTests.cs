@@ -153,4 +153,67 @@ public class NormalizationTests
         code.ShouldContain("  indented  line2"); // two spaces before and between 'indented' and 'line2'
         code.ShouldContain("\ttabbed\tline3");   // tabs preserved
     }
+
+    [Fact]
+    public async Task Normalize_RendersBulletListsAsDeterministicBlocks_WithInlineMarkup()
+    {
+        var xml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <assembly><name>Temp</name></assembly>
+                  <members>
+                    <member name="T:Temp.Lists">
+                      <summary>Exercises structured lists.</summary>
+                      <remarks>
+                        <para>
+                          Supported values:
+                          <list type="bullet">
+                            <item><description><see cref="T:System.String"/> value.</description></item>
+                            <item><description>Use <c>null</c> for <paramref name="value"/>.</description></item>
+                            <item><description>Final value.</description></item>
+                          </list>
+                          Values are evaluated in order.
+                        </para>
+                      </remarks>
+                    </member>
+                  </members>
+                </doc>
+                """;
+
+        var tmpDir = Path.Combine(Path.GetTempPath(), "Xml2Doc.Tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var xmlPath = Path.Combine(tmpDir, "temp.xml");
+            await File.WriteAllTextAsync(xmlPath, xml, new UTF8Encoding(false));
+
+            var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
+            var renderer = new MarkdownRenderer(model, new RendererOptions(
+                FileNameMode: FileNameMode.CleanGenerics));
+            var firstOutput = Path.Combine(tmpDir, "first");
+            var secondOutput = Path.Combine(tmpDir, "second");
+
+            renderer.RenderToDirectory(firstOutput);
+            renderer.RenderToDirectory(secondOutput);
+
+            var firstMarkdown = (await File.ReadAllTextAsync(
+                Path.Combine(firstOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
+            var secondMarkdown = (await File.ReadAllTextAsync(
+                Path.Combine(secondOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
+
+            firstMarkdown.ShouldContain(
+                "Supported values:\n\n" +
+                "- [String](System.String.md) value.\n" +
+                "- Use `null` for `value`.\n" +
+                "- Final value.\n\n" +
+                "Values are evaluated in order.");
+            secondMarkdown.ShouldBe(firstMarkdown);
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
 }
