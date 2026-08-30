@@ -44,13 +44,61 @@ namespace Xml2Doc.Core
                         signature,
                         StringComparison.Ordinal) &&
                     HasInheritableContent(candidate.Element))
-                .Take(2)
                 .ToArray();
 
             if (candidates.Length == 1)
                 return candidates[0].Element;
 
+            // XML documentation does not retain implemented-interface metadata. When
+            // aggregation introduces otherwise ambiguous same-signature members, prefer
+            // a unique conventional interface name (I + implementation type name).
+            // This keeps the previous uniqueness fallback while avoiding unrelated
+            // aggregate members for the common interface/implementation shape.
+            var interfaceCandidates = candidates
+                .Where(candidate => IsConventionalInterfaceMatch(member, candidate))
+                .Take(2)
+                .ToArray();
+
+            if (interfaceCandidates.Length == 1)
+                return interfaceCandidates[0].Element;
+
             return null;
+        }
+
+        private static bool IsConventionalInterfaceMatch(
+            XMember member,
+            XMember candidate)
+        {
+            var implementationType = GetDeclaringTypeName(member.Id);
+            var candidateType = GetDeclaringTypeName(candidate.Id);
+            if (implementationType is null || candidateType is null)
+                return false;
+
+            return string.Equals(
+                GetSimpleTypeName(candidateType),
+                "I" + GetSimpleTypeName(implementationType),
+                StringComparison.Ordinal);
+        }
+
+        private static string? GetDeclaringTypeName(string id)
+        {
+            var parameterList = id.IndexOf('(');
+            var memberHead = parameterList >= 0
+                ? id.Substring(0, parameterList)
+                : id;
+            var separator = memberHead.LastIndexOf('.');
+
+            return separator < 0
+                ? null
+                : memberHead.Substring(0, separator);
+        }
+
+        private static string GetSimpleTypeName(string typeName)
+        {
+            var separator = typeName.LastIndexOf('.');
+            return separator < 0
+                ? typeName
+                : typeName.Substring(separator + 1);
         }
 
         private static string? GetMemberSignature(string id)

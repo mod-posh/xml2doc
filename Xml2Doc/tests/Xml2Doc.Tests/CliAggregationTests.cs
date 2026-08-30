@@ -8,6 +8,71 @@ namespace Xml2Doc.Tests;
 public class CliAggregationTests
 {
     [Fact]
+    public void Main_MultipleInputsResolveMatchingInterfaceInheritDoc()
+    {
+        using var workspace = TemporaryWorkspace.Create();
+        var contracts = workspace.Write(
+            "Contracts.xml",
+            """
+            <doc><members>
+              <member name="T:Contracts.IResourceTypeRegistryFactory">
+                <summary>Registry factory contract.</summary>
+              </member>
+              <member name="M:Contracts.IResourceTypeRegistryFactory.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                <summary>Builds the intended registry.</summary>
+              </member>
+              <member name="T:Contracts.IOtherFactory">
+                <summary>Other factory contract.</summary>
+              </member>
+              <member name="M:Contracts.IOtherFactory.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                <summary>Builds an unrelated registry.</summary>
+              </member>
+            </members></doc>
+            """);
+        var implementation = workspace.Write(
+            "Implementation.xml",
+            """
+            <doc><members>
+              <member name="T:Runtime.ResourceTypeRegistryFactory">
+                <summary>Registry factory implementation.</summary>
+              </member>
+              <member name="M:Runtime.ResourceTypeRegistryFactory.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                <inheritdoc/>
+              </member>
+            </members></doc>
+            """);
+        var output = workspace.FullPath("docs");
+        var originalError = Console.Error;
+        using var standardError = new StringWriter();
+
+        int exitCode;
+        try
+        {
+            Console.SetError(standardError);
+            exitCode = Program.Main(new[]
+            {
+                "--xml", implementation,
+                "--xml", contracts,
+                "--out", output,
+                "--file-names", "clean"
+            });
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        exitCode.ShouldBe(0);
+        var generated = File.ReadAllText(Path.Join(
+            output,
+            "Runtime.ResourceTypeRegistryFactory.md"));
+        generated.ShouldContain("Builds the intended registry.");
+        generated.ShouldNotContain("Builds an unrelated registry.");
+        standardError.ToString().ShouldNotContain("XML2DOC004");
+        standardError.ToString().ShouldNotContain("XML2DOC005");
+    }
+
+    [Fact]
     public void Main_RepeatedXmlArgumentsRenderOneAggregateOutput()
     {
         using var workspace = TemporaryWorkspace.Create();
