@@ -1,0 +1,107 @@
+# Xml2Doc
+
+Represents an in-memory model of a.NET XML documentation file.
+
+<a id="xml2doc.core.models.xml2doc.load(string)"></a>
+
+## Method: Load(string)
+
+Loads an XML documentation file and builds the [Xml2Doc](Xml2Doc.Core.Models.Xml2Doc.md) model.
+
+**Remarks**
+
+Exceptions thrown are those of [Load(string, LoadOptions)](System.Xml.Linq.XDocument.md#system.xml.linq.xdocument.load(string,system.xml.linq.loadoptions)) and file I/O operations (e.g., file not found, access denied, malformed XML).
+
+**Parameters**
+
+- `xmlPath` — The path to the XML documentation file.
+
+**Returns**
+
+An [Xml2Doc](Xml2Doc.Core.Models.Xml2Doc.md) instance containing parsed members.
+
+<a id="xml2doc.core.models.xml2doc.load(string,xml2doc.core.diagnostics.idiagnosticsink)"></a>
+
+## Method: Load(string, IDiagnosticSink)
+
+Loads an XML documentation file and reports malformed XML through a diagnostic sink.
+
+**Parameters**
+
+- `xmlPath` — The path to the XML documentation file.
+- `diagnosticSink` — Optional receiver for structured diagnostics.
+
+**Returns**
+
+An [Xml2Doc](Xml2Doc.Core.Models.Xml2Doc.md) instance containing parsed members.
+
+<a id="xml2doc.core.models.xml2doc.loadaggregate(system.collections.generic.ienumerable[string])"></a>
+
+## Method: LoadAggregate(IEnumerable<string>)
+
+Loads and deterministically merges multiple XML documentation files.
+
+**Parameters**
+
+- `xmlPaths` — Paths to participating XML documentation files.
+
+**Returns**
+
+An aggregate model containing members from every input.
+
+**Exceptions**
+
+- [ArgumentException](System.ArgumentException.md) — No XML documentation paths were supplied.
+- [InvalidDataException](System.IO.InvalidDataException.md) — Multiple inputs define the same documentation member identifier.
+
+<a id="xml2doc.core.models.xml2doc.loadaggregate(system.collections.generic.ienumerable[string],xml2doc.core.diagnostics.idiagnosticsink)"></a>
+
+## Method: LoadAggregate(IEnumerable<string>, IDiagnosticSink)
+
+Loads and deterministically merges multiple XML documentation files, reporting malformed inputs and conflicting member ownership.
+
+**Parameters**
+
+- `xmlPaths` — Paths to participating XML documentation files.
+- `diagnosticSink` — Optional receiver for structured diagnostics.
+
+**Returns**
+
+An aggregate model containing members from every input.
+
+<a id="xml2doc.core.models.xml2doc.loadreferences(system.collections.generic.ienumerable[string])"></a>
+
+## Method: LoadReferences(IEnumerable<string>)
+
+Loads additional XML documentation for inheritance lookup without adding referenced types to the set of rendered output pages.
+
+**Parameters**
+
+- `xmlPaths` — Reference XML documentation paths.
+
+<a id="xml2doc.core.models.xml2doc.loadreferences(system.collections.generic.ienumerable[string],xml2doc.core.diagnostics.idiagnosticsink)"></a>
+
+## Method: LoadReferences(IEnumerable<string>, IDiagnosticSink)
+
+Loads reference XML and reports malformed inputs through a diagnostic sink.
+
+**Parameters**
+
+- `xmlPaths` — Reference XML documentation paths.
+- `diagnosticSink` — Optional receiver for structured diagnostics.
+
+<a id="xml2doc.core.models.xml2doc.members"></a>
+
+## Property: Members
+
+Gets the collection of documented members keyed by their XML documentation `name` attribute.
+
+**Remarks**
+
+Keys are case-sensitive and compared using [Ordinal](System.StringComparer.md#system.stringcomparer.ordinal). Examples: `T:MyNamespace.MyType`, `M:MyNamespace.MyType.MyMethod(System.String)`.
+
+<a id="xml2doc.core.models.xml2doc.referencemembers"></a>
+
+## Property: ReferenceMembers
+
+Gets documented members loaded from reference XML files. These members are available for inheritance lookup but are not rendered as output pages.
