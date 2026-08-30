@@ -208,11 +208,23 @@ public class GenerateMarkdownFromXmlDocsTests
             .Single(element =>
                 element.Attribute("Name")?.Value == "Xml2Doc_AggregateClean");
         cleanTarget.Attribute("BeforeTargets")!.Value.ShouldBe("Clean");
+        cleanTarget.Attribute("DependsOnTargets")!.Value.ShouldBe(
+            "Xml2Doc_InitializeAggregateState");
         cleanTarget.Descendants("Delete")
             .Single().Attribute("Files")!.Value.ShouldBe(
                 "$(Xml2Doc_AggregateOutputStamp);" +
                 "$(Xml2Doc_AggregateFingerprintFile);" +
                 "$(Xml2Doc_AggregateOutputLedger)");
+
+        var initializeTarget = targets.Descendants("Target")
+            .Single(element =>
+                element.Attribute("Name")?.Value == "Xml2Doc_InitializeAggregateState");
+        initializeTarget.Descendants("Xml2Doc_AggregateOutputStamp")
+            .Single().Value.ShouldContain("$(IntermediateOutputPath)");
+        initializeTarget.Descendants("Xml2Doc_AggregateFingerprintFile")
+            .Single().Value.ShouldContain("$(IntermediateOutputPath)");
+        initializeTarget.Descendants("Xml2Doc_AggregateOutputLedger")
+            .Single().Value.ShouldContain("$(IntermediateOutputPath)");
 
         targets.Descendants("Error")
             .Any(element =>
