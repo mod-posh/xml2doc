@@ -4,10 +4,130 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Diagnostics;
 using Xunit;
 
 public class InheritDocResolverTests
 {
+    [Fact]
+    public async Task Render_AggregatePrefersMatchingInterfaceTypeOverUnrelatedSignatures()
+    {
+        var contractsXml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <members>
+                    <member name="T:Contracts.IProviderExecutionContextBinderRegistry">
+                      <summary>Provider binder registry contract.</summary>
+                    </member>
+                    <member name="M:Contracts.IProviderExecutionContextBinderRegistry.GetAll">
+                      <summary>Gets every provider binder.</summary>
+                      <returns>The registered provider binders.</returns>
+                    </member>
+                    <member name="T:Contracts.IResourceTypeRegistry">
+                      <summary>Resource type registry contract.</summary>
+                    </member>
+                    <member name="M:Contracts.IResourceTypeRegistry.GetAll">
+                      <summary>Gets every resource type.</summary>
+                    </member>
+                    <member name="T:Contracts.IResourceTypeRegistryFactory">
+                      <summary>Resource type registry factory contract.</summary>
+                    </member>
+                    <member name="M:Contracts.IResourceTypeRegistryFactory.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                      <summary>Builds a resource type registry from assemblies.</summary>
+                      <param name="assemblies">The assemblies to scan.</param>
+                      <returns>The discovered resource type registry.</returns>
+                    </member>
+                  </members>
+                </doc>
+                """;
+        var implementationsXml = """
+                <?xml version="1.0"?>
+                <doc>
+                  <members>
+                    <member name="T:Runtime.ProviderExecutionContextBinderRegistry">
+                      <summary>Provider binder registry implementation.</summary>
+                    </member>
+                    <member name="M:Runtime.ProviderExecutionContextBinderRegistry.GetAll">
+                      <inheritdoc/>
+                    </member>
+                    <member name="T:Runtime.ResourceTypeRegistryFactory">
+                      <summary>Resource type registry factory implementation.</summary>
+                    </member>
+                    <member name="M:Runtime.ResourceTypeRegistryFactory.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                      <inheritdoc/>
+                    </member>
+                    <member name="T:Runtime.AttributeResourceTypeRegistry">
+                      <summary>Attribute resource type registry.</summary>
+                    </member>
+                    <member name="M:Runtime.AttributeResourceTypeRegistry.FromAssemblies(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})">
+                      <summary>Builds an attribute registry from assemblies.</summary>
+                    </member>
+                  </members>
+                </doc>
+                """;
+
+        var tmpDir = Path.Join(
+            Path.GetTempPath(),
+            "Xml2Doc.Tests",
+            Path.GetRandomFileName());
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            var contractsPath = Path.Join(tmpDir, "Contracts.xml");
+            var implementationsPath = Path.Join(tmpDir, "Implementations.xml");
+            await File.WriteAllTextAsync(
+                contractsPath,
+                contractsXml,
+                new UTF8Encoding(false));
+            await File.WriteAllTextAsync(
+                implementationsPath,
+                implementationsXml,
+                new UTF8Encoding(false));
+
+            var warnings = new List<string>();
+            var diagnostics = new RecordingDiagnosticSink();
+            var renderer = new MarkdownRenderer(
+                Xml2Doc.Core.Models.Xml2Doc.LoadAggregate(
+                    new[] { implementationsPath, contractsPath }),
+                new RendererOptions(
+                    FileNameMode: FileNameMode.CleanGenerics,
+                    WarningSink: warnings.Add,
+                    DiagnosticSink: diagnostics));
+            var outDir = Path.Join(tmpDir, "out");
+
+            renderer.RenderToDirectory(outDir);
+
+            var binderRegistry = await File.ReadAllTextAsync(Path.Join(
+                outDir,
+                "Runtime.ProviderExecutionContextBinderRegistry.md"));
+            binderRegistry.ShouldContain("Gets every provider binder.");
+            binderRegistry.ShouldContain("The registered provider binders.");
+            binderRegistry.ShouldNotContain("Gets every resource type.");
+
+            var registryFactory = await File.ReadAllTextAsync(Path.Join(
+                outDir,
+                "Runtime.ResourceTypeRegistryFactory.md"));
+            registryFactory.ShouldContain(
+                "Builds a resource type registry from assemblies.");
+            registryFactory.ShouldContain("The assemblies to scan.");
+            registryFactory.ShouldContain(
+                "The discovered resource type registry.");
+            registryFactory.ShouldNotContain(
+                "Builds an attribute registry from assemblies.");
+
+            warnings.ShouldBeEmpty();
+            diagnostics.Diagnostics.ShouldNotContain(diagnostic =>
+                diagnostic.Code == DiagnosticIds.UnresolvedInheritDoc ||
+                diagnostic.Code == DiagnosticIds.MissingSummary);
+        }
+        finally
+        {
+            if (Directory.Exists(tmpDir))
+                Directory.Delete(tmpDir, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Render_UsesReferenceXmlForInheritanceWithoutRenderingReferenceTypes()
     {
@@ -225,6 +345,8 @@ public class InheritDocResolverTests
 
                     <member name="M:Temp.IFirst.Save(Temp.Request)"><summary>First save contract.</summary></member>
                     <member name="M:Temp.ISecond.Save(Temp.Request)"><summary>Second save contract.</summary></member>
+                    <member name="M:First.IAmbiguousService.Save(Temp.Request)"><summary>First conventional save contract.</summary></member>
+                    <member name="M:Second.IAmbiguousService.Save(Temp.Request)"><summary>Second conventional save contract.</summary></member>
                     <member name="T:Temp.AmbiguousService"><summary>Ambiguous implementation.</summary></member>
                     <member name="M:Temp.AmbiguousService.Save(Temp.Request)"><inheritdoc/></member>
                   </members>
@@ -289,11 +411,23 @@ public class InheritDocResolverTests
                 Path.Join(outDir, "Temp.AmbiguousService.md"));
             ambiguousImplementation.ShouldNotContain("First save contract.");
             ambiguousImplementation.ShouldNotContain("Second save contract.");
+            ambiguousImplementation.ShouldNotContain(
+                "First conventional save contract.");
+            ambiguousImplementation.ShouldNotContain(
+                "Second conventional save contract.");
         }
         finally
         {
             if (Directory.Exists(tmpDir))
                 Directory.Delete(tmpDir, recursive: true);
         }
+    }
+
+    private sealed class RecordingDiagnosticSink : IDiagnosticSink
+    {
+        public List<Xml2DocDiagnostic> Diagnostics { get; } = new();
+
+        public void Report(Xml2DocDiagnostic diagnostic) =>
+            Diagnostics.Add(diagnostic);
     }
 }

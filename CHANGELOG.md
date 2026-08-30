@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.1](https://github.com/mod-posh/Xml2Doc/releases/tag/2.3.1) - Unreleased
+
+### Fixed
+
+- Multi-input aggregation now resolves bare `<inheritdoc />` to a uniquely matching conventional
+  interface type when unrelated aggregate members expose the same member signature.
+
+### Tests
+
+- Added Core and CLI multi-input regression coverage for same-signature inheritance candidates,
+  including the absence of secondary `XML2DOC004` and `XML2DOC005` diagnostics after resolution.
+- Existing overload, explicit-target, and genuinely ambiguous inheritance behavior remains covered
+  by the resolver regression suite.
+
+---
+
 ## [2.3.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.3.0) - 2026-08-17
 
 ### Added

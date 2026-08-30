@@ -31,7 +31,7 @@ namespace Xml2Doc.Core
             if (signature is null)
                 return null;
 
-            var candidates = model.Members.Values
+            var candidateQuery = model.Members.Values
                 .Concat(model.ReferenceMembers.Values)
                 .Where(candidate =>
                     !string.Equals(
@@ -43,14 +43,67 @@ namespace Xml2Doc.Core
                         GetMemberSignature(candidate.Id),
                         signature,
                         StringComparison.Ordinal) &&
-                    HasInheritableContent(candidate.Element))
+                    HasInheritableContent(candidate.Element));
+            var candidates = candidateQuery
                 .Take(2)
                 .ToArray();
 
             if (candidates.Length == 1)
                 return candidates[0].Element;
 
+            if (candidates.Length == 0)
+                return null;
+
+            // XML documentation does not retain implemented-interface metadata. When
+            // aggregation introduces otherwise ambiguous same-signature members, prefer
+            // a unique conventional interface name (I + implementation type name).
+            // This keeps the previous uniqueness fallback while avoiding unrelated
+            // aggregate members for the common interface/implementation shape.
+            var interfaceCandidates = candidateQuery
+                .Where(candidate => IsConventionalInterfaceMatch(member, candidate))
+                .Take(2)
+                .ToArray();
+
+            if (interfaceCandidates.Length == 1)
+                return interfaceCandidates[0].Element;
+
             return null;
+        }
+
+        private static bool IsConventionalInterfaceMatch(
+            XMember member,
+            XMember candidate)
+        {
+            var implementationType = GetDeclaringTypeName(member.Id);
+            var candidateType = GetDeclaringTypeName(candidate.Id);
+            if (implementationType is null || candidateType is null)
+                return false;
+
+            return string.Equals(
+                GetSimpleTypeName(candidateType),
+                "I" + GetSimpleTypeName(implementationType),
+                StringComparison.Ordinal);
+        }
+
+        private static string? GetDeclaringTypeName(string id)
+        {
+            var parameterList = id.IndexOf('(');
+            var memberHead = parameterList >= 0
+                ? id.Substring(0, parameterList)
+                : id;
+            var separator = memberHead.LastIndexOf('.');
+
+            return separator < 0
+                ? null
+                : memberHead.Substring(0, separator);
+        }
+
+        private static string GetSimpleTypeName(string typeName)
+        {
+            var separator = typeName.LastIndexOf('.');
+            return separator < 0
+                ? typeName
+                : typeName.Substring(separator + 1);
         }
 
         private static string? GetMemberSignature(string id)
