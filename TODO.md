@@ -2,7 +2,7 @@
 
 This roadmap tracks the release sequence and the work that is complete or planned in the repository.
 
-The latest published release is `2.3.0`. The next planned releases are `2.3.1` — Stabilization and Output Correctness, followed by `2.4.0` — Metadata and Output Extensibility.
+The latest published release is `2.3.0`. The next planned releases are `2.3.1` — Stabilization and Output Correctness, `2.4.0` — Metadata and Output Extensibility, and `2.5.0` — API Surface Selection.
 
 ## Release sequence
 
@@ -12,6 +12,7 @@ The latest published release is `2.3.0`. The next planned releases are `2.3.1` �
 4. `2.3.0` — Multi-project Aggregation (released)
 5. `2.3.1` — Stabilization and Output Correctness (planned)
 6. `2.4.0` — Metadata and Output Extensibility (planned)
+7. `2.5.0` — API Surface Selection (planned)
 
 ## 2.0.3 — Documentation and Lifecycle Correctness
 
@@ -149,6 +150,39 @@ Milestone preparation:
 - [ ] Implement issues in dependency order: #115, #116, #117.
 - [ ] Update the roadmap, API documentation, README examples, and migration guidance.
 - [ ] Prepare `VersionPrefix` for `2.4.0`.
+- [ ] Complete the standard milestone release workflow.
+
+
+## 2.5.0 — API Surface Selection
+
+Planned architectural release for defining which documented CLR symbols participate in generated output.
+
+- [ ] [#125 — Add configurable API visibility filtering for generated documentation](https://github.com/mod-posh/xml2doc/issues/125)
+
+Design sequence and dependency gates:
+
+1. Decide the authoritative source of CLR accessibility metadata. Compiler-generated XML documentation identifies symbols but does not encode whether a type or member is public, internal, protected, or private.
+2. Define a Core-owned symbol metadata model and deterministic enrichment boundary for single-input and aggregate loading.
+3. Apply the selected visibility policy before output planning so rendering, indexes, TOCs, namespace indexes, reports, manifests, pruning, and writes consume the same filtered model.
+4. Expose the shared Core policy consistently through CLI, JSON configuration, MSBuild task properties, and package properties.
+
+Architecture and quality notes:
+
+- #125 requires a new ADR because it changes the Core input/model contract, renderer configuration, output planning, host compatibility, and generated-output behavior.
+- Keep accessibility discovery and filtering semantics in Core. CLI and MSBuild may supply inputs and expose options, but must not implement independent filtering.
+- Preserve the current include-all-documented-symbols default unless the ADR deliberately defines and documents a versioned behavior change.
+- Keep #125 separate from `TemplateRenderContext`: visibility determines whether a document exists and therefore must be resolved before per-document template metadata is created.
+- Reuse the invocation-scoped ownership model from ADR-011 so changing visibility can safely prune only files owned by the same manifest identity.
+- Protect both output modes and default compatibility with unit, snapshot, parity, sample-project, aggregation, and prune-manifest coverage.
+
+Milestone preparation:
+
+- [ ] Create the `2.5.0` milestone.
+- [ ] Assign #125 to `2.5.0`.
+- [ ] Confirm the accessibility metadata source and backward-compatible default before implementation.
+- [ ] Draft and accept the required ADR before changing the Core model or public options.
+- [ ] Update Core, CLI, JSON configuration, MSBuild, README/API documentation, and migration guidance together.
+- [ ] Prepare `VersionPrefix` for `2.5.0`.
 - [ ] Complete the standard milestone release workflow.
 
 ## Milestone workflow
