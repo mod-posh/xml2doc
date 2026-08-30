@@ -1,30 +1,27 @@
-# 2.3.0 — Multi-project Aggregation
+# 2.3.1
 
-Provide first-class deterministic aggregation for solutions where multiple projects publish documentation to one shared output directory.
+Stabilization release addressing regressions and output-correctness defects affecting Xml2Doc 2.3.0.
 
-## Scope
+## Release highlights
 
-- Consume multiple XML documentation inputs through one aggregation boundary.
-- Generate one canonically ordered index containing every participating project.
-- Ensure serial and parallel aggregation produce identical output.
-- Detect conflicting output or member ownership with actionable diagnostics.
-- Preserve existing single-project behavior.
-- Preserve `Xml2Doc_GenerateIndex=false` as the supported compatibility mitigation.
+- Resolve bare `<inheritdoc />` through a unique conventional interface type when unrelated aggregate members expose the same signature.
+- Remove configuration-scoped normal and aggregate Xml2Doc incremental state during `dotnet clean`.
+- Preserve generated Markdown and incremental state belonging to other configurations during cleanup.
+- Render structured XML documentation bullet lists as valid Markdown while preserving inline markup and paragraph boundaries.
+- Preserve existing single-project, aggregation, configuration, and output contracts.
 
-## Issues
+## Included issues
 
-- [ ] #63 — Multiple projects targeting one output directory overwrite `index.md` nondeterministically
+- #118 — Multi-input aggregation makes bare `<inheritdoc />` ambiguous across unrelated member signatures
+- #119 — Xml2Doc.MSBuild incremental state survives `dotnet clean` and can leave generated Markdown stale
+- #120 — Xml2Doc flattens XML documentation bullet lists into malformed Markdown
 
-## Completion criteria
+## BUG, AREA:CORE
 
-- Native aggregation produces a deterministic unified index.
-- Type and index ordering is stable and ordinal.
-- Parallel and serial integration tests produce byte-identical output.
-- Conflicting ownership fails with a stable structured diagnostic.
-- CLI and MSBuild configuration are documented.
-- All GitHub Actions checks pass.
+* issue-118: Multi-input aggregation makes bare <inheritdoc /> ambiguous across unrelated member signatures
 
-## BUG, AREA:MSBUILD
+## NO LABEL
 
-* issue-63: MSBuild: multiple projects targeting one output directory overwrite `index.md` nondeterministically
+* issue-120: Xml2Doc flattens XML documentation bullet lists into malformed Markdown
+* issue-119: Xml2Doc.MSBuild incremental state survives dotnet clean and can leave generated Markdown stale
 
