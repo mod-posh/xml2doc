@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Multi-input aggregation now resolves bare `<inheritdoc />` to a uniquely matching conventional
   interface type when unrelated aggregate members expose the same member signature.
+- `dotnet clean` now removes Xml2Doc-owned stamp, fingerprint, and output-ledger files for the
+  selected configuration while preserving generated Markdown and other configurations' state.
+- Repository aggregation clean now removes its separate `xml2doc.aggregate.*` incremental state
+  without deleting aggregate documentation output.
 
 ### Tests
 
@@ -20,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including the absence of secondary `XML2DOC004` and `XML2DOC005` diagnostics after resolution.
 - Existing overload, explicit-target, and genuinely ambiguous inheritance behavior remains covered
   by the resolver regression suite.
+- Expanded packaged MSBuild integration coverage for configuration-scoped clean, generated-output
+  preservation, post-clean regeneration, unchanged-build no-op behavior, and aggregate cleanup.
 
 ---
 

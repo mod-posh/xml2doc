@@ -52,6 +52,13 @@
 
   <UsingTask TaskName="GenerateMarkdownFromXmlDoc" AssemblyFile="$(_Xml2Doc_TaskPath)" />
 
+  <!-- Clean only Xml2Doc-owned incremental state for the active configuration.
+       Generated Markdown remains owned by the configured output lifecycle. -->
+  <Target Name="Xml2Doc_Clean"
+          BeforeTargets="Clean">
+    <Delete Files="$(Xml2Doc_OutputStamp);$(Xml2Doc_FingerprintFile);$(Xml2Doc_OutputLedger)" />
+  </Target>
+
   <Target Name="Xml2Doc_VerifyTaskAssembly"
           BeforeTargets="Xml2Doc_Generate"
           Condition="!Exists('$(_Xml2Doc_TaskPath)')">

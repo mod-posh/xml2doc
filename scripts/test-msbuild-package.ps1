@@ -49,6 +49,28 @@ function Invoke-DotNet
   }
 }
 
+function Get-Xml2DocStatePaths
+{
+  param(
+    [Parameter(Mandatory = $true)][string] $ProjectRoot,
+    [Parameter(Mandatory = $true)][string] $Configuration,
+    [Parameter(Mandatory = $true)][string[]] $FileNames
+  )
+
+  $configurationRoot = Join-Path $ProjectRoot "obj/$Configuration"
+  if (-not (Test-Path -LiteralPath $configurationRoot -PathType Container))
+  {
+    return @()
+  }
+
+  @(
+    Get-ChildItem -LiteralPath $configurationRoot -Recurse -File |
+      Where-Object { $FileNames -contains $_.Name } |
+      Sort-Object FullName |
+      Select-Object -ExpandProperty FullName
+  )
+}
+
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $propsPath = Join-Path $repo "Directory.Build.props"
 $taskProject = Join-Path $repo "Xml2Doc/src/Xml2Doc.MSBuild/Xml2Doc.MSBuild.csproj"
@@ -208,8 +230,92 @@ public sealed class Example
 
   $generatedIndex = Join-Path $consumerRoot "docs/index.md"
   $generatedReport = Join-Path $consumerRoot "docs/xml2doc-report.json"
+  $generatedType = Join-Path $consumerRoot "docs/PackageConsumer.Example.md"
   Assert-True (Test-Path -LiteralPath $generatedIndex -PathType Leaf) "Clean consumer did not generate docs/index.md."
   Assert-True (Test-Path -LiteralPath $generatedReport -PathType Leaf) "Clean consumer did not generate xml2doc-report.json."
+  Assert-True (Test-Path -LiteralPath $generatedType -PathType Leaf) "Clean consumer did not generate the expected type page."
+
+  $stateFileNames = @(
+    "xml2doc.stamp",
+    "xml2doc.fingerprint.txt",
+    "xml2doc.outputs.txt"
+  )
+  $activeStatePaths = @(Get-Xml2DocStatePaths -ProjectRoot $consumerRoot -Configuration $Configuration -FileNames $stateFileNames)
+  Assert-True ($activeStatePaths.Count -eq $stateFileNames.Count) "Expected exactly one active-configuration file for each Xml2Doc state artifact."
+  foreach ($statePath in $activeStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Expected Xml2Doc state was not generated: $statePath"
+  }
+
+  $alternateConfiguration = if ($Configuration -eq "Release") { "Debug" } else { "Release" }
+  Write-Step "Building clean consumer in $alternateConfiguration to verify configuration-scoped cleaning"
+  Invoke-DotNet -WorkingDirectory $consumerRoot -Arguments @(
+    "build", "PackageConsumer.csproj",
+    "--configuration", $alternateConfiguration,
+    "--no-restore",
+    "--disable-build-servers"
+  )
+
+  $alternateStatePaths = @(Get-Xml2DocStatePaths -ProjectRoot $consumerRoot -Configuration $alternateConfiguration -FileNames $stateFileNames)
+  Assert-True ($alternateStatePaths.Count -eq $stateFileNames.Count) "Expected exactly one alternate-configuration file for each Xml2Doc state artifact."
+  foreach ($statePath in $alternateStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Expected alternate-configuration Xml2Doc state was not generated: $statePath"
+  }
+
+  $updatedConsumerSource = $consumerSource.Replace(
+    "Returns a deterministic value.",
+    "Returns an updated deterministic value.")
+  Set-Content -LiteralPath (Join-Path $consumerRoot "Example.cs") -Value $updatedConsumerSource -Encoding utf8
+
+  Write-Step "Cleaning only the active consumer configuration"
+  Invoke-DotNet -WorkingDirectory $consumerRoot -Arguments @(
+    "clean", "PackageConsumer.csproj",
+    "--configuration", $Configuration,
+    "--disable-build-servers"
+  )
+
+  foreach ($statePath in $activeStatePaths)
+  {
+    Assert-True (-not (Test-Path -LiteralPath $statePath)) "Clean left active-configuration Xml2Doc state behind: $statePath"
+  }
+  foreach ($statePath in $alternateStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Clean removed another configuration's Xml2Doc state: $statePath"
+  }
+  Assert-True (Test-Path -LiteralPath $generatedIndex -PathType Leaf) "Clean deleted generated docs/index.md."
+  Assert-True (Test-Path -LiteralPath $generatedReport -PathType Leaf) "Clean deleted the generated report."
+  Assert-True (Test-Path -LiteralPath $generatedType -PathType Leaf) "Clean deleted the generated type page."
+
+  Write-Step "Rebuilding after Clean to verify documentation regeneration"
+  Invoke-DotNet -WorkingDirectory $consumerRoot -Arguments @(
+    "build", "PackageConsumer.csproj",
+    "--configuration", $Configuration,
+    "--no-restore",
+    "--disable-build-servers"
+  )
+
+  $updatedMarkdown = Get-Content -LiteralPath $generatedType -Raw
+  Assert-True ($updatedMarkdown.Contains("Returns an updated deterministic value.")) "Build after Clean did not regenerate the changed XML documentation."
+  foreach ($statePath in $activeStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Build after Clean did not recreate Xml2Doc state: $statePath"
+  }
+
+  $activeStamp = $activeStatePaths | Where-Object { [System.IO.Path]::GetFileName($_) -eq "xml2doc.stamp" } | Select-Object -First 1
+  $stampBeforeNoOp = (Get-Item -LiteralPath $activeStamp).LastWriteTimeUtc
+  Start-Sleep -Milliseconds 1100
+
+  Write-Step "Rebuilding unchanged consumer to preserve incremental no-op behavior"
+  Invoke-DotNet -WorkingDirectory $consumerRoot -Arguments @(
+    "build", "PackageConsumer.csproj",
+    "--configuration", $Configuration,
+    "--no-restore",
+    "--disable-build-servers"
+  )
+
+  $stampAfterNoOp = (Get-Item -LiteralPath $activeStamp).LastWriteTimeUtc
+  Assert-True ($stampAfterNoOp -eq $stampBeforeNoOp) "Unchanged build rewrote the Xml2Doc stamp after clean-state regeneration."
 
   Write-Step "Creating clean packaged aggregation consumer"
   $aggregateRoot = Join-Path $runRoot "aggregate-consumer"
@@ -223,9 +329,14 @@ public sealed class Example
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
+    <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)/docs</Xml2Doc_OutputDir>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Xml2Doc.MSBuild" Version="__PACKAGE_VERSION__" PrivateAssets="all" />
+  </ItemGroup>
 </Project>
-'@
+'@.Replace("__PACKAGE_VERSION__", $PackageVersion)
 
   $aggregateChildSource = @'
 namespace PackageAggregateChild;
@@ -279,6 +390,55 @@ public sealed class Widget
   Assert-True (Test-Path -LiteralPath $aggregateReport -PathType Leaf) "Packaged aggregation consumer did not generate xml2doc-aggregate-report.json."
   $aggregateIndexText = Get-Content -LiteralPath $aggregateIndex -Raw
   Assert-True ($aggregateIndexText.Contains("PackageAggregateChild.Widget")) "Packaged aggregation output did not contain the referenced child type."
+
+  $aggregateStateFileNames = @(
+    "xml2doc.aggregate.stamp",
+    "xml2doc.aggregate.fingerprint.txt",
+    "xml2doc.aggregate.outputs.txt"
+  )
+  $aggregateStatePaths = @(Get-Xml2DocStatePaths -ProjectRoot $aggregateOwnerRoot -Configuration $Configuration -FileNames $aggregateStateFileNames)
+  Assert-True ($aggregateStatePaths.Count -eq $aggregateStateFileNames.Count) "Expected exactly one file for each aggregate Xml2Doc state artifact."
+  foreach ($statePath in $aggregateStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Expected aggregate Xml2Doc state was not generated: $statePath"
+  }
+
+  $aggregateChildStatePaths = @(Get-Xml2DocStatePaths -ProjectRoot $aggregateChildRoot -Configuration $Configuration -FileNames $stateFileNames)
+  Assert-True ($aggregateChildStatePaths.Count -eq $stateFileNames.Count) "Expected the aggregate child to own an independent per-project state set."
+  $aggregateChildIndex = Join-Path $aggregateChildRoot "docs/index.md"
+  Assert-True (Test-Path -LiteralPath $aggregateChildIndex -PathType Leaf) "Aggregate child did not generate its independent documentation."
+
+  Write-Step "Cleaning only the aggregate child project"
+  Invoke-DotNet -WorkingDirectory $aggregateRoot -Arguments @(
+    "clean", "Child/Child.csproj",
+    "--configuration", $Configuration,
+    "--disable-build-servers"
+  )
+
+  foreach ($statePath in $aggregateChildStatePaths)
+  {
+    Assert-True (-not (Test-Path -LiteralPath $statePath)) "Child clean left its per-project Xml2Doc state behind: $statePath"
+  }
+  foreach ($statePath in $aggregateStatePaths)
+  {
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Child clean removed the owner's aggregate Xml2Doc state: $statePath"
+  }
+  Assert-True (Test-Path -LiteralPath $aggregateChildIndex -PathType Leaf) "Child clean deleted its generated Markdown."
+  Assert-True (Test-Path -LiteralPath $aggregateIndex -PathType Leaf) "Child clean deleted the aggregate index."
+
+  Write-Step "Cleaning packaged aggregation owner"
+  Invoke-DotNet -WorkingDirectory $aggregateRoot -Arguments @(
+    "clean", "Owner/Owner.csproj",
+    "--configuration", $Configuration,
+    "--disable-build-servers"
+  )
+
+  foreach ($statePath in $aggregateStatePaths)
+  {
+    Assert-True (-not (Test-Path -LiteralPath $statePath)) "Clean left aggregate Xml2Doc state behind: $statePath"
+  }
+  Assert-True (Test-Path -LiteralPath $aggregateIndex -PathType Leaf) "Clean deleted the aggregate index."
+  Assert-True (Test-Path -LiteralPath $aggregateReport -PathType Leaf) "Clean deleted the aggregate report."
 
   Write-Step "MSBuild package integration completed successfully"
   Write-Host "Package: $packagePath"

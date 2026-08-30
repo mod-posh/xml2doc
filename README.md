@@ -339,6 +339,8 @@ Commit `.xml2doc/manifests` when generated Markdown is versioned and ownership m
 
 Normal MSBuild generation keeps its stamp, fingerprint, and output ledger under `IntermediateOutputPath`. Repository aggregation uses separate `xml2doc.aggregate.*` lifecycle files so one aggregate owner has one independent incremental state boundary.
 
+`dotnet clean --configuration <Configuration>` removes the normal and aggregate Xml2Doc lifecycle files owned by that configuration. It does not delete generated Markdown, reports, ownership manifests, or another configuration's incremental state. The next build recomputes the fingerprint and regenerates documentation as needed.
+
 Generated Markdown uses LF on every platform by default. Use `native` only when host-specific bytes are intentional.
 
 ## Rendering extensibility
