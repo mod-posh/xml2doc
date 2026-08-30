@@ -5,7 +5,7 @@ Command-line interface for Xml2Doc, part of the **mod-posh** organization.
 ## Overview
 
 `Xml2Doc.Cli` converts C# XML documentation into deterministic Markdown using `Xml2Doc.Core`.
-Version `2.3.0` supports both single-input generation and deterministic aggregation of multiple XML documentation files.
+Version `2.3.1` supports single-input generation and deterministic multi-input aggregation, including corrected conventional-interface inheritance resolution.
 
 The CLI is multi-targeted for:
 
@@ -17,7 +17,7 @@ Rendered Markdown is expected to be identical across supported CLI TFMs for the 
 ## Install as a .NET tool
 
 ```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.3.0
+dotnet tool install --global Xml2Doc.Cli --version 2.3.1
 ```
 
 The installed command is `xml2doc`.

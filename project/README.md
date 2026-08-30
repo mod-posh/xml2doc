@@ -4,8 +4,8 @@ This directory documents Xml2Doc's architecture, runtime flows, constraints, qua
 
 | Item | Current state |
 | --- | --- |
-| Repository version | `2.3.0` |
-| Release target | `2.3.0` multi-project aggregation |
+| Repository version | `2.3.1` |
+| Release target | `2.3.1` stabilization and output correctness |
 | Core TFMs | `netstandard2.0`, `net8.0`, `net9.0` |
 | CLI TFMs | `net8.0`, `net9.0` |
 | MSBuild task TFMs | `net472`, `net8.0` |
@@ -22,7 +22,7 @@ This directory documents Xml2Doc's architecture, runtime flows, constraints, qua
 - [`risks/`](risks/) — current risks and technical debt.
 - [`glossary/`](glossary/) — project terminology.
 
-For end-user usage, start with [`../Xml2Doc.md`](../Xml2Doc.md). For the `2.3.0` repository aggregation pattern, see [`../docs/msbuild-repository-aggregation.md`](../docs/msbuild-repository-aggregation.md).
+For end-user usage, start with [`../Xml2Doc.md`](../Xml2Doc.md). For the repository aggregation pattern introduced in `2.3.0` and stabilized in `2.3.1`, see [`../docs/msbuild-repository-aggregation.md`](../docs/msbuild-repository-aggregation.md).
 
 ## Current architecture at a glance
 

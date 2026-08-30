@@ -6,7 +6,7 @@ MSBuild integration for Xml2Doc, part of the **mod-posh** organization.
 
 `Xml2Doc.MSBuild` converts compiler-generated C# XML documentation into Markdown automatically during a build.
 
-Version `2.3.0` supports two models:
+Version `2.3.1` supports two models and adds configuration-scoped cleanup of normal and aggregate incremental state:
 
 - normal per-project generation from one compiler XML file;
 - repository aggregation, where one owner project renders multiple participating projects into one deterministic documentation set and one unified index.
@@ -24,7 +24,7 @@ The package selects the appropriate task assembly automatically. Generated Markd
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
+  <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
 </ItemGroup>
 ```
 
@@ -51,7 +51,7 @@ Projects that contribute compiler XML must enable:
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
@@ -122,7 +122,7 @@ Use one small project as the owner when multiple projects contribute to one docu
   <ItemGroup>
     <ProjectReference Include="..\Alpha\Alpha.csproj" />
     <ProjectReference Include="..\Zulu\Zulu.csproj" />
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.0" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
