@@ -31,7 +31,7 @@ namespace Xml2Doc.Core
             if (signature is null)
                 return null;
 
-            var candidates = model.Members.Values
+            var candidateQuery = model.Members.Values
                 .Concat(model.ReferenceMembers.Values)
                 .Where(candidate =>
                     !string.Equals(
@@ -43,18 +43,23 @@ namespace Xml2Doc.Core
                         GetMemberSignature(candidate.Id),
                         signature,
                         StringComparison.Ordinal) &&
-                    HasInheritableContent(candidate.Element))
+                    HasInheritableContent(candidate.Element));
+            var candidates = candidateQuery
+                .Take(2)
                 .ToArray();
 
             if (candidates.Length == 1)
                 return candidates[0].Element;
+
+            if (candidates.Length == 0)
+                return null;
 
             // XML documentation does not retain implemented-interface metadata. When
             // aggregation introduces otherwise ambiguous same-signature members, prefer
             // a unique conventional interface name (I + implementation type name).
             // This keeps the previous uniqueness fallback while avoiding unrelated
             // aggregate members for the common interface/implementation shape.
-            var interfaceCandidates = candidates
+            var interfaceCandidates = candidateQuery
                 .Where(candidate => IsConventionalInterfaceMatch(member, candidate))
                 .Take(2)
                 .ToArray();
