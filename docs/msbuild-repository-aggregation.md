@@ -135,6 +135,8 @@ The aggregate fingerprint includes canonical primary input identities, explicit 
 
 A missing file recorded by the aggregate output ledger invalidates the aggregate stamp so the next build recreates the output.
 
+`dotnet clean --configuration <Configuration>` removes the owner's `xml2doc.aggregate.*` lifecycle files for that configuration. It preserves aggregate Markdown, reports, manifests, and lifecycle state belonging to other configurations.
+
 ## Compatibility without an aggregation owner
 
 Independent projects may still share one output directory if they have distinct ownership identities and all disable project-owned index generation:

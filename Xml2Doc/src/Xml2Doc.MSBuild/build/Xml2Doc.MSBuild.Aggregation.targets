@@ -41,6 +41,13 @@
 
   <UsingTask TaskName="GenerateMarkdownFromXmlDocs" AssemblyFile="$(_Xml2Doc_AggregateTaskPath)" />
 
+  <!-- Repository aggregation owns separate incremental state. Clean it for the
+       active configuration without deleting aggregate Markdown output. -->
+  <Target Name="Xml2Doc_AggregateClean"
+          BeforeTargets="Clean">
+    <Delete Files="$(Xml2Doc_AggregateOutputStamp);$(Xml2Doc_AggregateFingerprintFile);$(Xml2Doc_AggregateOutputLedger)" />
+  </Target>
+
   <Target Name="_Xml2Doc_ValidateAggregateIndexOwnership"
           Condition="'$(Xml2Doc_AggregateOwnerOutputDir)' != ''">
     <PropertyGroup>

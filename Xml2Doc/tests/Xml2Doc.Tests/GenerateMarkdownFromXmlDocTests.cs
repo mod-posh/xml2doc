@@ -220,6 +220,33 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void BuildAssets_CleanTargetRemovesOnlyXml2DocIntermediateState()
+        {
+            var targetsPath =
+                RepositoryRoot + Path.DirectorySeparatorChar +
+                "src" + Path.DirectorySeparatorChar +
+                "Xml2Doc.MSBuild" + Path.DirectorySeparatorChar +
+                "build" + Path.DirectorySeparatorChar +
+                "Xml2Doc.MSBuild.targets";
+            var targets = XDocument.Load(targetsPath);
+
+            var cleanTarget = targets.Descendants("Target")
+                .Single(element =>
+                    element.Attribute("Name")?.Value == "Xml2Doc_Clean");
+            cleanTarget.Attribute("BeforeTargets")!.Value.ShouldBe("Clean");
+
+            var delete = cleanTarget.Descendants("Delete").Single();
+            var files = delete.Attribute("Files")!.Value;
+            files.ShouldBe(
+                "$(Xml2Doc_OutputStamp);" +
+                "$(Xml2Doc_FingerprintFile);" +
+                "$(Xml2Doc_OutputLedger)");
+            files.ShouldNotContain("$(Xml2Doc_OutputDir)");
+            files.ShouldNotContain("$(Xml2Doc_OutputFile)");
+            files.ShouldNotContain("@(Xml2Doc_GeneratedFiles)");
+        }
+
+        [Fact]
         public void BuildAssets_ExposeAndWireLifecycleProperties()
         {
             var buildDirectory =

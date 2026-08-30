@@ -204,6 +204,16 @@ public class GenerateMarkdownFromXmlDocsTests
         task.Attribute("XmlPaths")!.Value.ShouldBe("@(_Xml2Doc_AggregateInput)");
         task.Attribute("GenerateIndex")!.Value.ShouldBe("$(Xml2Doc_GenerateIndex)");
 
+        var cleanTarget = targets.Descendants("Target")
+            .Single(element =>
+                element.Attribute("Name")?.Value == "Xml2Doc_AggregateClean");
+        cleanTarget.Attribute("BeforeTargets")!.Value.ShouldBe("Clean");
+        cleanTarget.Descendants("Delete")
+            .Single().Attribute("Files")!.Value.ShouldBe(
+                "$(Xml2Doc_AggregateOutputStamp);" +
+                "$(Xml2Doc_AggregateFingerprintFile);" +
+                "$(Xml2Doc_AggregateOutputLedger)");
+
         targets.Descendants("Error")
             .Any(element =>
                 element.Attribute("Text")?.Value.Contains("XML2DOC007", StringComparison.Ordinal) == true)

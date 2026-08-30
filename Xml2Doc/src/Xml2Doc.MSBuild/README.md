@@ -205,6 +205,8 @@ For normal per-project generation, `Xml2Doc_OutputStamp`, `Xml2Doc_FingerprintFi
 
 Aggregation uses separate `xml2doc.aggregate.*` lifecycle files so the repository owner has one independent incremental state boundary.
 
+`dotnet clean --configuration <Configuration>` removes the normal and aggregate Xml2Doc lifecycle files for the selected configuration. Generated Markdown, reports, ownership manifests, and other configurations' state remain intact. A subsequent build recomputes the fingerprint and regenerates documentation when required.
+
 Stale Markdown pruning is supported only in per-type mode and requires a stable `Xml2Doc_ManifestIdentity`. Xml2Doc removes only paths recorded for that identity.
 
 ## Line endings
