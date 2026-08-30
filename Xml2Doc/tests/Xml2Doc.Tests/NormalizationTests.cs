@@ -171,6 +171,7 @@ public class NormalizationTests
                             <item><description><see cref="T:System.String"/> value.</description></item>
                             <item><description>Use <c>null</c> for <paramref name="value"/>.</description></item>
                             <item><description>Final value.</description></item>
+                            <item><description>Example:<code>line1&#10;line2</code></description></item>
                           </list>
                           Values are evaluated in order.
                         </para>
@@ -180,33 +181,38 @@ public class NormalizationTests
                 </doc>
                 """;
 
-        var tmpDir = Path.Combine(Path.GetTempPath(), "Xml2Doc.Tests", Path.GetRandomFileName());
+        var tmpDir = Path.Join(Path.GetTempPath(), "Xml2Doc.Tests", Path.GetRandomFileName());
         Directory.CreateDirectory(tmpDir);
 
         try
         {
-            var xmlPath = Path.Combine(tmpDir, "temp.xml");
+            var xmlPath = Path.Join(tmpDir, "temp.xml");
             await File.WriteAllTextAsync(xmlPath, xml, new UTF8Encoding(false));
 
             var model = Xml2Doc.Core.Models.Xml2Doc.Load(xmlPath);
             var renderer = new MarkdownRenderer(model, new RendererOptions(
                 FileNameMode: FileNameMode.CleanGenerics));
-            var firstOutput = Path.Combine(tmpDir, "first");
-            var secondOutput = Path.Combine(tmpDir, "second");
+            var firstOutput = Path.Join(tmpDir, "first");
+            var secondOutput = Path.Join(tmpDir, "second");
 
             renderer.RenderToDirectory(firstOutput);
             renderer.RenderToDirectory(secondOutput);
 
             var firstMarkdown = (await File.ReadAllTextAsync(
-                Path.Combine(firstOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
+                Path.Join(firstOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
             var secondMarkdown = (await File.ReadAllTextAsync(
-                Path.Combine(secondOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
+                Path.Join(secondOutput, "Temp.Lists.md"))).Replace("\r\n", "\n");
 
             firstMarkdown.ShouldContain(
                 "Supported values:\n\n" +
                 "- [String](System.String.md) value.\n" +
                 "- Use `null` for `value`.\n" +
-                "- Final value.\n\n" +
+                "- Final value.\n" +
+                "- Example:\n\n" +
+                "  ```csharp\n" +
+                "  line1\n" +
+                "  line2\n" +
+                "  ```\n" +
                 "Values are evaluated in order.");
             secondMarkdown.ShouldBe(firstMarkdown);
         }

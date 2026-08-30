@@ -1149,6 +1149,12 @@ public sealed class MarkdownRenderer
                 continue;
             }
 
+            if (listItems[i])
+            {
+                cleaned[i] = line.TrimEnd();
+                continue;
+            }
+
             var collapsed = Regex.Replace(line.Trim(), "[ \t]+", " ");
             collapsed = collapsed.Replace(" .", ".")
                                  .Replace(" ,", ",")
@@ -1233,11 +1239,35 @@ public sealed class MarkdownRenderer
         var renderedItems = list.Elements("item")
             .Select(item => item.Element("description") ?? item)
             .Select(description => NormalizeXmlToMarkdown(description))
-            .Select(description => description.Replace("\n", " ").Trim())
-            .Where(description => !string.IsNullOrWhiteSpace(description))
-            .Select(description => $"{MarkdownListItemMarker}- {description}");
+            .Where(description => !string.IsNullOrWhiteSpace(description));
 
-        return string.Join("\n", renderedItems);
+        var renderedList = new StringBuilder();
+        foreach (var description in renderedItems)
+        {
+            var lines = description
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Trim('\n')
+                .Split('\n');
+            var firstLineIsFence = lines[0].TrimStart().StartsWith("```", StringComparison.Ordinal);
+
+            if (renderedList.Length > 0)
+                renderedList.Append('\n');
+
+            renderedList.Append(MarkdownListItemMarker).Append('-');
+            if (!firstLineIsFence)
+                renderedList.Append(' ').Append(lines[0]);
+
+            var continuationStart = firstLineIsFence ? 0 : 1;
+            for (var index = continuationStart; index < lines.Length; index++)
+            {
+                renderedList.Append('\n').Append(MarkdownListItemMarker);
+                if (!string.IsNullOrEmpty(lines[index]))
+                    renderedList.Append("  ").Append(lines[index]);
+            }
+        }
+
+        return renderedList.ToString();
     }
 
     /// <summary>

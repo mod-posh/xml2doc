@@ -100,7 +100,7 @@ Planned patch release for regressions and correctness defects affecting existing
 
 - [x] [#118 — Multi-input aggregation makes bare `<inheritdoc />` ambiguous across unrelated member signatures](https://github.com/mod-posh/xml2doc/issues/118)
 - [x] [#119 — Xml2Doc.MSBuild incremental state survives `dotnet clean` and can leave generated Markdown stale](https://github.com/mod-posh/xml2doc/issues/119)
-- [ ] [#120 — Xml2Doc flattens XML documentation bullet lists into malformed Markdown](https://github.com/mod-posh/xml2doc/issues/120)
+- [x] [#120 — Xml2Doc flattens XML documentation bullet lists into malformed Markdown](https://github.com/mod-posh/xml2doc/issues/120)
 
 Architecture and quality notes:
 
@@ -114,7 +114,7 @@ Milestone preparation:
 - [x] Create the `2.3.1` milestone.
 - [x] Assign #118, #119, and #120 to `2.3.1`.
 - [x] Confirm issue scope and acceptance criteria before implementation.
-- [ ] Implement and close issues in the order #118, #119, #120.
+- [x] Implement and close issues in the order #118, #119, #120.
 - [ ] Update the changelog and release documentation.
 - [ ] Prepare `VersionPrefix` for `2.3.1`.
 - [ ] Complete the standard milestone release workflow.
