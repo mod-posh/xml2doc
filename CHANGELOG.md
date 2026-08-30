@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selected configuration while preserving generated Markdown and other configurations' state.
 - Repository aggregation clean now removes its separate `xml2doc.aggregate.*` incremental state
   without deleting aggregate documentation output.
+- Structured XML documentation `<list type="bullet">` elements now render each `<item>` as a
+  distinct Markdown bullet while preserving inline markup and surrounding paragraph boundaries.
 
 ### Tests
 
@@ -26,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by the resolver regression suite.
 - Expanded packaged MSBuild integration coverage for configuration-scoped clean, generated-output
   preservation, post-clean regeneration, unchanged-build no-op behavior, and aggregate cleanup.
+- Added renderer regression coverage for bullet-list ordering, inline documentation elements,
+  paragraph boundaries, and byte-identical repeated output.
 
 ---
 

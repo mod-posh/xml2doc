@@ -49,6 +49,7 @@ namespace Xml2Doc.Core;
 /// </remarks>
 public sealed class MarkdownRenderer
 {
+    private const char MarkdownListItemMarker = '\uE000';
     private static readonly Encoding MarkdownEncoding =
         new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly Models.Xml2Doc _model;
@@ -1045,7 +1046,10 @@ public sealed class MarkdownRenderer
     /// <param name="element">XML element or null.</param>
     /// <param name="preferCodeBlocks">True to prefer fenced blocks for multi‑line code/examples.</param>
     /// <returns>Markdown string (empty if element is null).</returns>
-    private string NormalizeXmlToMarkdown(XElement? element, bool preferCodeBlocks = false)
+    private string NormalizeXmlToMarkdown(
+        XElement? element,
+        bool preferCodeBlocks = false,
+        bool preserveListItemMarkers = false)
     {
         if (element is null) return string.Empty;
 
@@ -1090,7 +1094,19 @@ public sealed class MarkdownRenderer
                     text.Append($"`{name}`");
                     break;
                 case XElement e when e.Name.LocalName == "para":
-                    text.AppendLine().AppendLine(NormalizeXmlToMarkdown(e)).AppendLine();
+                    text.AppendLine()
+                        .AppendLine(NormalizeXmlToMarkdown(
+                            e,
+                            preserveListItemMarkers: true))
+                        .AppendLine();
+                    break;
+                case XElement e when
+                    e.Name.LocalName == "list" &&
+                    string.Equals(
+                        (string?)e.Attribute("type"),
+                        "bullet",
+                        StringComparison.OrdinalIgnoreCase):
+                    text.AppendLine().AppendLine(RenderBulletList(e)).AppendLine();
                     break;
                 case XElement e when e.Name.LocalName is "c" or "code":
                     var code = e.Value;
@@ -1109,11 +1125,17 @@ public sealed class MarkdownRenderer
         var raw = text.ToString().Replace("\r\n", "\n").Replace("\r", "\n");
         var lines = raw.Split('\n');
         var cleaned = new string[lines.Length];
+        var listItems = new bool[lines.Length];
         var inFence = false;
 
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
+            if (line.Length > 0 && line[0] == MarkdownListItemMarker)
+            {
+                line = line.Substring(1);
+                listItems[i] = true;
+            }
             var ls = line.TrimStart();
             if (ls.StartsWith("```"))
             {
@@ -1124,6 +1146,12 @@ public sealed class MarkdownRenderer
             if (inFence)
             {
                 cleaned[i] = line;
+                continue;
+            }
+
+            if (listItems[i])
+            {
+                cleaned[i] = line.TrimEnd();
                 continue;
             }
 
@@ -1140,6 +1168,7 @@ public sealed class MarkdownRenderer
         var sbOut = new StringBuilder();
         inFence = false;
         bool prevWasBlank = true;
+        bool prevWasListItem = false;
 
         for (int i = 0; i < cleaned.Length; i++)
         {
@@ -1158,6 +1187,7 @@ public sealed class MarkdownRenderer
                 sbOut.Append(line).Append('\n');
                 inFence = !inFence;
                 prevWasBlank = true;
+                prevWasListItem = false;
                 continue;
             }
 
@@ -1173,23 +1203,28 @@ public sealed class MarkdownRenderer
                 if (!prevWasBlank)
                     sbOut.Append('\n').Append('\n');
                 prevWasBlank = true;
+                prevWasListItem = false;
             }
             else
             {
+                var isListItem = listItems[i];
 #if NETSTANDARD2_0
                 if (!prevWasBlank && sbOut.Length > 0 && sbOut[sbOut.Length - 1] != '\n')
-                    sbOut.Append(' ');
+                    sbOut.Append(isListItem || prevWasListItem ? '\n' : ' ');
 #else
                 if (!prevWasBlank && sbOut.Length > 0 && sbOut[^1] != '\n')
-                    sbOut.Append(' ');
+                    sbOut.Append(isListItem || prevWasListItem ? '\n' : ' ');
 #endif
+                if (isListItem && preserveListItemMarkers)
+                    sbOut.Append(MarkdownListItemMarker);
                 sbOut.Append(line);
                 prevWasBlank = false;
+                prevWasListItem = isListItem;
             }
         }
 
         var markdown = sbOut.ToString().Trim('\n');
-        if (!_opt.AutoLink)
+        if (!_opt.AutoLink || preserveListItemMarkers)
             return markdown;
 
         return _autoLinker.Apply(
@@ -1197,6 +1232,42 @@ public sealed class MarkdownRenderer
             _singleFileMode
                 ? _singleFileAutoLinkContext
                 : _perTypeAutoLinkContext);
+    }
+
+    private string RenderBulletList(XElement list)
+    {
+        var renderedItems = list.Elements("item")
+            .Select(item => item.Element("description") ?? item)
+            .Select(description => NormalizeXmlToMarkdown(description))
+            .Where(description => !string.IsNullOrWhiteSpace(description))
+            .Select(description => description
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Trim('\n')
+                .Split('\n'));
+
+        var renderedList = new StringBuilder();
+        foreach (var lines in renderedItems)
+        {
+            var firstLineIsFence = lines[0].TrimStart().StartsWith("```", StringComparison.Ordinal);
+
+            if (renderedList.Length > 0)
+                renderedList.Append('\n');
+
+            renderedList.Append(MarkdownListItemMarker).Append('-');
+            if (!firstLineIsFence)
+                renderedList.Append(' ').Append(lines[0]);
+
+            var continuationStart = firstLineIsFence ? 0 : 1;
+            for (var index = continuationStart; index < lines.Length; index++)
+            {
+                renderedList.Append('\n').Append(MarkdownListItemMarker);
+                if (!string.IsNullOrEmpty(lines[index]))
+                    renderedList.Append("  ").Append(lines[index]);
+            }
+        }
+
+        return renderedList.ToString();
     }
 
     /// <summary>
