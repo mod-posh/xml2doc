@@ -5,6 +5,7 @@ using Xml2Doc.Core.Compat;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Xml2Doc.Core.Models;
@@ -17,6 +18,7 @@ using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Signatures;
 using Xml2Doc.Core.Diagnostics;
 using Xml2Doc.Core.Pipeline;
+using Xml2Doc.Core.Paths;
 
 namespace Xml2Doc.Core;
 
@@ -62,10 +64,13 @@ public sealed class MarkdownRenderer
     private readonly ISignatureRenderer _signatureRenderer;
     private readonly SignatureStyle _signatureStyle;
     private readonly MetadataCollection _callerMetadata;
+    private readonly IDocumentPathResolver _documentPathResolver;
+    private readonly Lazy<DocumentPlan> _documentPlan;
     private readonly HashSet<string> _reportedDiagnostics =
         new(StringComparer.Ordinal);
     private readonly object _diagnosticLock = new();
-    private readonly AutoLinkContext _perTypeAutoLinkContext;
+    private readonly ConcurrentDictionary<string, AutoLinkContext>
+        _perDocumentAutoLinkContexts = new(StringComparer.Ordinal);
     private readonly AutoLinkContext _singleFileAutoLinkContext;
 
     /// <summary>
@@ -131,6 +136,14 @@ public sealed class MarkdownRenderer
                     _opt.FrontMatterPath)
                 : DefaultTemplateRenderer.Instance);
         _autoLinker = _opt.AutoLinker ?? SimpleAutoLinker.Instance;
+        _documentPathResolver = _opt.DocumentPathResolver ??
+            new BuiltInDocumentPathResolver(
+                _opt.Layout,
+                _opt.TrimRootNamespaceInFileNames
+                    ? _opt.RootNamespaceToTrim
+                    : null);
+        _documentPlan = new Lazy<DocumentPlan>(
+            CreateDocumentPlanWithDiagnostics);
         var externalSymbolResolver = _opt.ExternalSymbolResolver ??
             (!string.IsNullOrWhiteSpace(_opt.ExternalDocs)
                 ? new BaseUrlExternalSymbolResolver(_opt.ExternalDocs!)
@@ -138,15 +151,100 @@ public sealed class MarkdownRenderer
         _linkResolver = new DefaultLinkResolver(
             labelFromCref: _signatureRenderer.RenderCrefLabel,
             idToAnchor: IdToAnchor,
-            typeFileName: TypeFileNameForResolver,
+            typeHref: ResolveTypeHref,
             headingSlug: HeadingSlug,
             isKnownCref: IsKnownCref,
             linkPolicy: _opt.LinkPolicy,
             externalSymbolResolver: externalSymbolResolver,
             unresolvedCref: ReportUnresolvedCref);
-        _perTypeAutoLinkContext = BuildAutoLinkContext(singleFile: false);
-        _singleFileAutoLinkContext = BuildAutoLinkContext(singleFile: true);
+        _singleFileAutoLinkContext = BuildAutoLinkContext(
+            singleFile: true,
+            currentDocumentId: null);
     }
+
+    /// <summary>Gets the immutable authoritative multi-document path plan.</summary>
+    public DocumentPlan DocumentPlan => _documentPlan.Value;
+
+    private DocumentPlan CreateDocumentPlanWithDiagnostics()
+    {
+        try
+        {
+            return CreateDocumentPlan();
+        }
+        catch (DocumentPathException exception)
+        {
+            _opt.DiagnosticSink?.Report(new Xml2DocDiagnostic(
+                exception.DiagnosticCode,
+                DiagnosticSeverity.Error,
+                exception.Message));
+            throw;
+        }
+    }
+
+    private DocumentPlan CreateDocumentPlan()
+    {
+        var types = GetTypes()
+            .OrderBy(type => type.Id, StringComparer.Ordinal)
+            .ToList();
+        var documents = new List<DocumentPathContext>();
+
+        foreach (var type in types)
+        {
+            var descriptor = CreateTypeDocumentDescriptor(type);
+            documents.Add(new DocumentPathContext(
+                descriptor,
+                FileNameForPerType(type.Id),
+                FileNameFor(descriptor.Symbol!, _opt.FileNameMode)));
+        }
+
+        if (_opt.GenerateIndex)
+        {
+            documents.Add(new DocumentPathContext(
+                new DocumentDescriptor(
+                    TemplateDocumentKind.Index,
+                    "xml2doc:index"),
+                "index.md",
+                "index.md"));
+        }
+
+        if (_opt.EmitNamespaceIndex)
+        {
+            foreach (var ns in GetDocumentNamespaces(types))
+            {
+                var fileSafe = SafeNamespaceFileName(ns);
+                documents.Add(new DocumentPathContext(
+                    new DocumentDescriptor(
+                        TemplateDocumentKind.NamespaceIndex,
+                        $"N:{ns}",
+                        ns == "(global)" ? null : ns),
+                    $"namespaces/{fileSafe}.md",
+                    fileSafe + ".md"));
+            }
+
+            documents.Add(new DocumentPathContext(
+                new DocumentDescriptor(
+                    TemplateDocumentKind.NamespaceOverview,
+                    "xml2doc:namespaces"),
+                "namespaces.md",
+                "namespaces.md"));
+        }
+
+        return DocumentPlan.Create(documents, _documentPathResolver);
+    }
+
+    private static IReadOnlyList<string> GetDocumentNamespaces(
+        IEnumerable<XMember> types) =>
+        types
+            .Select(type =>
+            {
+                var lastDot = type.Id.LastIndexOf('.');
+                return lastDot > 0
+                    ? type.Id.Substring(0, lastDot)
+                    : "(global)";
+            })
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
 
     // === Public APIs ===
 
@@ -171,6 +269,7 @@ public sealed class MarkdownRenderer
     internal RendererWriteResult RenderToDirectoryWithResult(string outDir)
     {
         var renderingStopwatch = Stopwatch.StartNew();
+        _ = DocumentPlan;
         ValidateAnchors(singleFile: false);
         var __prev = _singleFileMode;
         var writtenFiles = new List<string>();
@@ -203,33 +302,32 @@ public sealed class MarkdownRenderer
             var types = GetTypes()
                 .OrderBy(t => t.Id, StringComparer.Ordinal)
                 .ToList();
-            var typeFiles = types
-                .Select(type =>
-                    CombineOutputPath(outDir, FileNameForPerType(type.Id)))
+            var typeEntries = types
+                .Select(type => DocumentPlan.Get(type.Name))
+                .ToArray();
+            var typeFiles = typeEntries
+                .Select(entry => CombineOutputPath(outDir, entry.Path))
                 .ToArray();
             var typeWasWritten = new bool[types.Count];
-            var pathComparer = Path.DirectorySeparatorChar == '\\'
-                ? StringComparer.OrdinalIgnoreCase
-                : StringComparer.Ordinal;
-            var typeFilesAreUnique =
-                new HashSet<string>(typeFiles, pathComparer).Count ==
-                typeFiles.Length;
 
             void RenderTypeAt(int index)
             {
                 var type = types[index];
-                var logicalPath = FileNameForPerType(type.Id);
+                var entry = typeEntries[index];
                 typeWasWritten[index] = WriteMarkdownFileIfChanged(
                     typeFiles[index],
                     NormalizeLineEndings(ApplyTemplate(
-                        RenderType(type, includeHeader: true),
+                        RenderType(
+                            type,
+                            entry.Document.DocumentId,
+                            includeHeader: true),
                         _signatureRenderer.RenderTypeName(type.Id),
-                        CreateTypeDocumentDescriptor(type),
-                        logicalPath)));
+                        entry.Document,
+                        entry.Path)));
             }
 
             var parallelDegree = _opt.ParallelDegree.GetValueOrDefault(1);
-            if (parallelDegree > 1 && types.Count > 1 && typeFilesAreUnique)
+            if (parallelDegree > 1 && types.Count > 1)
             {
                 Parallel.For(
                     0,
@@ -253,17 +351,21 @@ public sealed class MarkdownRenderer
                     : skippedFiles).Add(typeFiles[index]);
             }
             if (_opt.GenerateIndex)
+            {
+                var entry = DocumentPlan.Get("xml2doc:index");
                 RecordWriteResult(
-                    CombineOutputPath(outDir, "index.md"),
+                    CombineOutputPath(outDir, entry.Path),
                     NormalizeLineEndings(ApplyTemplate(
-                        RenderIndex(types, useAnchors: false),
+                        RenderIndex(
+                            types,
+                            useAnchors: false,
+                            entry.Document.DocumentId),
                         "API Reference",
-                        new DocumentDescriptor(
-                            TemplateDocumentKind.Index,
-                            "xml2doc:index"),
-                        "index.md")),
+                        entry.Document,
+                        entry.Path)),
                     writtenFiles,
                     skippedFiles);
+            }
 
             if (_opt.EmitNamespaceIndex)
             {
@@ -276,53 +378,50 @@ public sealed class MarkdownRenderer
                     (nsMap.TryGetValue(ns, out var list) ? list : nsMap[ns] = new List<XMember>()).Add(t);
                 }
 
-                var nsDir = Path.Combine(outDir, "namespaces");
-                Directory.CreateDirectory(nsDir);
-
                 foreach (var kv in nsMap.OrderBy(k => k.Key, StringComparer.Ordinal))
                 {
                     var ns = kv.Key;
-                    var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
-                    var nsFile = Path.Combine(nsDir, $"{fileSafe}.md");
+                    var entry = DocumentPlan.Get($"N:{ns}");
+                    var nsFile = CombineOutputPath(outDir, entry.Path);
 
                     var sbNs = new StringBuilder();
                     sbNs.AppendLine($"# {ns}");
                     foreach (var t in kv.Value.OrderBy(t => t.Id, StringComparer.Ordinal))
                     {
                         var shortName = _signatureRenderer.RenderTypeName(t.Id);
-                        var perTypeFile = FileNameForPerType(t.Id);
-                        sbNs.AppendLine($"- [{shortName}]({Path.Combine("..", perTypeFile).Replace('\\', '/')})");
+                        var link = DocumentPlan.GetRelativeLink(
+                            entry.Document.DocumentId,
+                            t.Name);
+                        sbNs.AppendLine($"- [{shortName}]({link})");
                     }
                     RecordWriteResult(
                         nsFile,
                         NormalizeLineEndings(ApplyTemplate(
                             sbNs.ToString(),
                             ns,
-                            new DocumentDescriptor(
-                                TemplateDocumentKind.NamespaceIndex,
-                                $"N:{ns}",
-                                ns == "(global)" ? null : ns),
-                            $"namespaces/{fileSafe}.md")),
+                            entry.Document,
+                            entry.Path)),
                         writtenFiles,
                         skippedFiles);
                 }
 
+                var overviewEntry = DocumentPlan.Get("xml2doc:namespaces");
                 var nsIndex = new StringBuilder();
                 nsIndex.AppendLine("# Namespaces");
                 foreach (var ns in nsMap.Keys.OrderBy(s => s, StringComparer.Ordinal))
                 {
-                    var fileSafe = ns == "(global)" ? "_global_" : SafeNamespaceFileName(ns);
-                    nsIndex.AppendLine($"- [{ns}](namespaces/{fileSafe}.md)");
+                    var link = DocumentPlan.GetRelativeLink(
+                        overviewEntry.Document.DocumentId,
+                        $"N:{ns}");
+                    nsIndex.AppendLine($"- [{ns}]({link})");
                 }
                 RecordWriteResult(
-                    CombineOutputPath(outDir, "namespaces.md"),
+                    CombineOutputPath(outDir, overviewEntry.Path),
                     NormalizeLineEndings(ApplyTemplate(
                         nsIndex.ToString(),
                         "Namespaces",
-                        new DocumentDescriptor(
-                            TemplateDocumentKind.NamespaceOverview,
-                            "xml2doc:namespaces"),
-                        "namespaces.md")),
+                        overviewEntry.Document,
+                        overviewEntry.Path)),
                     writtenFiles,
                     skippedFiles);
             }
@@ -437,6 +536,9 @@ public sealed class MarkdownRenderer
             return false;
         }
 
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
         File.WriteAllBytes(path, bytes);
         return true;
     }
@@ -506,7 +608,10 @@ public sealed class MarkdownRenderer
                 .ToList();
             var sb = new StringBuilder();
 
-            sb.Append(RenderIndex(types, useAnchors: true));
+            sb.Append(RenderIndex(
+                types,
+                useAnchors: true,
+                currentDocumentId: null));
             sb.AppendLine();
 
             for (int i = 0; i < types.Count; i++)
@@ -516,7 +621,10 @@ public sealed class MarkdownRenderer
                 sb.AppendLine($"<a id=\"{HeadingSlug(typeDisplay)}\"></a>");
                 sb.AppendLine($"# {typeDisplay}");
                 sb.AppendLine();
-                sb.Append(RenderType(t, includeHeader: false));
+                sb.Append(RenderType(
+                    t,
+                    currentDocumentId: null,
+                    includeHeader: false));
                 if (i < types.Count - 1)
                 {
                     sb.AppendLine();
@@ -642,14 +750,20 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="types">Sequence of type members.</param>
     /// <param name="useAnchors">True to link to in‑document anchors; false for per‑type files.</param>
-    private string RenderIndex(IEnumerable<XMember> types, bool useAnchors = false)
+    /// <param name="currentDocumentId">Current planned document identity for relative links.</param>
+    private string RenderIndex(
+        IEnumerable<XMember> types,
+        bool useAnchors,
+        string? currentDocumentId)
     {
         var sb = new StringBuilder();
         sb.AppendLine("# API Reference");
         foreach (var t in types)
         {
             var shortName = _signatureRenderer.RenderTypeName(t.Id);
-            var link = useAnchors ? $"#{HeadingSlug(shortName)}" : FileNameForPerType(t.Id);
+            var link = useAnchors
+                ? $"#{HeadingSlug(shortName)}"
+                : ResolveTypeHref(t.Name, currentDocumentId);
             sb.AppendLine($"- [{shortName}]({link})");
         }
         return sb.ToString();
@@ -659,8 +773,12 @@ public sealed class MarkdownRenderer
     /// Renders a single type (summary, remarks, examples, see‑also, optional member TOC, members grouped by overload).
     /// </summary>
     /// <param name="type">Type (<c>T:</c>) member.</param>
+    /// <param name="currentDocumentId">Current planned document identity for relative links.</param>
     /// <param name="includeHeader">Emit a top-level heading when true.</param>
-    private string RenderType(XMember type, bool includeHeader = true)
+    private string RenderType(
+        XMember type,
+        string? currentDocumentId,
+        bool includeHeader = true)
     {
         var sb = new StringBuilder();
         var typeDisplay = _signatureRenderer.RenderTypeName(type.Id);
@@ -671,7 +789,9 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        var summary = NormalizeXmlToMarkdown(type.Element.Element("summary"));
+        var summary = NormalizeXmlToMarkdown(
+            type.Element.Element("summary"),
+            currentDocumentId: currentDocumentId);
         if (string.IsNullOrWhiteSpace(summary))
             ReportMissingSummary(type);
         if (!string.IsNullOrWhiteSpace(summary))
@@ -680,7 +800,9 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
         }
 
-        var remarks = NormalizeXmlToMarkdown(type.Element.Element("remarks"));
+        var remarks = NormalizeXmlToMarkdown(
+            type.Element.Element("remarks"),
+            currentDocumentId: currentDocumentId);
         if (!string.IsNullOrWhiteSpace(remarks))
         {
             sb.AppendLine("**Remarks**");
@@ -691,7 +813,10 @@ public sealed class MarkdownRenderer
 
         foreach (var ex in type.Element.Elements("example"))
         {
-            var exText = NormalizeXmlToMarkdown(ex, preferCodeBlocks: true);
+            var exText = NormalizeXmlToMarkdown(
+                ex,
+                preferCodeBlocks: true,
+                currentDocumentId: currentDocumentId);
             if (!string.IsNullOrWhiteSpace(exText))
             {
                 sb.AppendLine("**Example**");
@@ -707,7 +832,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine("**See also**");
             foreach (var sa in seeAlsos)
             {
-                var link = SeeAlsoToMarkdown(sa);
+                var link = SeeAlsoToMarkdown(sa, currentDocumentId);
                 if (!string.IsNullOrWhiteSpace(link))
                     sb.AppendLine($"- {link}");
             }
@@ -758,12 +883,20 @@ public sealed class MarkdownRenderer
             {
                 sb.AppendLine($"## Method: {g.Key}");
                 foreach (var mem in g)
-                    RenderMember(mem, sb, asOverload: true);
+                    RenderMember(
+                        mem,
+                        sb,
+                        currentDocumentId,
+                        asOverload: true);
                 sb.AppendLine();
             }
             else
             {
-                RenderMember(g.First(), sb, asOverload: false);
+                RenderMember(
+                    g.First(),
+                    sb,
+                    currentDocumentId,
+                    asOverload: false);
             }
         }
 
@@ -789,41 +922,9 @@ public sealed class MarkdownRenderer
         }
 
         var root = Path.GetFullPath(outDir);
-        var list = new List<string>();
-
-        var types = GetTypes().OrderBy(t => t.Id, StringComparer.Ordinal).ToList();
-        foreach (var t in types)
-        {
-            var name = FileNameForPerType(t.Id);
-            list.Add(CombineOutputPath(root, name));
-        }
-
-        if (_opt.GenerateIndex)
-            list.Add(Path.Combine(root, "index.md"));
-
-        if (_opt.EmitNamespaceIndex)
-        {
-            var nsDir = Path.Combine(root, "namespaces");
-            var nsSet = new SortedSet<string>(StringComparer.Ordinal);
-
-            foreach (var t in types)
-            {
-                var id = t.Id;
-                var lastDot = id.LastIndexOf('.');
-                var ns = lastDot > 0 ? id.Substring(0, lastDot) : "(global)";
-                nsSet.Add(ns);
-            }
-
-            foreach (var ns in nsSet)
-            {
-                var fileSafe = SafeNamespaceFileName(ns);
-                list.Add(Path.Combine(nsDir, fileSafe + ".md"));
-            }
-
-            list.Add(Path.Combine(root, "namespaces.md"));
-        }
-
-        return list;
+        return DocumentPlan
+            .Select(entry => CombineOutputPath(root, entry.Path))
+            .ToArray();
     }
 
     private static IReadOnlyList<string> GetOutputRootRelativePaths(
@@ -853,7 +954,9 @@ public sealed class MarkdownRenderer
                         "A planned renderer output is outside the output root.");
                 }
 
-                return fullPath.Substring(rootWithSeparator.Length);
+                return fullPath
+                    .Substring(rootWithSeparator.Length)
+                    .Replace('\\', '/');
             })
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
@@ -903,23 +1006,28 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Returns a Markdown link for a cref value (type or member).
     /// </summary>
-    private string CrefToMarkdown(string? cref)
+    private string CrefToMarkdown(
+        string? cref,
+        string? currentDocumentId)
     {
         var sb = new StringBuilder();
-        CrefToMarkdown(sb, cref);
+        CrefToMarkdown(sb, cref, currentDocumentId);
         return sb.ToString();
     }
 
     /// <summary>
     /// Appends a Markdown link for a cref to a <see cref="StringBuilder"/> using the configured resolver.
     /// </summary>
-    private void CrefToMarkdown(StringBuilder sb, string? cref)
+    private void CrefToMarkdown(
+        StringBuilder sb,
+        string? cref,
+        string? currentDocumentId)
     {
         var safeCref = string.IsNullOrWhiteSpace(cref) ? string.Empty : cref!;
         var link = _linkResolver.Resolve(
             safeCref,
             new LinkContext(
-                CurrentTypeId: null,
+                CurrentTypeId: currentDocumentId,
                 SingleFile: _singleFileMode,
                 BasePath: null));
 
@@ -1025,7 +1133,9 @@ public sealed class MarkdownRenderer
         return separator >= 0 ? head.Substring(0, separator) : head;
     }
 
-    private AutoLinkContext BuildAutoLinkContext(bool singleFile)
+    private AutoLinkContext BuildAutoLinkContext(
+        bool singleFile,
+        string? currentDocumentId)
     {
         if (!_opt.AutoLink)
             return new AutoLinkContext(Array.Empty<AutoLinkTarget>());
@@ -1038,7 +1148,7 @@ public sealed class MarkdownRenderer
                 var link = _linkResolver.Resolve(
                     cref,
                     new LinkContext(
-                        CurrentTypeId: null,
+                        CurrentTypeId: currentDocumentId,
                         SingleFile: singleFile,
                         BasePath: null));
                 return new AutoLinkTarget(link.Label, link.Href);
@@ -1119,25 +1229,61 @@ public sealed class MarkdownRenderer
     /// <summary>
     /// Converts a <c>&lt;seealso&gt;</c> element to Markdown (cref, href, or inner text).
     /// </summary>
-    private string SeeAlsoToMarkdown(XElement sa)
+    private string SeeAlsoToMarkdown(
+        XElement sa,
+        string? currentDocumentId)
     {
         var cref = (string?)sa.Attribute("cref");
         if (!string.IsNullOrWhiteSpace(cref))
-            return CrefToMarkdown(cref);
+            return CrefToMarkdown(cref, currentDocumentId);
         var href = (string?)sa.Attribute("href");
         if (!string.IsNullOrWhiteSpace(href))
             return $"[{sa.Value}]({href})";
-        return NormalizeXmlToMarkdown(sa);
+        return NormalizeXmlToMarkdown(
+            sa,
+            currentDocumentId: currentDocumentId);
     }
 
     /// <summary>
     /// Produces the per‑type output filename for a cref (normalizes nested type separators then applies renderer rules).
     /// </summary>
-    private string TypeFileNameForResolver(string typeCref)
+    private string ResolveTypeHref(
+        string typeCref,
+        string? currentDocumentId)
     {
         var id = typeCref.StartsWith("T:") ? typeCref.Substring(2) : typeCref;
         id = id.Replace('+', '.');
-        return FileNameForPerType(id);
+        var documentId = "T:" + id;
+        string targetPath;
+        if (DocumentPlan.TryGet(documentId, out var target))
+        {
+            targetPath = target!.Path;
+        }
+        else
+        {
+            var lastDot = id.LastIndexOf('.');
+            var descriptor = new DocumentDescriptor(
+                TemplateDocumentKind.Type,
+                documentId,
+                lastDot > 0 ? id.Substring(0, lastDot) : null,
+                lastDot >= 0 ? id.Substring(lastDot + 1) : id);
+            var context = new DocumentPathContext(
+                descriptor,
+                FileNameForPerType(id),
+                FileNameFor(descriptor.Symbol!, _opt.FileNameMode));
+            targetPath = _opt.DocumentPathResolver is null
+                ? _documentPathResolver.GetPath(context)
+                : context.DefaultPath;
+            DocumentPlan.ValidateLogicalPath(targetPath, documentId);
+        }
+
+        if (string.IsNullOrWhiteSpace(currentDocumentId) ||
+            !DocumentPlan.TryGet(currentDocumentId!, out var source))
+        {
+            return targetPath;
+        }
+
+        return DocumentPlan.GetRelativeLink(source!.Path, targetPath);
     }
 
     // === XML → Markdown normalization ===
@@ -1147,11 +1293,14 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="element">XML element or null.</param>
     /// <param name="preferCodeBlocks">True to prefer fenced blocks for multi‑line code/examples.</param>
+    /// <param name="preserveListItemMarkers">Preserves internal bullet-list continuation markers.</param>
+    /// <param name="currentDocumentId">Current planned document identity for relative links.</param>
     /// <returns>Markdown string (empty if element is null).</returns>
     private string NormalizeXmlToMarkdown(
         XElement? element,
         bool preferCodeBlocks = false,
-        bool preserveListItemMarkers = false)
+        bool preserveListItemMarkers = false,
+        string? currentDocumentId = null)
     {
         if (element is null) return string.Empty;
 
@@ -1176,7 +1325,7 @@ public sealed class MarkdownRenderer
                 case XElement e when e.Name.LocalName == "see":
                     var cref = (string?)e.Attribute("cref");
                     if (!string.IsNullOrWhiteSpace(cref))
-                        text.Append(CrefToMarkdown(cref));
+                        text.Append(CrefToMarkdown(cref, currentDocumentId));
                     else
                     {
                         var href = (string?)e.Attribute("href");
@@ -1196,10 +1345,11 @@ public sealed class MarkdownRenderer
                     text.Append($"`{name}`");
                     break;
                 case XElement e when e.Name.LocalName == "para":
-                    text.AppendLine()
+                        text.AppendLine()
                         .AppendLine(NormalizeXmlToMarkdown(
                             e,
-                            preserveListItemMarkers: true))
+                            preserveListItemMarkers: true,
+                            currentDocumentId: currentDocumentId))
                         .AppendLine();
                     break;
                 case XElement e when
@@ -1208,7 +1358,9 @@ public sealed class MarkdownRenderer
                         (string?)e.Attribute("type"),
                         "bullet",
                         StringComparison.OrdinalIgnoreCase):
-                    text.AppendLine().AppendLine(RenderBulletList(e)).AppendLine();
+                    text.AppendLine()
+                        .AppendLine(RenderBulletList(e, currentDocumentId))
+                        .AppendLine();
                     break;
                 case XElement e when e.Name.LocalName is "c" or "code":
                     var code = e.Value;
@@ -1329,18 +1481,29 @@ public sealed class MarkdownRenderer
         if (!_opt.AutoLink || preserveListItemMarkers)
             return markdown;
 
-        return _autoLinker.Apply(
-            markdown,
-            _singleFileMode
-                ? _singleFileAutoLinkContext
-                : _perTypeAutoLinkContext);
+        var autoLinkContext = _singleFileMode
+            ? _singleFileAutoLinkContext
+            : string.IsNullOrWhiteSpace(currentDocumentId)
+                ? BuildAutoLinkContext(
+                    singleFile: false,
+                    currentDocumentId: null)
+                : _perDocumentAutoLinkContexts.GetOrAdd(
+                    currentDocumentId!,
+                    id => BuildAutoLinkContext(
+                        singleFile: false,
+                        currentDocumentId: id));
+        return _autoLinker.Apply(markdown, autoLinkContext);
     }
 
-    private string RenderBulletList(XElement list)
+    private string RenderBulletList(
+        XElement list,
+        string? currentDocumentId)
     {
         var renderedItems = list.Elements("item")
             .Select(item => item.Element("description") ?? item)
-            .Select(description => NormalizeXmlToMarkdown(description))
+            .Select(description => NormalizeXmlToMarkdown(
+                description,
+                currentDocumentId: currentDocumentId))
             .Where(description => !string.IsNullOrWhiteSpace(description))
             .Select(description => description
                 .Replace("\r\n", "\n")
@@ -1377,8 +1540,13 @@ public sealed class MarkdownRenderer
     /// </summary>
     /// <param name="m">Member to render.</param>
     /// <param name="sb">Destination builder.</param>
+    /// <param name="currentDocumentId">Current planned document identity for relative links.</param>
     /// <param name="asOverload">True to render as a bullet under an overload group; false for a full section.</param>
-    private void RenderMember(XMember m, StringBuilder sb, bool asOverload)
+    private void RenderMember(
+        XMember m,
+        StringBuilder sb,
+        string? currentDocumentId,
+        bool asOverload)
     {
         // Resolve inheritance into a per-render copy. Mutating the source model would
         // make an implementation rendered earlier eligible as a later inheritance
@@ -1409,13 +1577,17 @@ public sealed class MarkdownRenderer
         else
             sb.AppendLine($"## {_signatureRenderer.RenderMemberHeader(m, _signatureStyle)}");
 
-        var ms = NormalizeXmlToMarkdown(memberElement.Element("summary"));
+        var ms = NormalizeXmlToMarkdown(
+            memberElement.Element("summary"),
+            currentDocumentId: currentDocumentId);
         if (string.IsNullOrWhiteSpace(ms))
             ReportMissingSummary(m);
         if (!string.IsNullOrWhiteSpace(ms))
             sb.AppendLine(ms);
 
-        var remarks = NormalizeXmlToMarkdown(memberElement.Element("remarks"));
+        var remarks = NormalizeXmlToMarkdown(
+            memberElement.Element("remarks"),
+            currentDocumentId: currentDocumentId);
         if (!string.IsNullOrWhiteSpace(remarks))
         {
             sb.AppendLine();
@@ -1432,7 +1604,9 @@ public sealed class MarkdownRenderer
             foreach (var typeParameter in typeParameters)
             {
                 var name = (string?)typeParameter.Attribute("name") ?? "";
-                var text = NormalizeXmlToMarkdown(typeParameter);
+                var text = NormalizeXmlToMarkdown(
+                    typeParameter,
+                    currentDocumentId: currentDocumentId);
                 sb.AppendLine($"- `{name}` — {text}");
             }
         }
@@ -1445,7 +1619,9 @@ public sealed class MarkdownRenderer
             foreach (var p in ps)
             {
                 var name = (string?)p.Attribute("name") ?? "";
-                var text = NormalizeXmlToMarkdown(p);
+                var text = NormalizeXmlToMarkdown(
+                    p,
+                    currentDocumentId: currentDocumentId);
                 sb.AppendLine($"- `{name}` — {text}");
             }
         }
@@ -1456,7 +1632,9 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
             sb.AppendLine("**Returns**");
             sb.AppendLine();
-            sb.AppendLine(NormalizeXmlToMarkdown(ret));
+            sb.AppendLine(NormalizeXmlToMarkdown(
+                ret,
+                currentDocumentId: currentDocumentId));
         }
 
         var value = memberElement.Element("value");
@@ -1465,7 +1643,9 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
             sb.AppendLine("**Value**");
             sb.AppendLine();
-            sb.AppendLine(NormalizeXmlToMarkdown(value));
+            sb.AppendLine(NormalizeXmlToMarkdown(
+                value,
+                currentDocumentId: currentDocumentId));
         }
 
         var exTags = memberElement.Elements("exception").ToList();
@@ -1476,8 +1656,10 @@ public sealed class MarkdownRenderer
             foreach (var e in exTags)
             {
                 var cref = (string?)e.Attribute("cref");
-                var desc = NormalizeXmlToMarkdown(e);
-                var link = CrefToMarkdown(cref);
+                var desc = NormalizeXmlToMarkdown(
+                    e,
+                    currentDocumentId: currentDocumentId);
+                var link = CrefToMarkdown(cref, currentDocumentId);
                 sb.AppendLine($"- {link} — {desc}");
             }
         }
@@ -1488,7 +1670,10 @@ public sealed class MarkdownRenderer
             sb.AppendLine();
             foreach (var ex in examples)
             {
-                var exMd = NormalizeXmlToMarkdown(ex, preferCodeBlocks: true);
+                var exMd = NormalizeXmlToMarkdown(
+                    ex,
+                    preferCodeBlocks: true,
+                    currentDocumentId: currentDocumentId);
                 if (!string.IsNullOrWhiteSpace(exMd))
                 {
                     sb.AppendLine("**Example**");
@@ -1505,7 +1690,7 @@ public sealed class MarkdownRenderer
             sb.AppendLine("**See also**");
             foreach (var sa in memberSeeAlsos)
             {
-                var link = SeeAlsoToMarkdown(sa);
+                var link = SeeAlsoToMarkdown(sa, currentDocumentId);
                 if (!string.IsNullOrWhiteSpace(link))
                     sb.AppendLine($"- {link}");
             }

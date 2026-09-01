@@ -77,6 +77,7 @@ The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2
 | `Xml2Doc_ParallelDegree` | `1` | Maximum concurrent per-type renders. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. `lf` is deterministic across hosts. |
 | `Xml2Doc_MetadataFile` | Empty | JSON object containing generic scalar/list caller metadata. |
+| `Xml2Doc_Layout` | `flat` | Multi-document layout: `flat` or `namespace-folders`. |
 | `Xml2Doc_PruneStaleFiles` | `false` | Removes stale files previously owned by the same invocation. Per-type mode only. |
 | `Xml2Doc_ManifestIdentity` | Empty | Stable identity required when pruning is enabled. |
 | `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path for normal project generation. |
@@ -282,6 +283,7 @@ One XML input uses the compatible single-input loading path. Two or more primary
 | `--prune-stale` | Remove stale output owned by the selected manifest identity. Directory output only. |
 | `--manifest-id <identity>` | Stable ownership identity used with pruning. |
 | `--line-endings <style>` | `lf`, `crlf`, or `native`. |
+| `--layout <mode>` | Multi-document layout: `flat` or `namespace-folders`. |
 | `--report <path>` | Write a JSON execution report. |
 | `--dry-run` | Plan without writing output. |
 | `--diff` | Compare generated output with current files without modifying them. |
@@ -307,7 +309,8 @@ One XML input uses the compatible single-input loading path. Two or more primary
     "tags": ["api", "stable"],
     "version": "2.4.0"
   },
-  "LineEndings": "lf"
+  "LineEndings": "lf",
+  "Layout": "namespace-folders"
 }
 ```
 
@@ -332,6 +335,8 @@ Xml2Doc uses stable diagnostic identifiers:
 | `XML2DOC005` | Unresolved `<inheritdoc />` target. |
 | `XML2DOC006` | Multiple primary XML inputs define the same documentation member. |
 | `XML2DOC007` | Multiple MSBuild projects claim the same generated aggregate index. |
+| `XML2DOC008` | A document path resolver returned an unsafe or non-canonical path. |
+| `XML2DOC009` | Multiple documents resolve to the same case-insensitive logical path. |
 
 CLI diagnostics use the stable format `xml2doc <severity> <code>: <message>`. Warnings do not fail generation; diagnostic errors return exit code `2`. MSBuild maps diagnostics to normal warning/error logging.
 
@@ -360,6 +365,7 @@ Core consumers can replace individual rendering services through `RendererOption
 - `IAliasProvider`
 - `ITemplateRenderer`
 - `IAutoLinker`
+- `IDocumentPathResolver`
 - `IExternalSymbolResolver`
 - `ISignatureRenderer`
 - `SignatureStyle`
@@ -400,6 +406,21 @@ them, while Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, an
 win collisions whenever caller metadata participates in the merge. Without caller metadata,
 existing programmatic front-matter output remains unchanged. The existing literal
 `FrontMatterPath`/`--front-matter` mode remains unchanged and cannot be combined with caller metadata.
+
+### Document output layouts
+
+Multi-document output is planned once in Core before rendering. The default `flat` layout preserves
+the existing type, index, and namespace paths. The opt-in `namespace-folders` layout places type
+pages and namespace indexes beneath `namespaces/<namespace>/`, while keeping the primary index and
+namespace overview at the output root. Links, templates, dry-run plans, reports, ownership
+manifests, pruning, and physical writes all consume this same authoritative plan.
+
+Core callers can supply an `IDocumentPathResolver` through
+`RendererOptions.DocumentPathResolver`; `RendererOptions.Layout` selects a built-in resolver when
+no custom resolver is supplied. Resolvers return canonical output-root-relative paths using `/`.
+Rooted paths, traversal, backslashes, empty segments, and case-insensitive collisions are rejected
+before any output or manifest is written. CLI and MSBuild expose only the named built-in layouts.
+Single-file output is unaffected.
 
 ## Troubleshooting
 

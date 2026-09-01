@@ -103,10 +103,25 @@ Reference members are available to `<inheritdoc />` and reference resolution but
 - `SignatureRenderer`
 - `DiagnosticSink`
 - `Metadata`
+- `Layout`
+- `DocumentPathResolver`
 
 `FileNameMode`, `AnchorAlgorithm`, and `LineEndings` use the `FileNameMode`, `AnchorAlgorithm`, and `LineEndingStyle` enums respectively. Single-file output is selected through `MarkdownRenderer.RenderToSingleFile(...)` or `RendererRunMode.SingleFile`; it is not a `RendererOptions` property.
 
 Built-in and consumer-provided rendering services use the same renderer pipeline.
+
+## Document paths and layouts
+
+`MarkdownRenderer.DocumentPlan` exposes the immutable authoritative multi-document plan used for
+rendering, links, output planning, manifests, pruning, and writes. `DocumentLayout.Flat` is the
+compatible default. `DocumentLayout.NamespaceFolders` places type pages and namespace indexes in
+deterministic namespace directories.
+
+Core consumers can implement `IDocumentPathResolver` and supply it through
+`RendererOptions.DocumentPathResolver`. Resolvers select paths only; Core derives relative links
+from the resolved source and destination paths. Logical paths must be canonical, relative, and use
+`/`. Unsafe paths fail with `XML2DOC008`, and case-insensitive collisions fail with `XML2DOC009`,
+before output is written. Layout selection does not affect single-file output.
 
 ## Per-document metadata
 

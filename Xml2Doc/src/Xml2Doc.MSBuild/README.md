@@ -78,6 +78,7 @@ Projects that contribute compiler XML must enable:
 | `Xml2Doc_ManifestIdentity` | Empty | Stable identity required for stale pruning. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. |
 | `Xml2Doc_MetadataFile` | Empty | JSON object containing generic scalar/list caller metadata. |
+| `Xml2Doc_Layout` | `flat` | Multi-document layout: `flat` or `namespace-folders`. |
 | `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path. |
 | `Xml2Doc_ReportIncludeTimestamp` | `false` | Include a report timestamp. |
 | `Xml2Doc_DryRun` | `false` | Plan without writing Markdown. |

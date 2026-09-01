@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   object; matching CLI keys take precedence.
 - MSBuild supports a shared `Xml2Doc_MetadataFile` JSON object for normal and aggregate generation,
   with metadata content participating in incremental fingerprints.
+- Core exposes an immutable authoritative `DocumentPlan` and pluggable `IDocumentPathResolver` for
+  multi-document output, with built-in `Flat` and `NamespaceFolders` layouts.
+- CLI `--layout`/JSON `Layout` and MSBuild `Xml2Doc_Layout` select supported built-in layouts.
+
+### Changed
+
+- Rendering, links, dry-run plans, reports, manifests, pruning, and writes now consume the same
+  validated document path plan.
 
 ### Compatibility
 
@@ -32,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Xml2Doc identifies type documents without inferring unavailable CLR declaration kinds such as
   class, interface, record, struct, or enum.
 - Literal `FrontMatterPath` behavior remains unchanged and is kept separate from metadata merging.
+- The default flat layout preserves existing paths and Markdown, and single-file output is
+  unaffected. Unsafe, non-canonical, and case-insensitively colliding custom paths fail before
+  output is written with `XML2DOC008` or `XML2DOC009`.
 
 ### Tests
 
@@ -40,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added parity coverage proving templates and front-matter providers receive the same context.
 - Added Core, CLI, MSBuild task, packaged-consumer, and aggregate coverage for caller metadata,
   collision precedence, immutable snapshots, supported value shapes, and incremental regeneration.
+- Added path-plan coverage for nested layout links, plan/write agreement, invalid paths,
+  case-insensitive collisions, host configuration, and incremental fingerprints.
 
 ---
 

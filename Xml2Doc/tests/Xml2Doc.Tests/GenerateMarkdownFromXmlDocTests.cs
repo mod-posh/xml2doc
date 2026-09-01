@@ -125,6 +125,43 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void Layout_WhenInvalid_FailsBeforeWriting()
+        {
+            var outDir = CreateOutputDirectory();
+            var task = CreateTask(outDir);
+            task.Layout = "invalid";
+
+            task.Execute().ShouldBeFalse();
+
+            task.DidWork.ShouldBeFalse();
+            Directory.Exists(outDir).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void NamespaceFolders_WritesNestedTypePages()
+        {
+            var outDir = CreateOutputDirectory();
+            try
+            {
+                var task = CreateTask(outDir);
+                task.Layout = "namespace-folders";
+
+                task.Execute().ShouldBeTrue();
+
+                task.GeneratedFiles.ShouldContain(item =>
+                    item.ItemSpec.Contains(
+                        Path.DirectorySeparatorChar + "namespaces" +
+                        Path.DirectorySeparatorChar,
+                        StringComparison.Ordinal));
+            }
+            finally
+            {
+                if (Directory.Exists(outDir))
+                    Directory.Delete(outDir, recursive: true);
+            }
+        }
+
+        [Fact]
         public void MetadataFile_EmitsCallerAndDocumentFrontMatter()
         {
             var root = CreateOutputDirectory();
@@ -327,16 +364,22 @@ namespace Xml2Doc.Tests
                 .Single().Value.ShouldBe("1");
             props.Descendants("Xml2Doc_MetadataFile")
                 .Single().Value.ShouldBeEmpty();
+            props.Descendants("Xml2Doc_Layout")
+                .Single().Value.ShouldBe("flat");
             targets.Descendants("_Xml2Doc_NativeLineEndingToken")
                 .Single().Value.ShouldContain("Environment]::NewLine.Length");
             targets.Descendants("_Xml2Doc_Options")
                 .Single().Value.ShouldContain("$(_Xml2Doc_NativeLineEndingToken)");
             taskElement.Attribute("LineEndings")!.Value
                 .ShouldBe("$(Xml2Doc_LineEndings)");
+            taskElement.Attribute("Layout")!.Value
+                .ShouldBe("$(Xml2Doc_Layout)");
             taskElement.Attribute("ParallelDegree")!.Value
                 .ShouldBe("$(Xml2Doc_ParallelDegree)");
             targets.Descendants("_Xml2Doc_Options")
                 .Single().Value.ShouldContain("$(Xml2Doc_ParallelDegree)");
+            targets.Descendants("_Xml2Doc_Options")
+                .Single().Value.ShouldContain("$(Xml2Doc_Layout)");
             targets.Descendants("_Xml2Doc_Options")
                 .Single().Value.ShouldContain("$(_Xml2Doc_MetadataHash)");
             taskElement.Attribute("MetadataFile")!.Value

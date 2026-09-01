@@ -10,7 +10,7 @@ namespace Xml2Doc.Core.Linking
     {
         private readonly Func<string, string> _labelFromCref;
         private readonly Func<string, string> _idToAnchor;
-        private readonly Func<string, string> _typeFileName;
+        private readonly Func<string, string?, string> _typeHref;
         private readonly Func<string, string> _headingSlug;
         private readonly Func<string, bool> _isKnownCref;
         private readonly LinkPolicy _linkPolicy;
@@ -20,7 +20,7 @@ namespace Xml2Doc.Core.Linking
         internal DefaultLinkResolver(
             Func<string, string> labelFromCref,
             Func<string, string> idToAnchor,
-            Func<string, string> typeFileName,
+            Func<string, string?, string> typeHref,
             Func<string, string> headingSlug,
             Func<string, bool> isKnownCref,
             LinkPolicy linkPolicy,
@@ -29,7 +29,7 @@ namespace Xml2Doc.Core.Linking
         {
             _labelFromCref = labelFromCref ?? throw new ArgumentNullException(nameof(labelFromCref));
             _idToAnchor = idToAnchor ?? throw new ArgumentNullException(nameof(idToAnchor));
-            _typeFileName = typeFileName ?? throw new ArgumentNullException(nameof(typeFileName));
+            _typeHref = typeHref ?? throw new ArgumentNullException(nameof(typeHref));
             _headingSlug = headingSlug ?? throw new ArgumentNullException(nameof(headingSlug));
             _isKnownCref = isKnownCref ?? throw new ArgumentNullException(nameof(isKnownCref));
             _linkPolicy = linkPolicy;
@@ -76,12 +76,14 @@ namespace Xml2Doc.Core.Linking
             {
                 if (kind == 'T')
                 {
-                    href = PrefixBase(ctx.BasePath, _typeFileName(cref));
+                    href = PrefixBase(
+                        ctx.BasePath,
+                        _typeHref(cref, ctx.CurrentTypeId));
                 }
                 else
                 {
                     var typeId = ContainingTypeId(cref);
-                    href = $"{PrefixBase(ctx.BasePath, _typeFileName(typeId))}#{_idToAnchor(idPortion)}";
+                    href = $"{PrefixBase(ctx.BasePath, _typeHref(typeId, ctx.CurrentTypeId))}#{_idToAnchor(idPortion)}";
                 }
             }
 

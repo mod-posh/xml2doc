@@ -83,6 +83,7 @@ If two primary inputs define the same XML documentation member, generation fails
 | `--prune-stale` | Remove stale files owned by the selected manifest identity. Directory output only. |
 | `--manifest-id <identity>` | Stable ownership identity required with `--prune-stale`. |
 | `--line-endings <style>` | `lf` (default), `crlf`, or `native`. |
+| `--layout <mode>` | `flat` (default) or `namespace-folders`. |
 | `--report <path>` | Write a JSON execution report. |
 | `--dry-run` | Plan output without writing Markdown. |
 | `--diff` | Compare generated output with current files without modifying them. |
@@ -143,7 +144,7 @@ Run a configuration file with:
 xml2doc --config .\xml2doc.json
 ```
 
-Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `Metadata`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, and `LineEndings`.
+Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `Metadata`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, `LineEndings`, and `Layout`.
 
 Repeated `--metadata key=value` arguments override matching keys from the JSON `Metadata` object.
 Caller metadata produces deterministic YAML front matter containing Core-derived `documentId`,

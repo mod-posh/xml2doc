@@ -6,6 +6,7 @@ using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.Signatures;
 using Xml2Doc.Core.Diagnostics;
+using Xml2Doc.Core.Paths;
 
 namespace Xml2Doc.Core
 {
@@ -182,6 +183,13 @@ namespace Xml2Doc.Core
     /// Optional generic caller metadata copied when the renderer is constructed. Supplying values
     /// emits deterministic YAML front matter merged with authoritative document metadata.
     /// </param>
+    /// <param name="Layout">
+    /// Built-in multi-document output layout. The default preserves existing flat paths.
+    /// </param>
+    /// <param name="DocumentPathResolver">
+    /// Optional programmatic document path resolver. When supplied, it replaces
+    /// <paramref name="Layout"/> for multi-document output.
+    /// </param>
     /// <remarks>
     /// Example:
     /// <code><![CDATA[
@@ -239,9 +247,81 @@ namespace Xml2Doc.Core
         SignatureStyle? SignatureStyle = null,
         ISignatureRenderer? SignatureRenderer = null,
         IDiagnosticSink? DiagnosticSink = null,
-        IReadOnlyDictionary<string, object?>? Metadata = null
+        IReadOnlyDictionary<string, object?>? Metadata = null,
+        DocumentLayout Layout = DocumentLayout.Flat,
+        IDocumentPathResolver? DocumentPathResolver = null
     )
     {
+        /// <summary>
+        /// Preserves the constructor signature published with caller metadata.
+        /// </summary>
+        public RendererOptions(
+            FileNameMode FileNameMode,
+            string? RootNamespaceToTrim,
+            string CodeBlockLanguage,
+            bool TrimRootNamespaceInFileNames,
+            AnchorAlgorithm AnchorAlgorithm,
+            string? TemplatePath,
+            string? FrontMatterPath,
+            bool AutoLink,
+            string? AliasMapPath,
+            string? ExternalDocs,
+            bool EmitToc,
+            bool EmitNamespaceIndex,
+            bool BasenameOnly,
+            int? ParallelDegree,
+            bool GenerateIndex,
+            bool PruneStaleFiles,
+            string? ManifestIdentity,
+            LineEndingStyle LineEndings,
+            Action<string>? WarningSink,
+            IAliasProvider? AliasProvider,
+            IAnchorGenerator? AnchorGenerator,
+            ITemplateRenderer? TemplateRenderer,
+            Func<TemplateRenderContext, IReadOnlyDictionary<string, object?>>? FrontMatter,
+            IAutoLinker? AutoLinker,
+            LinkPolicy LinkPolicy,
+            IExternalSymbolResolver? ExternalSymbolResolver,
+            SignatureStyle? SignatureStyle,
+            ISignatureRenderer? SignatureRenderer,
+            IDiagnosticSink? DiagnosticSink,
+            IReadOnlyDictionary<string, object?>? Metadata)
+            : this(
+                FileNameMode,
+                RootNamespaceToTrim,
+                CodeBlockLanguage,
+                TrimRootNamespaceInFileNames,
+                AnchorAlgorithm,
+                TemplatePath,
+                FrontMatterPath,
+                AutoLink,
+                AliasMapPath,
+                ExternalDocs,
+                EmitToc,
+                EmitNamespaceIndex,
+                BasenameOnly,
+                ParallelDegree,
+                GenerateIndex,
+                PruneStaleFiles,
+                ManifestIdentity,
+                LineEndings,
+                WarningSink,
+                AliasProvider,
+                AnchorGenerator,
+                TemplateRenderer,
+                FrontMatter,
+                AutoLinker,
+                LinkPolicy,
+                ExternalSymbolResolver,
+                SignatureStyle,
+                SignatureRenderer,
+                DiagnosticSink,
+                Metadata,
+                Layout: DocumentLayout.Flat,
+                DocumentPathResolver: null)
+        {
+        }
+
         /// <summary>
         /// Preserves the constructor signature published with structured diagnostics.
         /// </summary>
@@ -305,7 +385,9 @@ namespace Xml2Doc.Core
                 SignatureStyle,
                 SignatureRenderer,
                 DiagnosticSink,
-                Metadata: null)
+                Metadata: null,
+                Layout: DocumentLayout.Flat,
+                DocumentPathResolver: null)
         {
         }
 
