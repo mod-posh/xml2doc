@@ -135,8 +135,10 @@ Implementation sequence and dependencies:
 
 Architecture and quality notes:
 
-- Begin the milestone with an ADR covering the document metadata/context model and host parity.
-- Treat #117 as a distinct architectural decision because path generation and link routing are part of the public output contract.
+- [ADR-014](docs/adr/ADR-014-deterministic-document-metadata.md) defines the proposed document
+  metadata/context model and host-parity boundary for #115 and #116.
+- [ADR-015](docs/adr/ADR-015-authoritative-document-paths.md) defines the proposed authoritative
+  path plan for #117 because path generation and link routing are part of the public output contract.
 - Keep all rendering, metadata composition, document identity, path planning, and link-resolution behavior in Core.
 - CLI and MSBuild must expose shared Core capabilities without duplicating rendering behavior.
 - Preserve the existing flat layout and existing template/front-matter behavior as backward-compatible defaults.
@@ -146,7 +148,8 @@ Milestone preparation:
 
 - [ ] Create the `2.4.0` milestone.
 - [ ] Assign #115, #116, and #117 to `2.4.0`.
-- [ ] Draft and accept the required ADRs before implementation.
+- [x] Draft the required metadata and path/layout ADRs.
+- [x] Review and accept the required ADRs before implementation.
 - [ ] Implement issues in dependency order: #115, #116, #117.
 - [ ] Update the roadmap, API documentation, README examples, and migration guidance.
 - [ ] Prepare `VersionPrefix` for `2.4.0`.
