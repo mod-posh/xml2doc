@@ -149,7 +149,7 @@ Milestone preparation:
 - [ ] Create the `2.4.0` milestone.
 - [ ] Assign #115, #116, and #117 to `2.4.0`.
 - [x] Draft the required metadata and path/layout ADRs.
-- [ ] Review and accept the required ADRs before implementation.
+- [x] Review and accept the required ADRs before implementation.
 - [ ] Implement issues in dependency order: #115, #116, #117.
 - [ ] Update the roadmap, API documentation, README examples, and migration guidance.
 - [ ] Prepare `VersionPrefix` for `2.4.0`.
