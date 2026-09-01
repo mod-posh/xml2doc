@@ -71,6 +71,7 @@ namespace Xml2Doc.Cli
             "--anchor-algorithm",
             "--template",
             "--front-matter",
+            "--metadata",
             "--alias-map",
             "--external-docs",
             "--parallel",
@@ -133,6 +134,7 @@ namespace Xml2Doc.Cli
             bool anchorAlgorithmSpecified = false;
             string? templatePath = null;
             string? frontMatterPath = null;
+            var metadataValues = new Dictionary<string, object?>(StringComparer.Ordinal);
             bool autoLink = false;
             string? aliasMapPath = null;
             string? externalDocs = null;
@@ -180,6 +182,18 @@ namespace Xml2Doc.Cli
                         break;
                     case "--template" when i + 1 < args.Length: templatePath = args[++i]; break;
                     case "--front-matter" when i + 1 < args.Length: frontMatterPath = args[++i]; break;
+                    case "--metadata" when i + 1 < args.Length:
+                        var metadataArgument = args[++i];
+                        var separator = metadataArgument.IndexOf('=');
+                        if (separator <= 0)
+                        {
+                            Console.Error.WriteLine(
+                                "--metadata values must use key=value syntax with a non-empty key.");
+                            return 1;
+                        }
+                        metadataValues[metadataArgument.Substring(0, separator)] =
+                            metadataArgument.Substring(separator + 1);
+                        break;
                     case "--auto-link": autoLink = true; break;
                     case "--alias-map" when i + 1 < args.Length: aliasMapPath = args[++i]; break;
                     case "--external-docs" when i + 1 < args.Length: externalDocs = args[++i]; break;
@@ -291,6 +305,12 @@ namespace Xml2Doc.Cli
                 }
                 if (!string.IsNullOrWhiteSpace(config.Template)) templatePath ??= config.Template;
                 if (!string.IsNullOrWhiteSpace(config.FrontMatter)) frontMatterPath ??= config.FrontMatter;
+                if (config.Metadata is not null)
+                {
+                    foreach (var pair in config.Metadata.Where(
+                                 pair => !metadataValues.ContainsKey(pair.Key)))
+                        metadataValues.Add(pair.Key, pair.Value);
+                }
                 if (config.AutoLink is bool al) autoLink = al || autoLink;
                 if (!string.IsNullOrWhiteSpace(config.AliasMap)) aliasMapPath ??= config.AliasMap;
                 if (!string.IsNullOrWhiteSpace(config.ExternalDocs)) externalDocs ??= config.ExternalDocs;
@@ -395,6 +415,28 @@ namespace Xml2Doc.Cli
 
             var diagnosticSink = new CliDiagnosticSink(Console.Error);
 
+            MetadataCollection? metadata = null;
+            if (metadataValues.Count > 0)
+            {
+                try
+                {
+                    metadata = new MetadataCollection(metadataValues);
+                }
+                catch (ArgumentException exception)
+                {
+                    Console.Error.WriteLine("Invalid metadata: " + exception.Message);
+                    return 1;
+                }
+            }
+
+            if (metadata is not null &&
+                !string.IsNullOrWhiteSpace(frontMatterPath))
+            {
+                Console.Error.WriteLine(
+                    "--metadata cannot be combined with --front-matter.");
+                return 1;
+            }
+
             try
             {
                 // Build options & renderer
@@ -427,7 +469,8 @@ namespace Xml2Doc.Cli
                     PruneStaleFiles: pruneStaleFiles,
                     ManifestIdentity: manifestIdentity,
                     LineEndings: lineEndingStyle,
-                    DiagnosticSink: diagnosticSink
+                    DiagnosticSink: diagnosticSink,
+                    Metadata: metadata
                 );
 
                 var mode = single
@@ -787,6 +830,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--anchor-algorithm <default|github|kramdown|gfm>]");
             Console.WriteLine("                   [--template <file>]");
             Console.WriteLine("                   [--front-matter <file>]");
+            Console.WriteLine("                   [--metadata <key=value>] ...");
             Console.WriteLine("                   [--auto-link]");
             Console.WriteLine("                   [--alias-map <file>]");
             Console.WriteLine("                   [--external-docs <base-url>]");

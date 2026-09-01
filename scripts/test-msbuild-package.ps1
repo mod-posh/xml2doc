@@ -181,6 +181,7 @@ try
     <Xml2Doc_Enabled>true</Xml2Doc_Enabled>
     <Xml2Doc_OutputDir>$(MSBuildProjectDirectory)/docs</Xml2Doc_OutputDir>
     <Xml2Doc_ReportPath>$(MSBuildProjectDirectory)/docs/xml2doc-report.json</Xml2Doc_ReportPath>
+    <Xml2Doc_MetadataFile>$(MSBuildProjectDirectory)/metadata.json</Xml2Doc_MetadataFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Xml2Doc.MSBuild" Version="__PACKAGE_VERSION__" PrivateAssets="all" />
@@ -212,6 +213,7 @@ public sealed class Example
 
   Set-Content -LiteralPath (Join-Path $consumerRoot "PackageConsumer.csproj") -Value $consumerProject -Encoding utf8
   Set-Content -LiteralPath (Join-Path $consumerRoot "Example.cs") -Value $consumerSource -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $consumerRoot "metadata.json") -Value '{"package":"PackageConsumer","stage":"initial","tags":["api","stable"]}' -Encoding utf8
   Set-Content -LiteralPath (Join-Path $consumerRoot "NuGet.Config") -Value $nugetConfig -Encoding utf8
 
   Write-Step "Restoring clean consumer from the local package"
@@ -234,6 +236,10 @@ public sealed class Example
   Assert-True (Test-Path -LiteralPath $generatedIndex -PathType Leaf) "Clean consumer did not generate docs/index.md."
   Assert-True (Test-Path -LiteralPath $generatedReport -PathType Leaf) "Clean consumer did not generate xml2doc-report.json."
   Assert-True (Test-Path -LiteralPath $generatedType -PathType Leaf) "Clean consumer did not generate the expected type page."
+  $metadataMarkdown = Get-Content -LiteralPath $generatedType -Raw
+  Assert-True ($metadataMarkdown.Contains('documentId: "T:PackageConsumer.Example"')) "Packaged consumer did not emit authoritative document metadata."
+  Assert-True ($metadataMarkdown.Contains('package: "PackageConsumer"')) "Packaged consumer did not emit caller metadata."
+  Assert-True ($metadataMarkdown.Contains('tags: ["api", "stable"]')) "Packaged consumer did not emit caller list metadata."
 
   $stateFileNames = @(
     "xml2doc.stamp",
@@ -246,6 +252,24 @@ public sealed class Example
   {
     Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) "Expected Xml2Doc state was not generated: $statePath"
   }
+
+  $metadataStamp = $activeStatePaths | Where-Object { [System.IO.Path]::GetFileName($_) -eq "xml2doc.stamp" } | Select-Object -First 1
+  $metadataStampBefore = (Get-Item -LiteralPath $metadataStamp).LastWriteTimeUtc
+  Start-Sleep -Milliseconds 1100
+  Set-Content -LiteralPath (Join-Path $consumerRoot "metadata.json") -Value '{"package":"PackageConsumer","stage":"updated","tags":["api","stable"]}' -Encoding utf8
+
+  Write-Step "Rebuilding after caller metadata changes"
+  Invoke-DotNet -WorkingDirectory $consumerRoot -Arguments @(
+    "build", "PackageConsumer.csproj",
+    "--configuration", $Configuration,
+    "--no-restore",
+    "--disable-build-servers"
+  )
+
+  $metadataStampAfter = (Get-Item -LiteralPath $metadataStamp).LastWriteTimeUtc
+  Assert-True ($metadataStampAfter -gt $metadataStampBefore) "Caller metadata changes did not invalidate Xml2Doc incremental state."
+  $updatedMetadataMarkdown = Get-Content -LiteralPath $generatedType -Raw
+  Assert-True ($updatedMetadataMarkdown.Contains('stage: "updated"')) "Caller metadata changes did not regenerate Markdown."
 
   $alternateConfiguration = if ($Configuration -eq "Release") { "Debug" } else { "Release" }
   Write-Step "Building clean consumer in $alternateConfiguration to verify configuration-scoped cleaning"

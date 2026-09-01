@@ -61,6 +61,7 @@ public sealed class MarkdownRenderer
     private readonly IAutoLinker _autoLinker;
     private readonly ISignatureRenderer _signatureRenderer;
     private readonly SignatureStyle _signatureStyle;
+    private readonly MetadataCollection _callerMetadata;
     private readonly HashSet<string> _reportedDiagnostics =
         new(StringComparer.Ordinal);
     private readonly object _diagnosticLock = new();
@@ -88,6 +89,9 @@ public sealed class MarkdownRenderer
         _model = model;
         _symbolIndex = SymbolIndex.Build(model);
         _opt = options ?? new RendererOptions();
+        _callerMetadata = _opt.Metadata is null
+            ? MetadataCollection.Empty
+            : new MetadataCollection(_opt.Metadata);
         _aliasProvider = _opt.AliasProvider ?? DefaultAliasProvider.Instance;
         _signatureStyle = _opt.SignatureStyle ?? SignatureStyle.Default;
         _signatureRenderer = _opt.SignatureRenderer ??
@@ -109,6 +113,13 @@ public sealed class MarkdownRenderer
         {
             throw new ArgumentException(
                 "FrontMatter cannot be combined with FrontMatterPath.",
+                nameof(options));
+        }
+        if (_callerMetadata.Count > 0 &&
+            !string.IsNullOrWhiteSpace(_opt.FrontMatterPath))
+        {
+            throw new ArgumentException(
+                "Metadata cannot be combined with FrontMatterPath.",
                 nameof(options));
         }
 
@@ -534,21 +545,71 @@ public sealed class MarkdownRenderer
         DocumentDescriptor document,
         string? outputPath)
     {
+        var metadata = CreateDocumentMetadata(document, outputPath);
         var context = new TemplateRenderContext(
             content,
             title,
             document.Kind)
         {
             Document = document,
-            OutputPath = outputPath
+            OutputPath = outputPath,
+            Metadata = metadata
         };
         var rendered = _templateRenderer.Render(context);
         var frontMatter = _opt.FrontMatter?.Invoke(context);
+
+        // ADR-014 preserves provider-only output; authoritative document values participate
+        // in precedence only when generic caller metadata enables the merged metadata path.
+        if (_callerMetadata.Count > 0)
+            frontMatter = MergeCallerMetadata(frontMatter, document, outputPath);
 
         if (frontMatter is null || frontMatter.Count == 0)
             return rendered;
 
         return YamlFrontMatter.Serialize(frontMatter) + "\n" + rendered;
+    }
+
+    private MetadataCollection CreateDocumentMetadata(
+        DocumentDescriptor document,
+        string? outputPath)
+    {
+        var values = _callerMetadata.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.Ordinal);
+        AddDocumentMetadata(values, document, outputPath);
+        return new MetadataCollection(values);
+    }
+
+    private MetadataCollection MergeCallerMetadata(
+        IReadOnlyDictionary<string, object?>? frontMatter,
+        DocumentDescriptor document,
+        string? outputPath)
+    {
+        var values = _callerMetadata.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.Ordinal);
+        if (frontMatter is not null)
+        {
+            foreach (var pair in frontMatter)
+                values[pair.Key] = pair.Value;
+        }
+
+        AddDocumentMetadata(values, document, outputPath);
+        return new MetadataCollection(values);
+    }
+
+    private static void AddDocumentMetadata(
+        IDictionary<string, object?> values,
+        DocumentDescriptor document,
+        string? outputPath)
+    {
+        values["documentId"] = document.DocumentId;
+        values["documentKind"] = document.Kind.ToString().ToLowerInvariant();
+        values["namespace"] = document.Namespace;
+        values["outputPath"] = outputPath;
+        values["symbol"] = document.Symbol;
     }
 
     // === Core rendering ===

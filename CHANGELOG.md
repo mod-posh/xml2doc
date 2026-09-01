@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   render operation has an output location.
 - File templates can consume document metadata through `{{documentId}}`, `{{namespace}}`,
   `{{symbol}}`, and `{{outputPath}}` tokens.
+- Core accepts immutable generic caller metadata and merges it with authoritative per-document
+  identity using deterministic ordinal YAML ordering.
+- CLI supports repeated `--metadata key=value` arguments and a `Metadata` JSON configuration
+  object; matching CLI keys take precedence.
+- MSBuild supports a shared `Xml2Doc_MetadataFile` JSON object for normal and aggregate generation,
+  with metadata content participating in incremental fingerprints.
 
 ### Compatibility
 
@@ -25,12 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   available, and default Markdown output is unchanged.
 - Xml2Doc identifies type documents without inferring unavailable CLR declaration kinds such as
   class, interface, record, struct, or enum.
+- Literal `FrontMatterPath` behavior remains unchanged and is kept separate from metadata merging.
 
 ### Tests
 
 - Added metadata coverage for type, primary index, namespace index, namespace overview, resolved
   single-file, and in-memory rendering contexts.
 - Added parity coverage proving templates and front-matter providers receive the same context.
+- Added Core, CLI, MSBuild task, packaged-consumer, and aggregate coverage for caller metadata,
+  collision precedence, immutable snapshots, supported value shapes, and incremental regeneration.
 
 ---
 

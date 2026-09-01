@@ -21,7 +21,7 @@
 
 ## Current option surface
 
-The CLI exposes applicable Core behavior for output mode, filename mode, namespace trimming, code language, anchor algorithms, templates, front matter, auto-linking, alias maps, external documentation, TOCs, namespace indexes, index suppression, basename-only links, bounded parallelism, stale pruning, manifest identity, line endings, reports, dry run, and diff.
+The CLI exposes applicable Core behavior for output mode, filename mode, namespace trimming, code language, anchor algorithms, templates, front matter, caller metadata, auto-linking, alias maps, external documentation, TOCs, namespace indexes, index suppression, basename-only links, bounded parallelism, stale pruning, manifest identity, line endings, reports, dry run, and diff. Repeated `--metadata key=value` arguments override matching keys from the JSON `Metadata` object.
 
 See [`../../Xml2Doc/src/Xml2Doc.Cli/README.md`](../../Xml2Doc/src/Xml2Doc.Cli/README.md) for the complete current option table and working examples.
 

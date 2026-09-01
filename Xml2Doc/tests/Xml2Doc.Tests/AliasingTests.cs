@@ -11,6 +11,7 @@ using Xml2Doc.Core.Templates;
 using Xml2Doc.Core.AutoLinking;
 using Xml2Doc.Core.Linking;
 using Xml2Doc.Core.Signatures;
+using Xml2Doc.Core.Diagnostics;
 using Xml2Doc.Sample;
 using Xunit;
 
@@ -67,6 +68,25 @@ public class AliasingTests
             .GetConstructor(
                 anchorGeneratorSignature
                     .Concat(new[] { typeof(ITemplateRenderer) })
+                    .ToArray())
+            .ShouldNotBeNull();
+
+        typeof(RendererOptions)
+            .GetConstructor(
+                anchorGeneratorSignature
+                    .Concat(new[]
+                    {
+                        typeof(ITemplateRenderer),
+                        typeof(Func<
+                            TemplateRenderContext,
+                            IReadOnlyDictionary<string, object?>>),
+                        typeof(IAutoLinker),
+                        typeof(LinkPolicy),
+                        typeof(IExternalSymbolResolver),
+                        typeof(SignatureStyle),
+                        typeof(ISignatureRenderer),
+                        typeof(IDiagnosticSink)
+                    })
                     .ToArray())
             .ShouldNotBeNull();
 

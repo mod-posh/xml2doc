@@ -134,6 +134,16 @@
   <Target Name="Xml2Doc_PrepareAggregate"
           DependsOnTargets="Xml2Doc_InitializeAggregateState;Xml2Doc_CollectAggregateInputs;Xml2Doc_ValidateAggregateOutputs"
           Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'">
+    <GetFileHash Files="$(Xml2Doc_MetadataFile)"
+                 Algorithm="SHA256"
+                 Condition="'$(Xml2Doc_MetadataFile)' != '' and Exists('$(Xml2Doc_MetadataFile)')">
+      <Output TaskParameter="Items" ItemName="_Xml2Doc_AggregateMetadataHashItem" />
+    </GetFileHash>
+
+    <ItemGroup>
+      <_Xml2Doc_AggregateMetadataHashValue Include="@(_Xml2Doc_AggregateMetadataHashItem->'%(Hash)')" />
+    </ItemGroup>
+
     <PropertyGroup>
       <_Xml2Doc_AggregateFingerprintDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateFingerprintFile)'))</_Xml2Doc_AggregateFingerprintDir>
       <_Xml2Doc_AggregateStampDir>$([System.IO.Path]::GetDirectoryName('$(Xml2Doc_AggregateOutputStamp)'))</_Xml2Doc_AggregateStampDir>
@@ -142,7 +152,8 @@
       <_Xml2Doc_AggregateInputIdentity>@(_Xml2Doc_AggregateInput->'%(FullPath)', ';')</_Xml2Doc_AggregateInputIdentity>
       <_Xml2Doc_AggregateReferenceIdentity>@(Xml2Doc_ReferenceXml->'%(FullPath)', ';')</_Xml2Doc_AggregateReferenceIdentity>
       <_Xml2Doc_AggregateNativeLineEndingToken Condition="'$(Xml2Doc_LineEndings)' == 'native'">native-$([System.Environment]::NewLine.Length)</_Xml2Doc_AggregateNativeLineEndingToken>
-      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(_Xml2Doc_AggregateReferenceIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_AggregateNativeLineEndingToken)</_Xml2Doc_AggregateOptions>
+      <_Xml2Doc_AggregateMetadataHash>@(_Xml2Doc_AggregateMetadataHashValue)</_Xml2Doc_AggregateMetadataHash>
+      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(_Xml2Doc_AggregateReferenceIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_AggregateNativeLineEndingToken)|$(Xml2Doc_MetadataFile)|$(_Xml2Doc_AggregateMetadataHash)</_Xml2Doc_AggregateOptions>
     </PropertyGroup>
 
     <MakeDir Directories="$(_Xml2Doc_AggregateFingerprintDir)"
@@ -171,7 +182,7 @@
           AfterTargets="Build"
           DependsOnTargets="Xml2Doc_PrepareAggregate"
           Condition="'$(Xml2Doc_AggregateEnabled)' == 'true' or '$(Xml2Doc_AggregateEnabled)' == 'True'"
-          Inputs="@(_Xml2Doc_AggregateInput);@(Xml2Doc_ReferenceXml);$(Xml2Doc_AggregateFingerprintFile)"
+          Inputs="@(_Xml2Doc_AggregateInput);@(Xml2Doc_ReferenceXml);$(Xml2Doc_AggregateFingerprintFile);$(Xml2Doc_MetadataFile)"
           Outputs="$(Xml2Doc_AggregateOutputStamp)">
     <MakeDir Directories="$(Xml2Doc_OutputDir)"
              Condition="'$(Xml2Doc_SingleFile)' != 'true' and '$(Xml2Doc_SingleFile)' != 'True' and '$(Xml2Doc_OutputDir)' != '' and !Exists('$(Xml2Doc_OutputDir)')" />
@@ -198,6 +209,7 @@
                                  BasenameOnly="$(Xml2Doc_BasenameOnly)"
                                  ParallelDegree="$(Xml2Doc_ParallelDegree)"
                                  AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"
+                                 MetadataFile="$(Xml2Doc_MetadataFile)"
                                  Fingerprint="$(_Xml2Doc_AggregateFingerprint)"
                                  IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
       <Output TaskParameter="GeneratedFiles" ItemName="Xml2Doc_AggregateGeneratedFiles" />

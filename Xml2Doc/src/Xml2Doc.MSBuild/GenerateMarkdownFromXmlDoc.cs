@@ -174,6 +174,12 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     public string? AnchorAlgorithm { get; set; }
 
     /// <summary>
+    /// Optional JSON object containing generic scalar/list metadata merged into deterministic
+    /// per-document YAML front matter.
+    /// </summary>
+    public string? MetadataFile { get; set; }
+
+    /// <summary>
     /// Generated Markdown files. Single‑file mode yields one item. Empty when dry‑run or skipped.
     /// </summary>
     [Output] public ITaskItem[] GeneratedFiles { get; private set; } = Array.Empty<ITaskItem>();
@@ -234,6 +240,19 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             }
 
             var xmlFull = Path.GetFullPath(XmlPath);
+            string? metadataFull = null;
+            MetadataCollection? metadata = null;
+            if (!string.IsNullOrWhiteSpace(MetadataFile))
+            {
+                metadataFull = Path.GetFullPath(MetadataFile!);
+                if (!File.Exists(metadataFull))
+                {
+                    Log.LogError($"Xml2Doc: metadata file not found at '{metadataFull}'.");
+                    return false;
+                }
+
+                metadata = MetadataCollection.ParseJson(File.ReadAllText(metadataFull));
+            }
 
             if (PruneStaleFiles && SingleFile)
             {
@@ -330,7 +349,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 PruneStaleFiles: PruneStaleFiles,
                 ManifestIdentity: ManifestIdentity,
                 LineEndings: lineEndingStyle,
-                WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}")
+                WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}"),
+                Metadata: metadata
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -396,7 +416,10 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     lang: options.CodeBlockLanguage ?? "",
                     pruneStaleFiles: PruneStaleFiles,
                     manifestIdentity: ManifestIdentity ?? "",
-                    lineEndings: GetLineEndingFingerprintToken(lineEndingStyle)
+                    lineEndings: GetLineEndingFingerprintToken(lineEndingStyle),
+                    metadataSha256: metadataFull is null
+                        ? ""
+                        : ComputeFileSha256(metadataFull)
                 );
             }
 
@@ -424,7 +447,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                             parallelDegree = ParallelDegree,
                             pruneStaleFiles = PruneStaleFiles,
                             manifestIdentity = ManifestIdentity,
-                            lineEndings = lineEndingStyle.ToString()
+                            lineEndings = lineEndingStyle.ToString(),
+                            metadataFile = metadataFull
                         },
                         fingerprint = Fingerprint,
                         xmlSha256 = XmlSha256,
@@ -485,6 +509,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <param name="pruneStaleFiles">Whether stale-output pruning is enabled.</param>
     /// <param name="manifestIdentity">Stable invocation-scoped ownership identity.</param>
     /// <param name="lineEndings">Selected Markdown line-ending policy.</param>
+    /// <param name="metadataSha256">SHA-256 hash of caller metadata, or empty when absent.</param>
     /// <returns>SHA-256 hash of the concatenated input parameters.</returns>
     private static string ComputeFingerprint(
         string xmlSha256,
@@ -495,7 +520,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         string lang,
         bool pruneStaleFiles,
         string manifestIdentity,
-        string lineEndings)
+        string lineEndings,
+        string metadataSha256)
     {
         using var sha = SHA256.Create();
         var data = string.Join("|", new[]
@@ -508,7 +534,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             lang,
             pruneStaleFiles.ToString(),
             manifestIdentity,
-            lineEndings
+            lineEndings,
+            metadataSha256
         });
         var bytes = Encoding.UTF8.GetBytes(data);
         var hash = sha.ComputeHash(bytes);
@@ -598,5 +625,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 
         /// <summary>Selected Markdown line-ending policy.</summary>
         public string? lineEndings { get; set; }
+
+        /// <summary>Resolved caller metadata file path.</summary>
+        public string? metadataFile { get; set; }
     }
 }

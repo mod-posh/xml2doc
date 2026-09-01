@@ -163,6 +163,40 @@ public class GenerateMarkdownFromXmlDocsTests
     }
 
     [Fact]
+    public void AggregateInputs_MetadataFileEmitsDeterministicFrontMatter()
+    {
+        var root = CreateRoot();
+        var alpha = Path.Join(root, "Alpha.xml");
+        var metadata = Path.Join(root, "metadata.json");
+        var output = Path.Join(root, "docs");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(alpha, """
+            <doc><members>
+              <member name="T:Alpha.Api.Widget"><summary>Alpha widget.</summary></member>
+            </members></doc>
+            """);
+        File.WriteAllText(metadata, """{"package":"Aggregate"}""");
+
+        try
+        {
+            var task = CreateTask(output, new TaskItem(alpha));
+            task.MetadataFile = metadata;
+
+            task.Execute().ShouldBeTrue();
+
+            var markdown = File.ReadAllText(Path.Join(output, "Alpha.Api.Widget.md"));
+            markdown.ShouldStartWith("---\n");
+            markdown.ShouldContain("documentId: \"T:Alpha.Api.Widget\"");
+            markdown.ShouldContain("package: \"Aggregate\"");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BuildAssets_ExposeRepositoryAggregationAndIndexOwnershipDiagnostic()
     {
         var buildDirectory = Path.Join(
@@ -199,10 +233,14 @@ public class GenerateMarkdownFromXmlDocsTests
         aggregateTarget.Attribute("AfterTargets")!.Value.ShouldBe("Build");
         aggregateTarget.Attribute("Inputs")!.Value.ShouldContain("@(_Xml2Doc_AggregateInput)");
         aggregateTarget.Attribute("Inputs")!.Value.ShouldContain("@(Xml2Doc_ReferenceXml)");
+        aggregateTarget.Attribute("Inputs")!.Value.ShouldContain("$(Xml2Doc_MetadataFile)");
 
         var task = aggregateTarget.Descendants("GenerateMarkdownFromXmlDocs").Single();
         task.Attribute("XmlPaths")!.Value.ShouldBe("@(_Xml2Doc_AggregateInput)");
         task.Attribute("GenerateIndex")!.Value.ShouldBe("$(Xml2Doc_GenerateIndex)");
+        task.Attribute("MetadataFile")!.Value.ShouldBe("$(Xml2Doc_MetadataFile)");
+        targets.Descendants("_Xml2Doc_AggregateOptions")
+            .Single().Value.ShouldContain("$(_Xml2Doc_AggregateMetadataHash)");
 
         var cleanTarget = targets.Descendants("Target")
             .Single(element =>

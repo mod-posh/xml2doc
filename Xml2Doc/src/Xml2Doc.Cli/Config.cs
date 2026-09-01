@@ -15,7 +15,7 @@ namespace Xml2Doc.Cli
     /// <c>--xml</c>, <c>--out</c>, <c>--single</c>, <c>--file-names</c>, <c>--rootns</c>, <c>--lang</c>,
     /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>,
     /// <c>--anchor-algorithm</c>, <c>--template</c>, <c>--front-matter</c>, <c>--auto-link</c>,
-    /// <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--basename-only</c>,
+    /// <c>--metadata</c>, <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--basename-only</c>,
     /// <c>--parallel</c>, <c>--prune-stale</c>, <c>--manifest-id</c>, <c>--line-endings</c>.
     /// </remarks>
     public sealed class CliConfig
@@ -64,6 +64,12 @@ namespace Xml2Doc.Cli
 
         /// <summary>Front-matter file (YAML/JSON/TOML) prepended to outputs. Maps to <c>--front-matter</c>.</summary>
         public string? FrontMatter { get; set; }
+
+        /// <summary>
+        /// Generic scalar/list metadata merged into deterministic per-document YAML front matter.
+        /// CLI <c>--metadata</c> values override matching configuration keys.
+        /// </summary>
+        public Dictionary<string, object?>? Metadata { get; set; }
 
         /// <summary>Enable heuristic auto-linking in prose. Maps to <c>--auto-link</c>.</summary>
         public bool? AutoLink { get; set; }

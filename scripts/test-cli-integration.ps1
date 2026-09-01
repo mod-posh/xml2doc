@@ -347,6 +347,18 @@ foreach ($a in $algos | Where-Object { $_ -ne 'default' })
 Assert-True $diff 'Expected at least one anchor algorithm to produce a different anchor set than default.'
 Write-Detail "Anchor algorithm variation confirmed."
 
+Write-Step "Running caller metadata smoke test"
+
+$metadataOutput = Join-Path $runRoot 'metadata-api.md'
+Run-OrThrow -File 'dotnet' -Args (
+ "`"$cli9`" --xml `"$fixtureXml`" --out `"$metadataOutput`" --single " +
+ "--metadata package=Xml2Doc.Sample --metadata documentId=caller-id"
+) -Cwd $repo -ErrorPrefix 'Caller metadata run failed.' | Out-Null
+
+$metadataContent = (Get-Content $metadataOutput -Raw).Replace("`r`n", "`n")
+Assert-True ($metadataContent.Contains('documentId: "xml2doc:single-file"')) 'Expected authoritative document identity to override caller metadata.'
+Assert-True ($metadataContent.Contains('package: "Xml2Doc.Sample"')) 'Expected caller metadata in generated YAML front matter.'
+
 Write-Step "Running namespace-index / trim-rootns / basename-only smoke test"
 
 $nsDir = Join-Path $runRoot 'namespace-index'

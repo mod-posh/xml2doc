@@ -71,6 +71,7 @@ If two primary inputs define the same XML documentation member, generation fails
 | `--anchor-algorithm <mode>` | `default`, `github`, `gfm`, or `kramdown`. |
 | `--template <path>` | Apply a file-based template. |
 | `--front-matter <path>` | Prepend configured front matter. |
+| `--metadata <key=value>` | Add generic caller metadata. Repeat for multiple values. |
 | `--auto-link` | Enable safe free-text symbol linking. |
 | `--alias-map <path>` | Load an additional alias map. |
 | `--external-docs <base-url>` | Route unresolved references to an external documentation base URL. |
@@ -109,6 +110,11 @@ Single-input example:
   "FileNames": "clean",
   "RootNamespace": "MyCompany.MyProduct",
   "CodeLanguage": "csharp",
+  "Metadata": {
+    "package": "MyCompany.MyProduct",
+    "tags": ["api", "stable"],
+    "version": "2.4.0"
+  },
   "LineEndings": "lf"
 }
 ```
@@ -137,7 +143,12 @@ Run a configuration file with:
 xml2doc --config .\xml2doc.json
 ```
 
-Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, and `LineEndings`.
+Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `Metadata`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, and `LineEndings`.
+
+Repeated `--metadata key=value` arguments override matching keys from the JSON `Metadata` object.
+Caller metadata produces deterministic YAML front matter containing Core-derived `documentId`,
+`documentKind`, `namespace`, `symbol`, and `outputPath` values. Those document keys are
+authoritative. Metadata cannot be combined with the literal `--front-matter` file mode.
 
 Unknown JSON properties and invalid values are rejected rather than ignored silently.
 

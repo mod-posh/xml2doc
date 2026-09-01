@@ -23,6 +23,7 @@ public class TemplateRendererTests
         kind.ShouldBe(TemplateDocumentKind.Type);
         context.Document.ShouldBeNull();
         context.OutputPath.ShouldBeNull();
+        context.Metadata.ShouldBeEmpty();
     }
 
     [Fact]
@@ -153,6 +154,106 @@ public class TemplateRendererTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void CallerMetadata_IsMergedDeterministicallyWithDocumentFrontMatter()
+    {
+        var model = LoadModel();
+        var renderer = new MarkdownRenderer(
+            model,
+            new RendererOptions(
+                Metadata: new Dictionary<string, object?>
+                {
+                    ["tags"] = new[] { "api", "stable" },
+                    ["package"] = "caller",
+                    ["documentId"] = "caller-id"
+                },
+                FrontMatter: context =>
+                {
+                    context.Metadata["documentId"].ShouldBe("xml2doc:single-file");
+                    context.Metadata["package"].ShouldBe("caller");
+                    return new Dictionary<string, object?>
+                    {
+                        ["package"] = "document",
+                        ["documentId"] = "provider-id"
+                    };
+                }));
+
+        var first = renderer.RenderToString();
+        var second = renderer.RenderToString();
+
+        first.ShouldBe(second);
+        first.ShouldStartWith(
+            "---\n" +
+            "documentId: \"xml2doc:single-file\"\n" +
+            "documentKind: \"singlefile\"\n" +
+            "namespace: null\n" +
+            "outputPath: null\n" +
+            "package: \"document\"\n" +
+            "symbol: null\n" +
+            "tags: [\"api\", \"stable\"]\n" +
+            "---\n" +
+            "# API Reference");
+    }
+
+    [Fact]
+    public void Renderer_CopiesCallerMetadataAtConstruction()
+    {
+        var tags = new List<string> { "api" };
+        var metadata = new Dictionary<string, object?>
+        {
+            ["version"] = "2.4.0",
+            ["tags"] = tags
+        };
+        var renderer = new MarkdownRenderer(
+            LoadModel(),
+            new RendererOptions(Metadata: metadata));
+
+        metadata["version"] = "changed";
+        tags.Add("changed");
+
+        var markdown = renderer.RenderToString();
+        markdown.ShouldContain("tags: [\"api\"]");
+        markdown.ShouldContain("version: \"2.4.0\"");
+        markdown.ShouldNotContain("changed");
+    }
+
+    [Fact]
+    public void FrontMatterWithoutCallerMetadata_PreservesExistingCollisionBehavior()
+    {
+        var renderer = new MarkdownRenderer(
+            LoadModel(),
+            new RendererOptions(
+                FrontMatter: _ => new Dictionary<string, object?>
+                {
+                    ["documentId"] = "provider-id",
+                    ["outputPath"] = "provider-path"
+                }));
+
+        renderer.RenderToString().ShouldStartWith(
+            "---\n" +
+            "documentId: \"provider-id\"\n" +
+            "outputPath: \"provider-path\"\n" +
+            "---\n" +
+            "# API Reference");
+    }
+
+    [Fact]
+    public void CallerMetadataAndLiteralFrontMatter_AreRejected()
+    {
+        var exception = Should.Throw<ArgumentException>(() =>
+            new MarkdownRenderer(
+                LoadModel(),
+                new RendererOptions(
+                    FrontMatterPath: "front-matter.yml",
+                    Metadata: new Dictionary<string, object?>
+                    {
+                        ["version"] = "2.4.0"
+                    })));
+
+        exception.Message.ShouldContain(
+            "Metadata cannot be combined with FrontMatterPath");
     }
 
     [Fact]

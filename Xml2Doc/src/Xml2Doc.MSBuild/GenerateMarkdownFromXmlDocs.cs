@@ -82,6 +82,9 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
     /// <summary>Anchor algorithm: default, github, gfm, or kramdown.</summary>
     public string? AnchorAlgorithm { get; set; }
 
+    /// <summary>Optional JSON object containing generic scalar/list caller metadata.</summary>
+    public string? MetadataFile { get; set; }
+
     /// <summary>Optional externally-computed aggregate fingerprint included in the report.</summary>
     public string? Fingerprint { get; set; }
 
@@ -142,6 +145,20 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
             if (!TryResolveLineEndings(out var lineEndingStyle))
                 return false;
 
+            string? metadataFull = null;
+            MetadataCollection? metadata = null;
+            if (!string.IsNullOrWhiteSpace(MetadataFile))
+            {
+                metadataFull = Path.GetFullPath(MetadataFile!);
+                if (!File.Exists(metadataFull))
+                {
+                    Log.LogError($"Xml2Doc: metadata file not found at '{metadataFull}'.");
+                    return false;
+                }
+
+                metadata = MetadataCollection.ParseJson(File.ReadAllText(metadataFull));
+            }
+
             var primarySet = new HashSet<string>(xmlPaths, comparer);
             var referenceXmlPaths = ResolvePaths(ReferenceXmlPaths, comparer)
                 .Where(path => !primarySet.Contains(path))
@@ -191,7 +208,8 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
                 PruneStaleFiles: PruneStaleFiles,
                 ManifestIdentity: ManifestIdentity,
                 LineEndings: lineEndingStyle,
-                WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}"));
+                WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}"),
+                Metadata: metadata);
             var renderer = new MarkdownRenderer(model, options);
 
             string? outputDirectory = null;
@@ -252,7 +270,13 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
             }
 
             if (!string.IsNullOrWhiteSpace(ReportPath))
-                WriteReport(xmlPaths, outputDirectory, outputFile, fileNameMode, lineEndingStyle);
+                WriteReport(
+                    xmlPaths,
+                    outputDirectory,
+                    outputFile,
+                    fileNameMode,
+                    lineEndingStyle,
+                    metadataFull);
 
             return !Log.HasLoggedErrors;
         }
@@ -318,7 +342,8 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
         string? outputDirectory,
         string? outputFile,
         Core.FileNameMode fileNameMode,
-        LineEndingStyle lineEndingStyle)
+        LineEndingStyle lineEndingStyle,
+        string? metadataFile)
     {
         try
         {
@@ -351,7 +376,8 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
                     generateIndex = GenerateIndex,
                     pruneStaleFiles = PruneStaleFiles,
                     manifestIdentity = ManifestIdentity,
-                    lineEndings = lineEndingStyle.ToString()
+                    lineEndings = lineEndingStyle.ToString(),
+                    metadataFile = metadataFile
                 },
                 fingerprint = Fingerprint,
                 timestamp = IncludeTimestampInReport
@@ -443,5 +469,6 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
         public bool pruneStaleFiles { get; set; }
         public string? manifestIdentity { get; set; }
         public string? lineEndings { get; set; }
+        public string? metadataFile { get; set; }
     }
 }

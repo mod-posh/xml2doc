@@ -130,9 +130,16 @@
       <Output TaskParameter="Items" ItemName="_Xml2Doc_ReferenceHashItem" />
     </GetFileHash>
 
+    <GetFileHash Files="$(Xml2Doc_MetadataFile)"
+                 Algorithm="SHA256"
+                 Condition="'$(Xml2Doc_MetadataFile)' != '' and Exists('$(Xml2Doc_MetadataFile)')">
+      <Output TaskParameter="Items" ItemName="_Xml2Doc_MetadataHashItem" />
+    </GetFileHash>
+
     <PropertyGroup>
       <_Xml2Doc_NativeLineEndingToken Condition="'$(Xml2Doc_LineEndings)' == 'native'">native-$([System.Environment]::NewLine.Length)</_Xml2Doc_NativeLineEndingToken>
-      <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_NativeLineEndingToken)</_Xml2Doc_Options>
+      <_Xml2Doc_MetadataHash>@(_Xml2Doc_MetadataHashItem->'%(Hash)')</_Xml2Doc_MetadataHash>
+      <_Xml2Doc_Options>$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_NativeLineEndingToken)|$(Xml2Doc_MetadataFile)|$(_Xml2Doc_MetadataHash)</_Xml2Doc_Options>
     </PropertyGroup>
 
     <ItemGroup>
@@ -171,7 +178,7 @@
             and '$(DocumentationFile)' != ''
             and Exists('$(DocumentationFile)')
             and Exists('$(Xml2Doc_FingerprintFile)')"
-          Inputs="$(Xml2Doc_FingerprintFile)"
+          Inputs="$(Xml2Doc_FingerprintFile);$(Xml2Doc_MetadataFile)"
           Outputs="$(Xml2Doc_OutputStamp)">
 
     <MakeDir Directories="$(Xml2Doc_OutputDir)"
@@ -204,6 +211,7 @@
                                 BasenameOnly="$(Xml2Doc_BasenameOnly)"
                                 ParallelDegree="$(Xml2Doc_ParallelDegree)"
                                 AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"
+                                MetadataFile="$(Xml2Doc_MetadataFile)"
                                 Fingerprint="$(_Xml2Doc_Fingerprint)"
                                 XmlSha256="$(_Xml2Doc_Hash)"
                                 IncludeTimestampInReport="$(Xml2Doc_ReportIncludeTimestamp)">
