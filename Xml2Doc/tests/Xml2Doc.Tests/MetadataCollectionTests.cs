@@ -1,5 +1,6 @@
 using Shouldly;
 using Xml2Doc.Core;
+using Xunit;
 
 namespace Xml2Doc.Tests;
 

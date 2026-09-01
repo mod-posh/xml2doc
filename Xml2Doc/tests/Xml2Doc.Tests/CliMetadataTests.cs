@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Xml2Doc.Cli;
+using Xunit;
 
 namespace Xml2Doc.Tests;
 
