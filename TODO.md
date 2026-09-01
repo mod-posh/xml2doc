@@ -2,7 +2,7 @@
 
 This roadmap tracks the release sequence and the work that is complete or planned in the repository.
 
-The latest published release is `2.3.0`. The next planned releases are `2.3.1` — Stabilization and Output Correctness, `2.4.0` — Metadata and Output Extensibility, and `2.5.0` — API Surface Selection.
+The latest published release is `2.3.1`. The next planned releases are `2.4.0` — Metadata and Output Extensibility and `2.5.0` — API Surface Selection.
 
 ## Release sequence
 
@@ -10,7 +10,7 @@ The latest published release is `2.3.0`. The next planned releases are `2.3.1` �
 2. `2.1.0` — Rendering Extensibility (released)
 3. `2.2.0` — Diagnostics and Pipeline (released)
 4. `2.3.0` — Multi-project Aggregation (released)
-5. `2.3.1` — Stabilization and Output Correctness (release preparation)
+5. `2.3.1` — Stabilization and Output Correctness (released)
 6. `2.4.0` — Metadata and Output Extensibility (planned)
 7. `2.5.0` — API Surface Selection (planned)
 
@@ -96,7 +96,7 @@ Release closeout:
 
 ## 2.3.1 — Stabilization and Output Correctness
 
-Patch release in preparation for regressions and correctness defects affecting existing `2.3.0` behavior. Implementation is complete.
+Released on August 30, 2026, with focused corrections for regressions and correctness defects affecting existing `2.3.0` behavior.
 
 - [x] [#118 — Multi-input aggregation makes bare `<inheritdoc />` ambiguous across unrelated member signatures](https://github.com/mod-posh/xml2doc/issues/118)
 - [x] [#119 — Xml2Doc.MSBuild incremental state survives `dotnet clean` and can leave generated Markdown stale](https://github.com/mod-posh/xml2doc/issues/119)
@@ -117,7 +117,7 @@ Milestone preparation:
 - [x] Implement and close issues in the order #118, #119, #120.
 - [x] Update the changelog and release documentation.
 - [x] Prepare `VersionPrefix` for `2.3.1`.
-- [ ] Complete the standard milestone release workflow.
+- [x] Complete the standard milestone release workflow.
 
 ## 2.4.0 — Metadata and Output Extensibility
 
