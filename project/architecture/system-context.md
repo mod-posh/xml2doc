@@ -33,4 +33,4 @@ C# projects / compiler XML
 
 A repository may have many C# projects but should have one owner for a combined documentation set. CLI callers may supply several `--xml` inputs directly; MSBuild repositories declare one aggregation owner that collects participating compiler XML and renders once.
 
-The repository/release target described by this architecture is `2.3.1`.
+The repository/release target described by this architecture is `2.4.0`.

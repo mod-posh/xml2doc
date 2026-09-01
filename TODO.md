@@ -152,7 +152,7 @@ Milestone preparation:
 - [x] Review and accept the required ADRs before implementation.
 - [x] Implement issues in dependency order: #115, #116, #117.
 - [x] Update the roadmap, API documentation source, README examples, and migration guidance.
-- [ ] Prepare `VersionPrefix` for `2.4.0`.
+- [x] Prepare `VersionPrefix` for `2.4.0`.
 - [ ] Complete the standard milestone release workflow.
 
 ## 2.5.0 — API Surface Selection

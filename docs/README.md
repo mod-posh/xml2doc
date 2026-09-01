@@ -4,7 +4,7 @@ This directory contains user and engineering documentation for the xml2doc proje
 
 ## User documentation
 
-1. [`../Xml2Doc.md`](../Xml2Doc.md) — current `2.3.1` usage guide for Core, CLI, and MSBuild.
+1. [`../Xml2Doc.md`](../Xml2Doc.md) — current `2.4.0` usage guide for Core, CLI, and MSBuild.
 2. [`msbuild-repository-aggregation.md`](msbuild-repository-aggregation.md) — supported repository-owner pattern for deterministic multi-project aggregation.
 3. [`api/`](api/) — generated API documentation produced by the release workflow.
 

@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Canonical architecture decision records live under [`../../docs/adr/`](../../docs/adr/). This page summarizes the decisions most relevant to the current `2.3.1` architecture.
+Canonical architecture decision records live under [`../../docs/adr/`](../../docs/adr/). This page summarizes the decisions most relevant to the current `2.4.0` architecture.
 
 | ADR | Decision | Status |
 | --- | --- | --- |
@@ -17,6 +17,8 @@ Canonical architecture decision records live under [`../../docs/adr/`](../../doc
 | ADR-011 | Generated output ownership, including repository aggregation ownership | Accepted |
 | ADR-012 | Invocation-scoped manifest identity and storage | Accepted |
 | ADR-013 | Deterministic Markdown line endings | Accepted |
+| ADR-014 | Deterministic document metadata and host parity | Accepted |
+| ADR-015 | Authoritative document paths and relative-link routing | Accepted |
 
 ## Current implications
 
@@ -28,5 +30,7 @@ Canonical architecture decision records live under [`../../docs/adr/`](../../doc
 - Output deletion is authorized only by invocation-scoped ownership state.
 - LF is the default deterministic line-ending policy.
 - Multi-project repository documentation uses one explicit aggregate owner rather than racing independent index writers.
+- Core owns deterministic document identity and caller-metadata composition across all hosts.
+- One validated document plan governs multi-document paths, relative links, reports, manifests, pruning, and writes.
 
 When this summary and an ADR differ, the ADR is authoritative and should be updated alongside the implementation decision.

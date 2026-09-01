@@ -2,7 +2,7 @@
 
 Xml2Doc is a deterministic C# XML-documentation to Markdown generator with three public integration surfaces: Core, CLI, and MSBuild.
 
-The repository and release target are `2.3.1`, focused on stabilization and output correctness for deterministic multi-project aggregation.
+The repository and release target are `2.4.0`, focused on deterministic document metadata and output-layout extensibility.
 
 ## What Xml2Doc does
 
@@ -13,6 +13,8 @@ The repository and release target are `2.3.1`, focused on stabilization and outp
 - Emits structured diagnostics with stable `XML2DOC###` identifiers.
 - Supports planning, dry run, diff, reports, incremental writes, deterministic parallel rendering, and invocation-scoped stale-output ownership.
 - Aggregates multiple primary XML inputs deterministically through Core, repeated CLI `--xml`, or an MSBuild repository aggregation owner.
+- Exposes immutable per-document identity and deterministic caller metadata to templates and front matter.
+- Uses one authoritative plan for multi-document paths, links, reports, manifests, pruning, and writes.
 
 ## Public components
 
@@ -24,6 +26,6 @@ The repository and release target are `2.3.1`, focused on stabilization and outp
 
 ## Current release theme
 
-`2.3.0` solves the shared-index race for multi-project repositories by making aggregation explicit: multiple primary compiler XML files are combined into one model before rendering, and one owner writes the aggregate output set.
+`2.4.0` adds immutable document descriptors, deterministic caller metadata, and pluggable output paths while preserving flat paths and existing rendering behavior as compatible defaults.
 
 See [`../../Xml2Doc.md`](../../Xml2Doc.md) for user documentation and [`../../docs/msbuild-repository-aggregation.md`](../../docs/msbuild-repository-aggregation.md) for the supported MSBuild owner pattern.

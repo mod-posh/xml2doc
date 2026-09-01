@@ -10,7 +10,7 @@ The task delegates parsing and rendering semantics to Core. MSBuild owns host co
 
 ## Repository aggregation
 
-Version `2.3.1` includes `GenerateMarkdownFromXmlDocs`, an opt-in aggregation target, and configuration-scoped cleanup of Xml2Doc incremental state. Aggregation is activated with:
+Version `2.4.0` includes `GenerateMarkdownFromXmlDocs`, deterministic caller metadata, built-in layout selection, and configuration-scoped cleanup of Xml2Doc incremental state. Aggregation is activated with:
 
 ```xml
 <Xml2Doc_AggregateEnabled>true</Xml2Doc_AggregateEnabled>

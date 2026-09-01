@@ -2,7 +2,7 @@
 
 Core library for Xml2Doc. It parses C# compiler XML documentation, resolves references and inheritance, builds deterministic documentation models, and renders Markdown.
 
-Version `2.3.1` stabilizes deterministic multi-input aggregation and Markdown list rendering while preserving the existing single-input API.
+Version `2.4.0` adds deterministic document metadata, caller metadata, and authoritative multi-document output paths while preserving existing defaults.
 
 ## Supported frameworks
 
