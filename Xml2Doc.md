@@ -2,24 +2,18 @@
 
 Xml2Doc converts C# compiler XML documentation into deterministic, linkable Markdown. It is available as a library, CLI, and MSBuild package.
 
-## Version 2.3.1
+## Version 2.4.0
 
-`2.3.1` is a stabilization release for the multi-project aggregation, MSBuild lifecycle, and Markdown rendering behavior introduced in `2.3.0`.
+`2.4.0` adds deterministic per-document metadata, caller-supplied metadata, and authoritative multi-document output layouts across Core, CLI, and MSBuild.
 
 Highlights:
 
-- Bare `<inheritdoc />` in aggregate inputs now resolves through a unique conventional interface type when unrelated members expose the same signature.
-- `dotnet clean` removes configuration-scoped Xml2Doc incremental state while preserving generated Markdown and state for other configurations.
-- XML documentation bullet lists render as distinct Markdown bullets while preserving inline markup and paragraph boundaries.
-- `Xml2Doc.Core` can load multiple primary XML documentation inputs as one aggregate model.
-- `Xml2Doc.Cli` accepts repeated `--xml` arguments or `XmlInputs` in JSON configuration.
-- `Xml2Doc.MSBuild` supports an explicit repository aggregation owner with `Xml2Doc_AggregateEnabled=true`.
-- Aggregate inputs are normalized, de-duplicated, and ordered deterministically before rendering.
-- A single aggregate `index.md` can contain every participating project in stable ordinal order.
-- Parallel and serial MSBuild aggregation are required to produce byte-identical output.
-- `XML2DOC006` reports duplicate member ownership across primary XML inputs.
-- `XML2DOC007` reports conflicting MSBuild ownership of the same aggregate `index.md`.
-- The `2.2.0` structured diagnostics, runner-backed dry-run/diff/reporting, bounded parallel rendering, incremental writes, templates, front matter, auto-linking, alias maps, and external-documentation fallback remain available.
+- Templates and programmatic front-matter providers receive immutable document identity, namespace, symbol, kind, and resolved output-path metadata.
+- Core, CLI configuration, repeated CLI arguments, and MSBuild share one deterministic caller-metadata representation.
+- Authoritative `DocumentPlan` and `IDocumentPathResolver` abstractions keep paths, links, plans, reports, manifests, pruning, and writes aligned.
+- The default `flat` layout remains compatible; the opt-in `namespace-folders` layout organizes type and namespace pages hierarchically.
+- Unsafe, non-canonical, or case-insensitively colliding paths fail before output is written with `XML2DOC008` or `XML2DOC009`.
+- Existing aggregation, structured diagnostics, dry-run/diff/reporting, bounded parallel rendering, incremental writes, templates, front matter, auto-linking, alias maps, and external-documentation fallback remain available.
 
 Existing single-project behavior remains compatible. `Xml2Doc_GenerateIndex=false` is still supported when independent project invocations intentionally share an output directory.
 
@@ -43,7 +37,7 @@ The MSBuild package selects its task assembly automatically. Do not define a cus
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.4.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
@@ -77,6 +71,7 @@ The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2
 | `Xml2Doc_ParallelDegree` | `1` | Maximum concurrent per-type renders. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. `lf` is deterministic across hosts. |
 | `Xml2Doc_MetadataFile` | Empty | JSON object containing generic scalar/list caller metadata. |
+| `Xml2Doc_Layout` | `flat` | Multi-document layout: `flat` or `namespace-folders`. |
 | `Xml2Doc_PruneStaleFiles` | `false` | Removes stale files previously owned by the same invocation. Per-type mode only. |
 | `Xml2Doc_ManifestIdentity` | Empty | Stable identity required when pruning is enabled. |
 | `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path for normal project generation. |
@@ -142,7 +137,7 @@ Use one small project as the aggregation owner. Participating projects emit comp
   <ItemGroup>
     <ProjectReference Include="..\src\ProjectA\ProjectA.csproj" />
     <ProjectReference Include="..\src\ProjectB\ProjectB.csproj" />
-    <PackageReference Include="Xml2Doc.MSBuild" Version="2.3.1" PrivateAssets="all" />
+    <PackageReference Include="Xml2Doc.MSBuild" Version="2.4.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
@@ -228,7 +223,7 @@ This prevents index races but intentionally does not create a unified repository
 Install the .NET tool:
 
 ```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.3.1
+dotnet tool install --global Xml2Doc.Cli --version 2.4.0
 ```
 
 Generate per-type documentation from one XML file:
@@ -282,6 +277,7 @@ One XML input uses the compatible single-input loading path. Two or more primary
 | `--prune-stale` | Remove stale output owned by the selected manifest identity. Directory output only. |
 | `--manifest-id <identity>` | Stable ownership identity used with pruning. |
 | `--line-endings <style>` | `lf`, `crlf`, or `native`. |
+| `--layout <mode>` | Multi-document layout: `flat` or `namespace-folders`. |
 | `--report <path>` | Write a JSON execution report. |
 | `--dry-run` | Plan without writing output. |
 | `--diff` | Compare generated output with current files without modifying them. |
@@ -307,7 +303,8 @@ One XML input uses the compatible single-input loading path. Two or more primary
     "tags": ["api", "stable"],
     "version": "2.4.0"
   },
-  "LineEndings": "lf"
+  "LineEndings": "lf",
+  "Layout": "namespace-folders"
 }
 ```
 
@@ -332,6 +329,8 @@ Xml2Doc uses stable diagnostic identifiers:
 | `XML2DOC005` | Unresolved `<inheritdoc />` target. |
 | `XML2DOC006` | Multiple primary XML inputs define the same documentation member. |
 | `XML2DOC007` | Multiple MSBuild projects claim the same generated aggregate index. |
+| `XML2DOC008` | A document path resolver returned an unsafe or non-canonical path. |
+| `XML2DOC009` | Multiple documents resolve to the same case-insensitive logical path. |
 
 CLI diagnostics use the stable format `xml2doc <severity> <code>: <message>`. Warnings do not fail generation; diagnostic errors return exit code `2`. MSBuild maps diagnostics to normal warning/error logging.
 
@@ -360,6 +359,7 @@ Core consumers can replace individual rendering services through `RendererOption
 - `IAliasProvider`
 - `ITemplateRenderer`
 - `IAutoLinker`
+- `IDocumentPathResolver`
 - `IExternalSymbolResolver`
 - `ISignatureRenderer`
 - `SignatureStyle`
@@ -400,6 +400,21 @@ them, while Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, an
 win collisions whenever caller metadata participates in the merge. Without caller metadata,
 existing programmatic front-matter output remains unchanged. The existing literal
 `FrontMatterPath`/`--front-matter` mode remains unchanged and cannot be combined with caller metadata.
+
+### Document output layouts
+
+Multi-document output is planned once in Core before rendering. The default `flat` layout preserves
+the existing type, index, and namespace paths. The opt-in `namespace-folders` layout places type
+pages and namespace indexes beneath `namespaces/<namespace>/`, while keeping the primary index and
+namespace overview at the output root. Links, templates, dry-run plans, reports, ownership
+manifests, pruning, and physical writes all consume this same authoritative plan.
+
+Core callers can supply an `IDocumentPathResolver` through
+`RendererOptions.DocumentPathResolver`; `RendererOptions.Layout` selects a built-in resolver when
+no custom resolver is supplied. Resolvers return canonical output-root-relative paths using `/`.
+Rooted paths, traversal, backslashes, empty segments, and case-insensitive collisions are rejected
+before any output or manifest is written. CLI and MSBuild expose only the named built-in layouts.
+Single-file output is unaffected.
 
 ## Troubleshooting
 
@@ -445,6 +460,7 @@ Use a current `Xml2Doc.MSBuild` package. Task runtime dependencies are packaged 
 - `2.2.0` — structured diagnostics and runner/pipeline completion.
 - `2.3.0` — deterministic multi-project aggregation across Core, CLI, and MSBuild.
 - `2.3.1` — aggregation, MSBuild clean, and Markdown list correctness fixes.
+- `2.4.0` — deterministic document metadata, caller metadata, and authoritative output layouts.
 
 See [TODO.md](TODO.md), [docs/roadmap.md](docs/roadmap.md), and [the ADR index](docs/adr/README.md) for project history and future work.
 

@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Paths;
 
 namespace Xml2Doc.MSBuild;
 
@@ -72,6 +73,9 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
 
     /// <summary>Markdown line endings: <c>lf</c>, <c>crlf</c>, or <c>native</c>.</summary>
     public string LineEndings { get; set; } = "lf";
+
+    /// <summary>Multi-document layout: <c>flat</c> or <c>namespace-folders</c>.</summary>
+    public string Layout { get; set; } = "flat";
 
     /// <summary>Whether generated links use only base file names.</summary>
     public bool BasenameOnly { get; set; }
@@ -144,6 +148,8 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
 
             if (!TryResolveLineEndings(out var lineEndingStyle))
                 return false;
+            if (!TryResolveLayout(out var documentLayout))
+                return false;
 
             string? metadataFull = null;
             MetadataCollection? metadata = null;
@@ -209,7 +215,8 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
                 ManifestIdentity: ManifestIdentity,
                 LineEndings: lineEndingStyle,
                 WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}"),
-                Metadata: metadata);
+                Metadata: metadata,
+                Layout: documentLayout);
             var renderer = new MarkdownRenderer(model, options);
 
             string? outputDirectory = null;
@@ -276,6 +283,7 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
                     outputFile,
                     fileNameMode,
                     lineEndingStyle,
+                    documentLayout,
                     metadataFull);
 
             return !Log.HasLoggedErrors;
@@ -305,6 +313,10 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
             return LogExecutionFailure(exception);
         }
         catch (JsonException exception)
+        {
+            return LogExecutionFailure(exception);
+        }
+        catch (InvalidOperationException exception)
         {
             return LogExecutionFailure(exception);
         }
@@ -343,6 +355,7 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
         string? outputFile,
         Core.FileNameMode fileNameMode,
         LineEndingStyle lineEndingStyle,
+        DocumentLayout layout,
         string? metadataFile)
     {
         try
@@ -377,6 +390,7 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
                     pruneStaleFiles = PruneStaleFiles,
                     manifestIdentity = ManifestIdentity,
                     lineEndings = lineEndingStyle.ToString(),
+                    layout = layout.ToString(),
                     metadataFile = metadataFile
                 },
                 fingerprint = Fingerprint,
@@ -421,6 +435,24 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
     {
         Log.LogWarning(
             $"Xml2Doc: failed to write aggregate report '{ReportPath}': {exception.Message}");
+    }
+
+    private bool TryResolveLayout(out DocumentLayout layout)
+    {
+        switch ((Layout ?? "flat").ToLowerInvariant())
+        {
+            case "flat":
+                layout = DocumentLayout.Flat;
+                return true;
+            case "namespace-folders":
+                layout = DocumentLayout.NamespaceFolders;
+                return true;
+            default:
+                layout = DocumentLayout.Flat;
+                Log.LogError(
+                    "Xml2Doc: Layout must be one of: flat, namespace-folders.");
+                return false;
+        }
     }
 
     private static string[] ResolvePaths(
@@ -469,6 +501,7 @@ public sealed class GenerateMarkdownFromXmlDocs : Microsoft.Build.Utilities.Task
         public bool pruneStaleFiles { get; set; }
         public string? manifestIdentity { get; set; }
         public string? lineEndings { get; set; }
+        public string? layout { get; set; }
         public string? metadataFile { get; set; }
     }
 }

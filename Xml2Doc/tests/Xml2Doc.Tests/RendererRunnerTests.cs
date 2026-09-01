@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Models;
 using Xml2Doc.Core.OutputLifecycle;
+using Xml2Doc.Core.Paths;
 using Xml2Doc.Core.Pipeline;
 using Xunit;
 
@@ -211,7 +212,7 @@ public class RendererRunnerTests
     }
 
     [Fact]
-    public void Run_ParallelDegreePreservesSerialCollisionOrdering()
+    public void Run_ParallelDegreePreservesSerialPlanCollisionFailure()
     {
         using var serialOutput = TemporaryDirectory.Create();
         using var parallelOutput = TemporaryDirectory.Create();
@@ -226,12 +227,16 @@ public class RendererRunnerTests
             model,
             new RendererOptions(BasenameOnly: true, ParallelDegree: 4)));
 
-        serial.Run(new RendererRunRequest(serialOutput.Path));
-        parallel.Run(new RendererRunRequest(parallelOutput.Path));
+        var serialException = Should.Throw<DocumentPathException>(() =>
+            serial.Run(new RendererRunRequest(serialOutput.Path)));
+        var parallelException = Should.Throw<DocumentPathException>(() =>
+            parallel.Run(new RendererRunRequest(parallelOutput.Path)));
 
-        File.ReadAllBytes(Path.Join(serialOutput.Path, "Duplicate.md"))
-            .ShouldBe(File.ReadAllBytes(
-                Path.Join(parallelOutput.Path, "Duplicate.md")));
+        serialException.DiagnosticCode.ShouldBe(
+            parallelException.DiagnosticCode);
+        serialException.Message.ShouldBe(parallelException.Message);
+        Directory.Exists(serialOutput.Path).ShouldBeFalse();
+        Directory.Exists(parallelOutput.Path).ShouldBeFalse();
     }
 
     [Fact]
@@ -317,10 +322,11 @@ public class RendererRunnerTests
         AddType(model, "T:../Escape");
         var runner = new RendererRunner(new MarkdownRenderer(model));
 
-        var exception = Should.Throw<ArgumentException>(() =>
+        var exception = Should.Throw<DocumentPathException>(() =>
             runner.Plan(new RendererRunRequest(output.Path)));
 
-        exception.ParamName.ShouldBe("fileName");
+        exception.DiagnosticCode.ShouldBe(
+            Xml2Doc.Core.Diagnostics.DiagnosticIds.UnsafeDocumentPath);
     }
 
     private static RendererRunner CreateRunner(

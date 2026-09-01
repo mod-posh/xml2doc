@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xml2Doc.Core;
+using Xml2Doc.Core.Paths;
 
 namespace Xml2Doc.MSBuild;
 
@@ -156,6 +157,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// </summary>
     public string LineEndings { get; set; } = "lf";
 
+    /// <summary>Multi-document layout: <c>flat</c> or <c>namespace-folders</c>.</summary>
+    public string Layout { get; set; } = "flat";
+
     /// <summary>
     /// When true, uses only the basename for file references (omits directory paths).
     /// </summary>
@@ -287,6 +291,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     return false;
             }
 
+            if (!TryResolveLayout(out var documentLayout))
+                return false;
+
             if (string.IsNullOrWhiteSpace(XmlSha256))
             {
                 try { XmlSha256 = ComputeFileSha256(xmlFull); }
@@ -350,7 +357,8 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                 ManifestIdentity: ManifestIdentity,
                 LineEndings: lineEndingStyle,
                 WarningSink: warning => Log.LogWarning($"Xml2Doc: {warning}"),
-                Metadata: metadata
+                Metadata: metadata,
+                Layout: documentLayout
             );
 
             var renderer = new MarkdownRenderer(model, options);
@@ -417,6 +425,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                     pruneStaleFiles: PruneStaleFiles,
                     manifestIdentity: ManifestIdentity ?? "",
                     lineEndings: GetLineEndingFingerprintToken(lineEndingStyle),
+                    layout: documentLayout.ToString(),
                     metadataSha256: metadataFull is null
                         ? ""
                         : ComputeFileSha256(metadataFull)
@@ -448,6 +457,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
                             pruneStaleFiles = PruneStaleFiles,
                             manifestIdentity = ManifestIdentity,
                             lineEndings = lineEndingStyle.ToString(),
+                            layout = documentLayout.ToString(),
                             metadataFile = metadataFull
                         },
                         fingerprint = Fingerprint,
@@ -509,6 +519,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
     /// <param name="pruneStaleFiles">Whether stale-output pruning is enabled.</param>
     /// <param name="manifestIdentity">Stable invocation-scoped ownership identity.</param>
     /// <param name="lineEndings">Selected Markdown line-ending policy.</param>
+    /// <param name="layout">Selected multi-document layout.</param>
     /// <param name="metadataSha256">SHA-256 hash of caller metadata, or empty when absent.</param>
     /// <returns>SHA-256 hash of the concatenated input parameters.</returns>
     private static string ComputeFingerprint(
@@ -521,6 +532,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         bool pruneStaleFiles,
         string manifestIdentity,
         string lineEndings,
+        string layout,
         string metadataSha256)
     {
         using var sha = SHA256.Create();
@@ -535,6 +547,7 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
             pruneStaleFiles.ToString(),
             manifestIdentity,
             lineEndings,
+            layout,
             metadataSha256
         });
         var bytes = Encoding.UTF8.GetBytes(data);
@@ -548,6 +561,24 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
         lineEndingStyle == LineEndingStyle.Native
             ? $"Native:{Environment.NewLine.Length}"
             : lineEndingStyle.ToString();
+
+    private bool TryResolveLayout(out DocumentLayout layout)
+    {
+        switch ((Layout ?? "flat").ToLowerInvariant())
+        {
+            case "flat":
+                layout = DocumentLayout.Flat;
+                return true;
+            case "namespace-folders":
+                layout = DocumentLayout.NamespaceFolders;
+                return true;
+            default:
+                layout = DocumentLayout.Flat;
+                Log.LogError(
+                    "Xml2Doc: Layout must be one of: flat, namespace-folders.");
+                return false;
+        }
+    }
 
     /// <summary>
     /// Normalizes a path for hashing (full path, trimmed trailing separators). Returns empty string for blank or on failure.
@@ -625,6 +656,9 @@ public class GenerateMarkdownFromXmlDoc : Microsoft.Build.Utilities.Task
 
         /// <summary>Selected Markdown line-ending policy.</summary>
         public string? lineEndings { get; set; }
+
+        /// <summary>Selected multi-document layout.</summary>
+        public string? layout { get; set; }
 
         /// <summary>Resolved caller metadata file path.</summary>
         public string? metadataFile { get; set; }

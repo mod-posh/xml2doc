@@ -23,4 +23,10 @@ public static class DiagnosticIds
 
     /// <summary>Multiple MSBuild projects claim ownership of the same generated index.</summary>
     public const string ConflictingIndexOwnership = "XML2DOC007";
+
+    /// <summary>A document path resolver returned an unsafe logical path.</summary>
+    public const string UnsafeDocumentPath = "XML2DOC008";
+
+    /// <summary>Multiple documents resolved to the same logical path.</summary>
+    public const string DuplicateDocumentPath = "XML2DOC009";
 }

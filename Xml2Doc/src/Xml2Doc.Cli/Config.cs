@@ -16,7 +16,7 @@ namespace Xml2Doc.Cli
     /// <c>--trim-rootns-filenames</c>, <c>--report</c>, <c>--dry-run</c>, <c>--diff</c>,
     /// <c>--anchor-algorithm</c>, <c>--template</c>, <c>--front-matter</c>, <c>--auto-link</c>,
     /// <c>--metadata</c>, <c>--alias-map</c>, <c>--external-docs</c>, <c>--toc</c>, <c>--namespace-index</c>, <c>--no-index</c>, <c>--basename-only</c>,
-    /// <c>--parallel</c>, <c>--prune-stale</c>, <c>--manifest-id</c>, <c>--line-endings</c>.
+    /// <c>--parallel</c>, <c>--prune-stale</c>, <c>--manifest-id</c>, <c>--line-endings</c>, <c>--layout</c>.
     /// </remarks>
     public sealed class CliConfig
     {
@@ -103,5 +103,8 @@ namespace Xml2Doc.Cli
 
         /// <summary>Markdown line endings (<c>lf</c>, <c>crlf</c>, or <c>native</c>). Maps to <c>--line-endings</c>.</summary>
         public string? LineEndings { get; set; }
+
+        /// <summary>Multi-document layout (<c>flat</c> or <c>namespace-folders</c>). Maps to <c>--layout</c>.</summary>
+        public string? Layout { get; set; }
     }
 }

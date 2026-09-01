@@ -5,7 +5,7 @@ Command-line interface for Xml2Doc, part of the **mod-posh** organization.
 ## Overview
 
 `Xml2Doc.Cli` converts C# XML documentation into deterministic Markdown using `Xml2Doc.Core`.
-Version `2.3.1` supports single-input generation and deterministic multi-input aggregation, including corrected conventional-interface inheritance resolution.
+Version `2.4.0` adds deterministic caller metadata and built-in multi-document layout selection while preserving single-input and aggregate defaults.
 
 The CLI is multi-targeted for:
 
@@ -17,7 +17,7 @@ Rendered Markdown is expected to be identical across supported CLI TFMs for the 
 ## Install as a .NET tool
 
 ```powershell
-dotnet tool install --global Xml2Doc.Cli --version 2.3.1
+dotnet tool install --global Xml2Doc.Cli --version 2.4.0
 ```
 
 The installed command is `xml2doc`.
@@ -83,6 +83,7 @@ If two primary inputs define the same XML documentation member, generation fails
 | `--prune-stale` | Remove stale files owned by the selected manifest identity. Directory output only. |
 | `--manifest-id <identity>` | Stable ownership identity required with `--prune-stale`. |
 | `--line-endings <style>` | `lf` (default), `crlf`, or `native`. |
+| `--layout <mode>` | `flat` (default) or `namespace-folders`. |
 | `--report <path>` | Write a JSON execution report. |
 | `--dry-run` | Plan output without writing Markdown. |
 | `--diff` | Compare generated output with current files without modifying them. |
@@ -143,7 +144,7 @@ Run a configuration file with:
 xml2doc --config .\xml2doc.json
 ```
 
-Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `Metadata`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, and `LineEndings`.
+Configuration supports the same applicable values as the CLI surface, including `TrimRootNamespaceInFileNames`, `Report`, `DryRun`, `Diff`, `AnchorAlgorithm`, `Template`, `FrontMatter`, `Metadata`, `AutoLink`, `AliasMap`, `ExternalDocs`, `Toc`, `NamespaceIndex`, `GenerateIndex`, `Parallel`, `BasenameOnly`, `PruneStaleFiles`, `ManifestIdentity`, `LineEndings`, and `Layout`.
 
 Repeated `--metadata key=value` arguments override matching keys from the JSON `Metadata` object.
 Caller metadata produces deterministic YAML front matter containing Core-derived `documentId`,

@@ -85,6 +85,26 @@ public class AliasingTests
                         typeof(IExternalSymbolResolver),
                         typeof(SignatureStyle),
                         typeof(ISignatureRenderer),
+                        typeof(IDiagnosticSink),
+                        typeof(IReadOnlyDictionary<string, object?>)
+                    })
+                    .ToArray())
+            .ShouldNotBeNull();
+
+        typeof(RendererOptions)
+            .GetConstructor(
+                anchorGeneratorSignature
+                    .Concat(new[]
+                    {
+                        typeof(ITemplateRenderer),
+                        typeof(Func<
+                            TemplateRenderContext,
+                            IReadOnlyDictionary<string, object?>>),
+                        typeof(IAutoLinker),
+                        typeof(LinkPolicy),
+                        typeof(IExternalSymbolResolver),
+                        typeof(SignatureStyle),
+                        typeof(ISignatureRenderer),
                         typeof(IDiagnosticSink)
                     })
                     .ToArray())

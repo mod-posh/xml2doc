@@ -39,7 +39,38 @@ public class GenerateMarkdownFromXmlDocsTests
             ".." + Path.DirectorySeparatorChar +
             ".." + Path.DirectorySeparatorChar +
             ".." + Path.DirectorySeparatorChar +
-            "..");
+                "..");
+
+    [Fact]
+    public void AggregateInputs_NamespaceFoldersWritesNestedTypePages()
+    {
+        var root = CreateRoot();
+        var xml = Path.Join(root, "Alpha.xml");
+        var output = Path.Join(root, "docs");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(xml, """
+            <doc><members>
+              <member name="T:Alpha.Api.Widget"><summary>A widget.</summary></member>
+            </members></doc>
+            """);
+
+        try
+        {
+            var task = CreateTask(output, new TaskItem(xml));
+            task.Layout = "namespace-folders";
+
+            task.Execute().ShouldBeTrue();
+            task.GeneratedFiles.ShouldContain(item =>
+                item.ItemSpec.EndsWith(
+                    Path.Join("namespaces", "Alpha", "Api", "Widget.md"),
+                    StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
 
     [Fact]
     public void AggregateInputs_RenderOneCanonicalOutputRegardlessOfInputOrder()
@@ -239,8 +270,11 @@ public class GenerateMarkdownFromXmlDocsTests
         task.Attribute("XmlPaths")!.Value.ShouldBe("@(_Xml2Doc_AggregateInput)");
         task.Attribute("GenerateIndex")!.Value.ShouldBe("$(Xml2Doc_GenerateIndex)");
         task.Attribute("MetadataFile")!.Value.ShouldBe("$(Xml2Doc_MetadataFile)");
+        task.Attribute("Layout")!.Value.ShouldBe("$(Xml2Doc_Layout)");
         targets.Descendants("_Xml2Doc_AggregateOptions")
             .Single().Value.ShouldContain("$(_Xml2Doc_AggregateMetadataHash)");
+        targets.Descendants("_Xml2Doc_AggregateOptions")
+            .Single().Value.ShouldContain("$(Xml2Doc_Layout)");
 
         var cleanTarget = targets.Descendants("Target")
             .Single(element =>

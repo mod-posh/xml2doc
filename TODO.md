@@ -125,7 +125,7 @@ Planned architectural release for machine-addressable document metadata and dete
 
 - [x] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
 - [x] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
-- [ ] [#117 — Add pluggable document output-path/layout strategy](https://github.com/mod-posh/xml2doc/issues/117)
+- [x] [#117 — Add pluggable document output-path/layout strategy](https://github.com/mod-posh/xml2doc/issues/117)
 
 Implementation sequence and dependencies:
 
@@ -150,9 +150,9 @@ Milestone preparation:
 - [x] Assign #115, #116, and #117 to `2.4.0`.
 - [x] Draft the required metadata and path/layout ADRs.
 - [x] Review and accept the required ADRs before implementation.
-- [ ] Implement issues in dependency order: #115, #116, #117.
-- [ ] Update the roadmap, API documentation, README examples, and migration guidance.
-- [ ] Prepare `VersionPrefix` for `2.4.0`.
+- [x] Implement issues in dependency order: #115, #116, #117.
+- [x] Update the roadmap, API documentation source, README examples, and migration guidance.
+- [x] Prepare `VersionPrefix` for `2.4.0`.
 - [ ] Complete the standard milestone release workflow.
 
 ## 2.5.0 — API Surface Selection

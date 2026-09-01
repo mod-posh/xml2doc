@@ -607,6 +607,42 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void Main_WhenLayoutValueIsInvalid_ReturnsValidationFailure()
+        {
+            using var output = TemporaryOutput.Create();
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--layout", "invalid"
+            });
+
+            exitCode.ShouldBe(1);
+            Directory.Exists(output.Path).ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Main_WhenNamespaceFoldersSelected_WritesNestedTypePages()
+        {
+            using var output = TemporaryOutput.Create();
+
+            var exitCode = Program.Main(new[]
+            {
+                "--xml", SampleXml,
+                "--out", output.Path,
+                "--layout", "namespace-folders"
+            });
+
+            exitCode.ShouldBe(0);
+            Directory.GetFiles(
+                    Path.Join(output.Path, "namespaces"),
+                    "*.md",
+                    SearchOption.AllDirectories)
+                .ShouldNotBeEmpty();
+        }
+
+        [Fact]
         public void Main_WhenCrLfSelected_WritesCrLfMarkdown()
         {
             using var output = TemporaryOutput.Create();

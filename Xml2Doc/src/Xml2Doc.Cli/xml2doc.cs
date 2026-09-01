@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using Xml2Doc.Core;
 using Xml2Doc.Core.Linking;
+using Xml2Doc.Core.Paths;
 using Xml2Doc.Core.Pipeline;
 
 namespace Xml2Doc.Cli
@@ -31,6 +32,7 @@ namespace Xml2Doc.Cli
     ///   <item><description><c>--auto-link</c>, <c>--alias-map</c>, <c>--external-docs</c>: link &amp; alias behavior.</description></item>
     ///   <item><description><c>--toc</c>: per‑type member TOC (multi‑file only).</description></item>
     ///   <item><description><c>--namespace-index</c>: emit namespace index + per‑namespace pages.</description></item>
+    ///   <item><description><c>--layout</c>: <c>flat</c> | <c>namespace-folders</c> multi-document output.</description></item>
     ///   <item><description><c>--parallel &lt;N&gt;</c>: cap generation concurrency.</description></item>
     ///   <item><description><c>--prune-stale</c> / <c>--manifest-id</c>: remove only stale outputs owned by the same invocation.</description></item>
     ///   <item><description><c>--report</c>: write JSON execution report.</description></item>
@@ -77,7 +79,8 @@ namespace Xml2Doc.Cli
             "--parallel",
             "--config",
             "--manifest-id",
-            "--line-endings"
+            "--line-endings",
+            "--layout"
         };
 
         private static readonly HashSet<string> FlagOptions = new(
@@ -148,6 +151,8 @@ namespace Xml2Doc.Cli
             string? manifestIdentity = null;
             string lineEndings = "lf";
             bool lineEndingsSpecified = false;
+            string layout = "flat";
+            bool layoutSpecified = false;
 
             // Parse CLI
             for (int i = 0; i < args.Length; i++)
@@ -210,6 +215,10 @@ namespace Xml2Doc.Cli
                     case "--line-endings" when i + 1 < args.Length:
                         lineEndings = args[++i];
                         lineEndingsSpecified = true;
+                        break;
+                    case "--layout" when i + 1 < args.Length:
+                        layout = args[++i];
+                        layoutSpecified = true;
                         break;
                     case "--help":
                     case "-h":
@@ -329,6 +338,11 @@ namespace Xml2Doc.Cli
                 {
                     lineEndings = config.LineEndings;
                 }
+                if (!layoutSpecified &&
+                    !string.IsNullOrWhiteSpace(config.Layout))
+                {
+                    layout = config.Layout;
+                }
             }
 
             if (xmlInputs.Count == 0 ||
@@ -344,6 +358,13 @@ namespace Xml2Doc.Cli
             {
                 Console.Error.WriteLine(
                     "--anchor-algorithm must be one of: default, github, gfm, kramdown.");
+                return 1;
+            }
+
+            if (!IsLayout(layout))
+            {
+                Console.Error.WriteLine(
+                    "--layout must be one of: flat, namespace-folders.");
                 return 1;
             }
 
@@ -412,6 +433,11 @@ namespace Xml2Doc.Cli
                 "kramdown" => Xml2Doc.Core.AnchorAlgorithm.Kramdown,
                 _ => Xml2Doc.Core.AnchorAlgorithm.Default
             };
+            var layoutEnum = layout.Equals(
+                    "namespace-folders",
+                    StringComparison.OrdinalIgnoreCase)
+                ? DocumentLayout.NamespaceFolders
+                : DocumentLayout.Flat;
 
             var diagnosticSink = new CliDiagnosticSink(Console.Error);
 
@@ -470,7 +496,8 @@ namespace Xml2Doc.Cli
                     ManifestIdentity: manifestIdentity,
                     LineEndings: lineEndingStyle,
                     DiagnosticSink: diagnosticSink,
-                    Metadata: metadata
+                    Metadata: metadata,
+                    Layout: layoutEnum
                 );
 
                 var mode = single
@@ -583,7 +610,8 @@ namespace Xml2Doc.Cli
                             parallel,
                             pruneStaleFiles,
                             manifestIdentity,
-                            lineEndings = lineEndingStyle.ToString()
+                            lineEndings = lineEndingStyle.ToString(),
+                            layout = layoutEnum.ToString()
                         },
                         dryRun,
                         diffRequested = diff,
@@ -644,6 +672,9 @@ namespace Xml2Doc.Cli
                 {
                     return "--parallel must be an integer greater than zero.";
                 }
+
+                if (option == "--layout" && !IsLayout(value))
+                    return "--layout must be one of: flat, namespace-folders.";
             }
 
             return null;
@@ -658,6 +689,10 @@ namespace Xml2Doc.Cli
             value.Equals("github", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("gfm", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("kramdown", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsLayout(string value) =>
+            value.Equals("flat", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("namespace-folders", StringComparison.OrdinalIgnoreCase);
 
         private static CliDiffResult RunDiff(
             Xml2Doc.Core.Models.Xml2Doc model,
@@ -841,6 +876,7 @@ namespace Xml2Doc.Cli
             Console.WriteLine("                   [--parallel <N>]");
             Console.WriteLine("                   [--prune-stale --manifest-id <identity>]");
             Console.WriteLine("                   [--line-endings <lf|crlf|native>]");
+            Console.WriteLine("                   [--layout <flat|namespace-folders>]");
             Console.WriteLine("                   [--config <file>]");
             Console.WriteLine();
         }

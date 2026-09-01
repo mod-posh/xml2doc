@@ -153,7 +153,7 @@
       <_Xml2Doc_AggregateReferenceIdentity>@(Xml2Doc_ReferenceXml->'%(FullPath)', ';')</_Xml2Doc_AggregateReferenceIdentity>
       <_Xml2Doc_AggregateNativeLineEndingToken Condition="'$(Xml2Doc_LineEndings)' == 'native'">native-$([System.Environment]::NewLine.Length)</_Xml2Doc_AggregateNativeLineEndingToken>
       <_Xml2Doc_AggregateMetadataHash>@(_Xml2Doc_AggregateMetadataHashValue)</_Xml2Doc_AggregateMetadataHash>
-      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(_Xml2Doc_AggregateReferenceIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(_Xml2Doc_AggregateNativeLineEndingToken)|$(Xml2Doc_MetadataFile)|$(_Xml2Doc_AggregateMetadataHash)</_Xml2Doc_AggregateOptions>
+      <_Xml2Doc_AggregateOptions>$(_Xml2Doc_AggregateInputIdentity)|$(_Xml2Doc_AggregateReferenceIdentity)|$(Xml2Doc_SingleFile)|$(Xml2Doc_OutputFile)|$(Xml2Doc_OutputDir)|$(Xml2Doc_FileNameMode)|$(Xml2Doc_RootNamespaceToTrim)|$(Xml2Doc_CodeBlockLanguage)|$(Xml2Doc_Toc)|$(Xml2Doc_NamespaceIndex)|$(Xml2Doc_BasenameOnly)|$(Xml2Doc_ParallelDegree)|$(Xml2Doc_TrimRootNamespaceInFileNames)|$(Xml2Doc_AnchorAlgorithm)|$(Xml2Doc_GenerateIndex)|$(Xml2Doc_PruneStaleFiles)|$(Xml2Doc_ManifestIdentity)|$(Xml2Doc_LineEndings)|$(Xml2Doc_Layout)|$(_Xml2Doc_AggregateNativeLineEndingToken)|$(Xml2Doc_MetadataFile)|$(_Xml2Doc_AggregateMetadataHash)</_Xml2Doc_AggregateOptions>
     </PropertyGroup>
 
     <MakeDir Directories="$(_Xml2Doc_AggregateFingerprintDir)"
@@ -206,6 +206,7 @@
                                  PruneStaleFiles="$(Xml2Doc_PruneStaleFiles)"
                                  ManifestIdentity="$(Xml2Doc_ManifestIdentity)"
                                  LineEndings="$(Xml2Doc_LineEndings)"
+                                 Layout="$(Xml2Doc_Layout)"
                                  BasenameOnly="$(Xml2Doc_BasenameOnly)"
                                  ParallelDegree="$(Xml2Doc_ParallelDegree)"
                                  AnchorAlgorithm="$(Xml2Doc_AnchorAlgorithm)"

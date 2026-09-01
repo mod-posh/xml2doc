@@ -149,6 +149,29 @@ Architectural themes:
 - generated documentation remains durable across `Clean`, while derived incremental state follows the normal MSBuild lifecycle;
 - generated Markdown structure remains deterministic across repeated renders.
 
+## Metadata and output extensibility — 2.4.0
+
+Prepared for release as the architectural extension of the `2.3.x` aggregation and rendering line.
+
+Key outcomes:
+
+- immutable document descriptors expose stable identity, kind, namespace, symbol, and resolved output-path metadata to templates and programmatic front matter;
+- deterministic caller metadata flows through Core, CLI arguments and configuration, and normal and aggregate MSBuild generation;
+- one authoritative `DocumentPlan` governs logical paths, relative links, dry-run plans, reports, ownership manifests, pruning, and physical writes;
+- the compatible flat layout remains the default, with an opt-in namespace-folder layout and a pluggable Core path resolver;
+- unsafe, non-canonical, and case-insensitively colliding paths fail before output is written with stable diagnostics;
+- parity and integration coverage protect metadata precedence, immutable snapshots, host configuration, nested paths, links, and incremental fingerprints.
+
+Architectural themes:
+
+- Core owns document identity, metadata composition, path planning, validation, and link routing;
+- CLI and MSBuild expose shared Core capabilities without implementing parallel behavior;
+- metadata and output paths are deterministic public contracts shared by rendering and lifecycle operations;
+- existing templates, literal front matter, flat paths, and single-file output remain compatible defaults.
+
+See [ADR-014](adr/ADR-014-deterministic-document-metadata.md) and
+[ADR-015](adr/ADR-015-authoritative-document-paths.md) for the accepted designs.
+
 ## Future work
 
 Future capabilities should be represented by GitHub issues and milestones before they are added here. This keeps the roadmap tied to accepted scope rather than speculative feature lists.

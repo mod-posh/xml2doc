@@ -30,7 +30,7 @@ Add `Xml2Doc.MSBuild` to a small repository-level project and reference every pr
     <ProjectReference Include="..\src\Zulu\Zulu.csproj" />
 
     <PackageReference Include="Xml2Doc.MSBuild"
-                      Version="2.3.1"
+                      Version="2.4.0"
                       PrivateAssets="all" />
   </ItemGroup>
 </Project>
