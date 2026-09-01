@@ -178,7 +178,7 @@
             and '$(DocumentationFile)' != ''
             and Exists('$(DocumentationFile)')
             and Exists('$(Xml2Doc_FingerprintFile)')"
-          Inputs="$(Xml2Doc_FingerprintFile)"
+          Inputs="$(Xml2Doc_FingerprintFile);$(Xml2Doc_MetadataFile)"
           Outputs="$(Xml2Doc_OutputStamp)">
 
     <MakeDir Directories="$(Xml2Doc_OutputDir)"

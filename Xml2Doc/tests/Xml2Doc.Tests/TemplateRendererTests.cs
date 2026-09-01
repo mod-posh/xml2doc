@@ -220,6 +220,26 @@ public class TemplateRendererTests
     }
 
     [Fact]
+    public void FrontMatterWithoutCallerMetadata_PreservesExistingCollisionBehavior()
+    {
+        var renderer = new MarkdownRenderer(
+            LoadModel(),
+            new RendererOptions(
+                FrontMatter: _ => new Dictionary<string, object?>
+                {
+                    ["documentId"] = "provider-id",
+                    ["outputPath"] = "provider-path"
+                }));
+
+        renderer.RenderToString().ShouldStartWith(
+            "---\n" +
+            "documentId: \"provider-id\"\n" +
+            "outputPath: \"provider-path\"\n" +
+            "---\n" +
+            "# API Reference");
+    }
+
+    [Fact]
     public void CallerMetadataAndLiteralFrontMatter_AreRejected()
     {
         var exception = Should.Throw<ArgumentException>(() =>

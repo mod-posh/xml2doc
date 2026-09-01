@@ -397,8 +397,9 @@ as deterministic YAML front matter.
 
 Generic caller keys have the lowest precedence. Programmatic per-document front matter can override
 them, while Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, and `outputPath` values
-always win collisions. The existing literal `FrontMatterPath`/`--front-matter` mode remains
-unchanged and cannot be combined with caller metadata.
+win collisions whenever caller metadata participates in the merge. Without caller metadata,
+existing programmatic front-matter output remains unchanged. The existing literal
+`FrontMatterPath`/`--front-matter` mode remains unchanged and cannot be combined with caller metadata.
 
 ## Troubleshooting
 

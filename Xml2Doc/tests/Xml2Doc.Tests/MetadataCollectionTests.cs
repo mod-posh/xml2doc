@@ -42,8 +42,9 @@ public class MetadataCollectionTests
         metadata.Keys.ShouldBe(new[] { "published", "retries", "tags", "version" });
         metadata["published"].ShouldBe(true);
         metadata["retries"].ShouldBe(3L);
-        metadata.ShouldBe(MetadataCollection.ParseJson(
-            """{"version":"2.4.0","tags":["api","stable"],"retries":3,"published":true}"""));
+        metadata.Equals(MetadataCollection.ParseJson(
+            """{"version":"2.4.0","tags":["api","stable"],"retries":3,"published":true}"""))
+            .ShouldBeTrue();
     }
 
     [Fact]

@@ -128,8 +128,8 @@ namespace Xml2Doc.Tests
         public void MetadataFile_EmitsCallerAndDocumentFrontMatter()
         {
             var root = CreateOutputDirectory();
-            var outDir = Path.Combine(root, "docs");
-            var metadataPath = Path.Combine(root, "metadata.json");
+            var outDir = Path.Join(root, "docs");
+            var metadataPath = Path.Join(root, "metadata.json");
             Directory.CreateDirectory(root);
             File.WriteAllText(
                 metadataPath,
@@ -162,7 +162,7 @@ namespace Xml2Doc.Tests
         {
             var outDir = CreateOutputDirectory();
             var task = CreateTask(outDir);
-            task.MetadataFile = Path.Combine(outDir, "missing.json");
+            task.MetadataFile = Path.Join(outDir, "missing.json");
 
             task.Execute().ShouldBeFalse();
 
@@ -346,6 +346,8 @@ namespace Xml2Doc.Tests
             var generateTarget = targets.Descendants("Target")
                 .Single(element =>
                     element.Attribute("Name")?.Value == "Xml2Doc_Generate");
+            generateTarget.Attribute("Inputs")!.Value
+                .ShouldContain("$(Xml2Doc_MetadataFile)");
             var validateOutputsTarget = targets.Descendants("Target")
                 .Single(element =>
                     element.Attribute("Name")?.Value == "Xml2Doc_ValidateOutputs");

@@ -558,8 +558,10 @@ public sealed class MarkdownRenderer
         var rendered = _templateRenderer.Render(context);
         var frontMatter = _opt.FrontMatter?.Invoke(context);
 
+        // ADR-014 preserves provider-only output; authoritative document values participate
+        // in precedence only when generic caller metadata enables the merged metadata path.
         if (_callerMetadata.Count > 0)
-            frontMatter = MergeFrontMatter(frontMatter, document, outputPath);
+            frontMatter = MergeCallerMetadata(frontMatter, document, outputPath);
 
         if (frontMatter is null || frontMatter.Count == 0)
             return rendered;
@@ -579,7 +581,7 @@ public sealed class MarkdownRenderer
         return new MetadataCollection(values);
     }
 
-    private MetadataCollection MergeFrontMatter(
+    private MetadataCollection MergeCallerMetadata(
         IReadOnlyDictionary<string, object?>? frontMatter,
         DocumentDescriptor document,
         string? outputPath)

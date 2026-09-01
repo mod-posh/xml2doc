@@ -307,11 +307,9 @@ namespace Xml2Doc.Cli
                 if (!string.IsNullOrWhiteSpace(config.FrontMatter)) frontMatterPath ??= config.FrontMatter;
                 if (config.Metadata is not null)
                 {
-                    foreach (var pair in config.Metadata)
-                    {
-                        if (!metadataValues.ContainsKey(pair.Key))
-                            metadataValues.Add(pair.Key, pair.Value);
-                    }
+                    foreach (var pair in config.Metadata.Where(
+                                 pair => !metadataValues.ContainsKey(pair.Key)))
+                        metadataValues.Add(pair.Key, pair.Value);
                 }
                 if (config.AutoLink is bool al) autoLink = al || autoLink;
                 if (!string.IsNullOrWhiteSpace(config.AliasMap)) aliasMapPath ??= config.AliasMap;

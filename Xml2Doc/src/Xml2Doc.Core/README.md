@@ -152,9 +152,9 @@ var options = new RendererOptions(
 
 Generic caller keys have the lowest precedence. A programmatic `FrontMatter` provider may override
 them for one document. Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, and
-`outputPath` values are authoritative and always win collisions. Keys are serialized in ordinal
-order. Supported values are `null`, strings, booleans, numeric values, dates, enums, and recursively
-nested lists of those scalars.
+`outputPath` values are authoritative when caller metadata participates in the merge and win
+collisions. Keys are serialized in ordinal order. Supported values are `null`, strings, booleans,
+numeric values, dates, enums, and recursively nested lists of those scalars.
 
 Caller metadata cannot be combined with literal `FrontMatterPath`; that existing mode continues to
 prepend its configured file unchanged. Without caller metadata, default output and existing

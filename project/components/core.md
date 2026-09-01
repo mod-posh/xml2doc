@@ -33,8 +33,9 @@ Built-in behavior and consumer-provided implementations run through the same ren
 `RendererOptions.Metadata` accepts generic scalar/list caller metadata. Core snapshots values at
 renderer construction, exposes the immutable merged collection through
 `TemplateRenderContext.Metadata`, and emits ordinally ordered YAML front matter. Programmatic
-per-document values override generic caller keys; authoritative `documentId`, `documentKind`,
-`namespace`, `symbol`, and `outputPath` values override both.
+per-document values override generic caller keys; when caller metadata participates in the merge,
+authoritative `documentId`, `documentKind`, `namespace`, `symbol`, and `outputPath` values override
+both. Programmatic front matter without caller metadata retains its existing output.
 
 ## Runner pipeline
 
