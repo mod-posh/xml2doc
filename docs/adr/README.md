@@ -19,5 +19,7 @@ This directory contains Xml2Doc architecture decision records. They explain why 
 | ADR-011 | Generated output ownership | Accepted |
 | ADR-012 | Invocation-scoped manifest identity and storage | Accepted |
 | ADR-013 | Deterministic Markdown line endings | Accepted |
+| ADR-014 | Deterministic document metadata | Proposed |
+| ADR-015 | Authoritative document paths and layout | Proposed |
 
 ADR-011 was extended during the `2.3.0` work to record the explicit repository aggregation-owner model for multi-project documentation.
