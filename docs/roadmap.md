@@ -134,7 +134,7 @@ See [`msbuild-repository-aggregation.md`](msbuild-repository-aggregation.md) for
 
 ## Stabilization and output correctness — 2.3.1
 
-Release preparation is complete for a focused patch to the `2.3.0` aggregation and rendering line.
+Released August 30, 2026, as a focused patch to the `2.3.0` aggregation and rendering line.
 
 Key outcomes:
 
