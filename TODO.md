@@ -123,7 +123,7 @@ Milestone preparation:
 
 Planned architectural release for machine-addressable document metadata and deterministic output-layout extensibility.
 
-- [ ] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
+- [x] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
 - [ ] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
 - [ ] [#117 — Add pluggable document output-path/layout strategy](https://github.com/mod-posh/xml2doc/issues/117)
 
@@ -135,9 +135,9 @@ Implementation sequence and dependencies:
 
 Architecture and quality notes:
 
-- [ADR-014](docs/adr/ADR-014-deterministic-document-metadata.md) defines the proposed document
+- [ADR-014](docs/adr/ADR-014-deterministic-document-metadata.md) defines the accepted document
   metadata/context model and host-parity boundary for #115 and #116.
-- [ADR-015](docs/adr/ADR-015-authoritative-document-paths.md) defines the proposed authoritative
+- [ADR-015](docs/adr/ADR-015-authoritative-document-paths.md) defines the accepted authoritative
   path plan for #117 because path generation and link routing are part of the public output contract.
 - Keep all rendering, metadata composition, document identity, path planning, and link-resolution behavior in Core.
 - CLI and MSBuild must expose shared Core capabilities without duplicating rendering behavior.

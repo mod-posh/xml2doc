@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.4.0) - Unreleased
+
+### Added
+
+- Core templates and programmatic front-matter providers now receive an immutable
+  `DocumentDescriptor` with stable identity, namespace, and symbol metadata for every generated
+  document kind.
+- `TemplateRenderContext.OutputPath` exposes the resolved output-root-relative logical path when a
+  render operation has an output location.
+- File templates can consume document metadata through `{{documentId}}`, `{{namespace}}`,
+  `{{symbol}}`, and `{{outputPath}}` tokens.
+
+### Compatibility
+
+- The existing three-argument `TemplateRenderContext` constructor and deconstruction remain
+  available, and default Markdown output is unchanged.
+- Xml2Doc identifies type documents without inferring unavailable CLR declaration kinds such as
+  class, interface, record, struct, or enum.
+
+### Tests
+
+- Added metadata coverage for type, primary index, namespace index, namespace overview, resolved
+  single-file, and in-memory rendering contexts.
+- Added parity coverage proving templates and front-matter providers receive the same context.
+
+---
+
 ## [2.3.1](https://github.com/mod-posh/Xml2Doc/releases/tag/2.3.1) - 2026-08-30
 
 ### Fixed

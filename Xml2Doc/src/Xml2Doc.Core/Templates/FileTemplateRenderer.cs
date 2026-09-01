@@ -6,6 +6,10 @@ namespace Xml2Doc.Core.Templates;
 public sealed class FileTemplateRenderer : ITemplateRenderer
 {
     private const string ContentToken = "{{content}}";
+    private const string DocumentIdToken = "{{documentId}}";
+    private const string NamespaceToken = "{{namespace}}";
+    private const string SymbolToken = "{{symbol}}";
+    private const string OutputPathToken = "{{outputPath}}";
     private readonly string? _template;
     private readonly string? _frontMatter;
 
@@ -49,6 +53,16 @@ public sealed class FileTemplateRenderer : ITemplateRenderer
                 .Replace(
                     "{{kind}}",
                     context.Kind.ToString().ToLowerInvariant())
+                .Replace(
+                    DocumentIdToken,
+                    context.Document?.DocumentId ?? string.Empty)
+                .Replace(
+                    NamespaceToken,
+                    context.Document?.Namespace ?? string.Empty)
+                .Replace(
+                    SymbolToken,
+                    context.Document?.Symbol ?? string.Empty)
+                .Replace(OutputPathToken, context.OutputPath ?? string.Empty)
                 .Replace(ContentToken, content);
         }
 

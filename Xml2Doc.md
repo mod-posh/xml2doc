@@ -355,6 +355,29 @@ Core consumers can replace individual rendering services through `RendererOption
 
 The CLI exposes the applicable built-in behaviors through flags and JSON configuration. Consumer-provided service implementations remain a direct `Xml2Doc.Core` integration concern.
 
+### Per-document metadata
+
+Templates and programmatic front-matter providers receive the same `TemplateRenderContext`. Contexts
+created by the renderer expose an immutable `DocumentDescriptor` through `context.Document`, with:
+
+- a stable document identity;
+- the existing `TemplateDocumentKind`;
+- namespace and unqualified symbol metadata where applicable;
+- the resolved output-root-relative logical path through `context.OutputPath`.
+
+Type pages use their complete XML documentation ID, such as `T:Temp.Widget`. Namespace pages use
+`N:<namespace>`, while the primary index, namespace overview, and consolidated document use
+`xml2doc:index`, `xml2doc:namespaces`, and `xml2doc:single-file` respectively. Logical paths always
+use forward slashes. `RenderToString()` exposes no output path because it has no resolved output
+location.
+
+Compiler XML does not identify whether a documented type is a class, interface, record, struct, or
+enum, so Xml2Doc does not infer that metadata. Existing direct construction and deconstruction of
+`TemplateRenderContext(Content, Title, Kind)` remains available.
+
+File templates expose the same metadata through `{{documentId}}`, `{{namespace}}`, `{{symbol}}`, and
+`{{outputPath}}`. Tokens without an applicable value render as an empty string.
+
 ## Troubleshooting
 
 ### Multiple projects overwrite `index.md`

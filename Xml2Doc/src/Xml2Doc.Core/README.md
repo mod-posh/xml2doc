@@ -107,6 +107,32 @@ Reference members are available to `<inheritdoc />` and reference resolution but
 
 Built-in and consumer-provided rendering services use the same renderer pipeline.
 
+## Per-document metadata
+
+Core-created `TemplateRenderContext` instances expose an immutable `DocumentDescriptor` through
+`context.Document`. The descriptor identifies the logical document without requiring templates or
+front-matter providers to parse rendered Markdown:
+
+- type pages use their complete XML documentation ID, such as `T:Temp.Widget`;
+- namespace pages use `N:<namespace>`;
+- the primary index uses `xml2doc:index`;
+- the namespace overview uses `xml2doc:namespaces`;
+- consolidated output uses `xml2doc:single-file`.
+
+Type descriptors also expose the documented namespace and unqualified symbol. Xml2Doc does not
+infer whether a type is a class, interface, record, struct, or enum because compiler XML does not
+contain that information.
+
+`TemplateRenderContext.OutputPath` contains the resolved output-root-relative logical path using
+forward slashes. It is `null` for `RenderToString()` because in-memory rendering has no resolved
+output location. Direct callers can continue constructing and deconstructing
+`TemplateRenderContext` with its existing `Content`, `Title`, and `Kind` values; `Document` and
+`OutputPath` remain `null` for those directly constructed contexts.
+
+File templates can consume the same values through `{{documentId}}`, `{{namespace}}`, `{{symbol}}`,
+and `{{outputPath}}`. A token renders as an empty string when that value does not apply to the
+current document.
+
 ## Runner pipeline
 
 `RendererRunner` coordinates output planning and execution around an initialized `MarkdownRenderer`.
