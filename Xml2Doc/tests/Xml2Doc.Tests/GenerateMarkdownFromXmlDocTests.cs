@@ -125,6 +125,52 @@ namespace Xml2Doc.Tests
         }
 
         [Fact]
+        public void MetadataFile_EmitsCallerAndDocumentFrontMatter()
+        {
+            var root = CreateOutputDirectory();
+            var outDir = Path.Combine(root, "docs");
+            var metadataPath = Path.Combine(root, "metadata.json");
+            Directory.CreateDirectory(root);
+            File.WriteAllText(
+                metadataPath,
+                """{"package":"Xml2Doc.Sample","tags":["api","stable"]}""");
+
+            try
+            {
+                var task = CreateTask(outDir);
+                task.MetadataFile = metadataPath;
+
+                task.Execute().ShouldBeTrue();
+
+                var markdown = File.ReadAllText(
+                    Directory.GetFiles(outDir, "*.md")
+                        .First(path => Path.GetFileName(path) != "index.md"));
+                markdown.ShouldStartWith("---\n");
+                markdown.ShouldContain("documentId: \"T:Xml2Doc.Sample.");
+                markdown.ShouldContain("package: \"Xml2Doc.Sample\"");
+                markdown.ShouldContain("tags: [\"api\", \"stable\"]");
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                    Directory.Delete(root, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void MetadataFile_WhenMissing_FailsBeforeWriting()
+        {
+            var outDir = CreateOutputDirectory();
+            var task = CreateTask(outDir);
+            task.MetadataFile = Path.Combine(outDir, "missing.json");
+
+            task.Execute().ShouldBeFalse();
+
+            task.DidWork.ShouldBeFalse();
+            Directory.Exists(outDir).ShouldBeFalse();
+        }
+
+        [Fact]
         public void Pruning_WhenSingleFileIsEnabled_FailsBeforeWriting()
         {
             var outDir = CreateOutputDirectory();
@@ -279,6 +325,8 @@ namespace Xml2Doc.Tests
                 .Single().Value.ShouldBe("lf");
             props.Descendants("Xml2Doc_ParallelDegree")
                 .Single().Value.ShouldBe("1");
+            props.Descendants("Xml2Doc_MetadataFile")
+                .Single().Value.ShouldBeEmpty();
             targets.Descendants("_Xml2Doc_NativeLineEndingToken")
                 .Single().Value.ShouldContain("Environment]::NewLine.Length");
             targets.Descendants("_Xml2Doc_Options")
@@ -289,6 +337,10 @@ namespace Xml2Doc.Tests
                 .ShouldBe("$(Xml2Doc_ParallelDegree)");
             targets.Descendants("_Xml2Doc_Options")
                 .Single().Value.ShouldContain("$(Xml2Doc_ParallelDegree)");
+            targets.Descendants("_Xml2Doc_Options")
+                .Single().Value.ShouldContain("$(_Xml2Doc_MetadataHash)");
+            taskElement.Attribute("MetadataFile")!.Value
+                .ShouldBe("$(Xml2Doc_MetadataFile)");
             taskElement.Attribute("ReferenceXmlPaths")!.Value
                 .ShouldBe("@(_Xml2Doc_AutomaticReferenceXml);@(Xml2Doc_ReferenceXml)");
             var generateTarget = targets.Descendants("Target")

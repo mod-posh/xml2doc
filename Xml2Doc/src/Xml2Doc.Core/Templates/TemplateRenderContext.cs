@@ -27,4 +27,14 @@ public sealed record TemplateRenderContext(
     /// In-memory rendering that has no resolved output location exposes <see langword="null"/>.
     /// </remarks>
     public string? OutputPath { get; init; }
+
+    /// <summary>
+    /// Gets the immutable document-derived and caller-supplied metadata for this render.
+    /// </summary>
+    /// <remarks>
+    /// Document-derived keys are authoritative when they collide with caller-supplied values.
+    /// Directly constructed contexts expose an empty collection.
+    /// </remarks>
+    public IReadOnlyDictionary<string, object?> Metadata { get; init; } =
+        MetadataCollection.Empty;
 }

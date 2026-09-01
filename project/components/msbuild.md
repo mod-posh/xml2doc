@@ -28,9 +28,9 @@ Conflicts fail with `XML2DOC007` before normal referenced-project builds proceed
 
 ## Incremental behavior
 
-Normal generation fingerprints compiler XML, reference XML contents, and significant renderer options.
+Normal generation fingerprints compiler XML, reference XML contents, caller metadata content, and significant renderer options. `Xml2Doc_MetadataFile` supplies one generic scalar/list JSON object to both normal and aggregate generation.
 
-Aggregate generation tracks primary/reference XML inputs, aggregate participation identities, significant renderer options, and the host newline token when `Xml2Doc_LineEndings=native`. Missing files in an output ledger invalidate the corresponding stamp so the next build recreates them.
+Aggregate generation tracks primary/reference XML inputs, caller metadata content, aggregate participation identities, significant renderer options, and the host newline token when `Xml2Doc_LineEndings=native`. Missing files in an output ledger invalidate the corresponding stamp so the next build recreates them.
 
 ## Package layout
 

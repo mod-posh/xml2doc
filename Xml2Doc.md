@@ -76,6 +76,7 @@ The package currently assigns `Xml2Doc_Toc`, `Xml2Doc_NamespaceIndex`, and `Xml2
 | `Xml2Doc_BasenameOnly` | `false` | Uses only basename segments for generated type files and links. |
 | `Xml2Doc_ParallelDegree` | `1` | Maximum concurrent per-type renders. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. `lf` is deterministic across hosts. |
+| `Xml2Doc_MetadataFile` | Empty | JSON object containing generic scalar/list caller metadata. |
 | `Xml2Doc_PruneStaleFiles` | `false` | Removes stale files previously owned by the same invocation. Per-type mode only. |
 | `Xml2Doc_ManifestIdentity` | Empty | Stable identity required when pruning is enabled. |
 | `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path for normal project generation. |
@@ -269,6 +270,7 @@ One XML input uses the compatible single-input loading path. Two or more primary
 | `--anchor-algorithm <mode>` | `default`, `github`, `gfm`, or `kramdown`. |
 | `--template <path>` | Apply a file-based template. |
 | `--front-matter <path>` | Prepend configured front matter. |
+| `--metadata <key=value>` | Add generic caller metadata. Repeat for multiple values. |
 | `--auto-link` | Enable safe free-text symbol linking. |
 | `--alias-map <path>` | Load an additional alias map. |
 | `--external-docs <base-url>` | Route unresolved references to external documentation. |
@@ -300,9 +302,18 @@ One XML input uses the compatible single-input loading path. Two or more primary
   "FileNames": "clean",
   "GenerateIndex": true,
   "Parallel": 4,
+  "Metadata": {
+    "package": "MyCompany.MyProduct",
+    "tags": ["api", "stable"],
+    "version": "2.4.0"
+  },
   "LineEndings": "lf"
 }
 ```
+
+Repeated CLI `--metadata key=value` arguments override matching keys from the JSON `Metadata`
+object. MSBuild uses the same value model through `Xml2Doc_MetadataFile`. Metadata values may be
+`null`, strings, booleans, numbers, dates, enums, or lists of supported scalar values.
 
 `XmlInputs` takes precedence over the legacy single-input `Xml` property when no `--xml` arguments are supplied. Repeated CLI `--xml` arguments take precedence over both JSON properties.
 
@@ -377,6 +388,17 @@ enum, so Xml2Doc does not infer that metadata. Existing direct construction and 
 
 File templates expose the same metadata through `{{documentId}}`, `{{namespace}}`, `{{symbol}}`, and
 `{{outputPath}}`. Tokens without an applicable value render as an empty string.
+
+Caller-supplied metadata is provided programmatically through `RendererOptions.Metadata`, through
+repeated CLI `--metadata key=value` arguments or the JSON `Metadata` object, and through the
+MSBuild `Xml2Doc_MetadataFile` property. Core snapshots and validates the values before rendering,
+then exposes the immutable merged collection through `TemplateRenderContext.Metadata` and emits it
+as deterministic YAML front matter.
+
+Generic caller keys have the lowest precedence. Programmatic per-document front matter can override
+them, while Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, and `outputPath` values
+always win collisions. The existing literal `FrontMatterPath`/`--front-matter` mode remains
+unchanged and cannot be combined with caller metadata.
 
 ## Troubleshooting
 

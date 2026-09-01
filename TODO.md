@@ -124,7 +124,7 @@ Milestone preparation:
 Planned architectural release for machine-addressable document metadata and deterministic output-layout extensibility.
 
 - [x] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
-- [ ] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
+- [x] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
 - [ ] [#117 — Add pluggable document output-path/layout strategy](https://github.com/mod-posh/xml2doc/issues/117)
 
 Implementation sequence and dependencies:
@@ -146,8 +146,8 @@ Architecture and quality notes:
 
 Milestone preparation:
 
-- [ ] Create the `2.4.0` milestone.
-- [ ] Assign #115, #116, and #117 to `2.4.0`.
+- [x] Create the `2.4.0` milestone.
+- [x] Assign #115, #116, and #117 to `2.4.0`.
 - [x] Draft the required metadata and path/layout ADRs.
 - [x] Review and accept the required ADRs before implementation.
 - [ ] Implement issues in dependency order: #115, #116, #117.

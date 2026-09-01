@@ -47,6 +47,7 @@
     <Xml2Doc_PruneStaleFiles Condition="'$(Xml2Doc_PruneStaleFiles)'==''">false</Xml2Doc_PruneStaleFiles>
     <Xml2Doc_ManifestIdentity Condition="'$(Xml2Doc_ManifestIdentity)'==''"></Xml2Doc_ManifestIdentity>
     <Xml2Doc_LineEndings Condition="'$(Xml2Doc_LineEndings)'==''">lf</Xml2Doc_LineEndings>
+    <Xml2Doc_MetadataFile Condition="'$(Xml2Doc_MetadataFile)'==''"></Xml2Doc_MetadataFile>
 
     <Xml2Doc_ReportIncludeTimestamp Condition="'$(Xml2Doc_ReportIncludeTimestamp)'==''">false</Xml2Doc_ReportIncludeTimestamp>
 

@@ -30,6 +30,12 @@ Current replaceable rendering services include:
 
 Built-in behavior and consumer-provided implementations run through the same rendering path.
 
+`RendererOptions.Metadata` accepts generic scalar/list caller metadata. Core snapshots values at
+renderer construction, exposes the immutable merged collection through
+`TemplateRenderContext.Metadata`, and emits ordinally ordered YAML front matter. Programmatic
+per-document values override generic caller keys; authoritative `documentId`, `documentKind`,
+`namespace`, `symbol`, and `outputPath` values override both.
+
 ## Runner pipeline
 
 `RendererRunner` coordinates output planning and execution around a renderer. It reports planned/written/skipped/pruned files and timing data, supports dry-run behavior, and is used by host integrations as the common execution boundary.

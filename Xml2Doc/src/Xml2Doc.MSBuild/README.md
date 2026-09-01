@@ -77,6 +77,7 @@ Projects that contribute compiler XML must enable:
 | `Xml2Doc_PruneStaleFiles` | `false` | Remove stale output owned by this invocation. Per-type mode only. |
 | `Xml2Doc_ManifestIdentity` | Empty | Stable identity required for stale pruning. |
 | `Xml2Doc_LineEndings` | `lf` | `lf`, `crlf`, or `native`. |
+| `Xml2Doc_MetadataFile` | Empty | JSON object containing generic scalar/list caller metadata. |
 | `Xml2Doc_ReportPath` | `$(Xml2Doc_OutputDir)\xml2doc-report.json` | JSON report path. |
 | `Xml2Doc_ReportIncludeTimestamp` | `false` | Include a report timestamp. |
 | `Xml2Doc_DryRun` | `false` | Plan without writing Markdown. |
@@ -189,7 +190,30 @@ Set `Xml2Doc_AggregateValidateIndexOwnership=false` only when higher-level orche
 
 The aggregation owner reuses normal renderer properties such as output mode, output paths, filename mode, root namespace trimming, anchor algorithm, index generation, pruning, manifest identity, parallelism, and line endings.
 
-Aggregate primary input identities and explicit reference XML identities participate in fingerprinting. Primary/reference files are MSBuild target inputs, so changing the XML, participation, significant rendering options, or a recorded generated file causes regeneration. With `Xml2Doc_LineEndings=native`, the host newline policy also participates in the fingerprint.
+Aggregate primary input identities and explicit reference XML identities participate in fingerprinting. Primary/reference files are MSBuild target inputs, so changing the XML, participation, significant rendering options, caller metadata, or a recorded generated file causes regeneration. With `Xml2Doc_LineEndings=native`, the host newline policy also participates in the fingerprint.
+
+## Caller metadata
+
+Use one JSON object for normal project or repository-aggregate generation:
+
+```xml
+<PropertyGroup>
+  <Xml2Doc_MetadataFile>$(MSBuildProjectDirectory)\xml2doc.metadata.json</Xml2Doc_MetadataFile>
+</PropertyGroup>
+```
+
+```json
+{
+  "package": "MyCompany.MyProduct",
+  "tags": ["api", "stable"],
+  "version": "2.4.0"
+}
+```
+
+Metadata keys are emitted in ordinal order with authoritative `documentId`, `documentKind`,
+`namespace`, `symbol`, and `outputPath` values. Changing the metadata file invalidates the normal
+or aggregate fingerprint and regenerates Markdown. Missing, invalid, object-valued, or unsupported
+metadata fails before output is written.
 
 ## Determinism
 

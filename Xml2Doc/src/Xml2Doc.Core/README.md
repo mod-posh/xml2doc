@@ -102,6 +102,7 @@ Reference members are available to `<inheritdoc />` and reference resolution but
 - `SignatureStyle`
 - `SignatureRenderer`
 - `DiagnosticSink`
+- `Metadata`
 
 `FileNameMode`, `AnchorAlgorithm`, and `LineEndings` use the `FileNameMode`, `AnchorAlgorithm`, and `LineEndingStyle` enums respectively. Single-file output is selected through `MarkdownRenderer.RenderToSingleFile(...)` or `RendererRunMode.SingleFile`; it is not a `RendererOptions` property.
 
@@ -132,6 +133,32 @@ output location. Direct callers can continue constructing and deconstructing
 File templates can consume the same values through `{{documentId}}`, `{{namespace}}`, `{{symbol}}`,
 and `{{outputPath}}`. A token renders as an empty string when that value does not apply to the
 current document.
+
+### Caller-supplied metadata
+
+Set `RendererOptions.Metadata` to a generic dictionary of scalar or list values. The renderer
+copies and validates the collection at construction, exposes the immutable merged values through
+`TemplateRenderContext.Metadata`, and emits deterministic YAML front matter:
+
+```csharp
+var options = new RendererOptions(
+    Metadata: new Dictionary<string, object?>
+    {
+        ["package"] = "MyCompany.MyProduct",
+        ["version"] = "2.4.0",
+        ["tags"] = new[] { "api", "stable" }
+    });
+```
+
+Generic caller keys have the lowest precedence. A programmatic `FrontMatter` provider may override
+them for one document. Core-derived `documentId`, `documentKind`, `namespace`, `symbol`, and
+`outputPath` values are authoritative and always win collisions. Keys are serialized in ordinal
+order. Supported values are `null`, strings, booleans, numeric values, dates, enums, and recursively
+nested lists of those scalars.
+
+Caller metadata cannot be combined with literal `FrontMatterPath`; that existing mode continues to
+prepend its configured file unchanged. Without caller metadata, default output and existing
+programmatic front-matter behavior are unchanged.
 
 ## Runner pipeline
 

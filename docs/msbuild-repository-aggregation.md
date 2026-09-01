@@ -129,9 +129,9 @@ The aggregation owner uses separate lifecycle files from ordinary per-project ge
 | `Xml2Doc_AggregateFingerprintFile` | `$(IntermediateOutputPath)xml2doc.aggregate.fingerprint.txt` |
 | `Xml2Doc_AggregateOutputLedger` | `$(IntermediateOutputPath)xml2doc.aggregate.outputs.txt` |
 
-The owner reuses normal renderer properties such as `Xml2Doc_SingleFile`, `Xml2Doc_OutputDir`, `Xml2Doc_OutputFile`, `Xml2Doc_FileNameMode`, `Xml2Doc_RootNamespaceToTrim`, `Xml2Doc_GenerateIndex`, `Xml2Doc_PruneStaleFiles`, `Xml2Doc_ManifestIdentity`, `Xml2Doc_ParallelDegree`, and `Xml2Doc_LineEndings`.
+The owner reuses normal renderer properties such as `Xml2Doc_SingleFile`, `Xml2Doc_OutputDir`, `Xml2Doc_OutputFile`, `Xml2Doc_FileNameMode`, `Xml2Doc_RootNamespaceToTrim`, `Xml2Doc_GenerateIndex`, `Xml2Doc_PruneStaleFiles`, `Xml2Doc_ManifestIdentity`, `Xml2Doc_ParallelDegree`, `Xml2Doc_LineEndings`, and `Xml2Doc_MetadataFile`.
 
-The aggregate fingerprint includes canonical primary input identities, explicit reference XML identities, significant rendering options, and the host newline token when `Xml2Doc_LineEndings=native`. Primary/reference XML files are also target inputs, so content changes trigger regeneration.
+The aggregate fingerprint includes canonical primary input identities, explicit reference XML identities, significant rendering options, caller metadata content, and the host newline token when `Xml2Doc_LineEndings=native`. Primary/reference XML and caller metadata files are also target inputs, so content changes trigger regeneration.
 
 A missing file recorded by the aggregate output ledger invalidates the aggregate stamp so the next build recreates the output.
 
