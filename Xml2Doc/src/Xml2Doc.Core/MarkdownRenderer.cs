@@ -207,12 +207,14 @@ public sealed class MarkdownRenderer
             void RenderTypeAt(int index)
             {
                 var type = types[index];
+                var logicalPath = FileNameForPerType(type.Id);
                 typeWasWritten[index] = WriteMarkdownFileIfChanged(
                     typeFiles[index],
                     NormalizeLineEndings(ApplyTemplate(
                         RenderType(type, includeHeader: true),
                         _signatureRenderer.RenderTypeName(type.Id),
-                        TemplateDocumentKind.Type)));
+                        CreateTypeDocumentDescriptor(type),
+                        logicalPath)));
             }
 
             var parallelDegree = _opt.ParallelDegree.GetValueOrDefault(1);
@@ -245,7 +247,10 @@ public sealed class MarkdownRenderer
                     NormalizeLineEndings(ApplyTemplate(
                         RenderIndex(types, useAnchors: false),
                         "API Reference",
-                        TemplateDocumentKind.Index)),
+                        new DocumentDescriptor(
+                            TemplateDocumentKind.Index,
+                            "xml2doc:index"),
+                        "index.md")),
                     writtenFiles,
                     skippedFiles);
 
@@ -282,7 +287,11 @@ public sealed class MarkdownRenderer
                         NormalizeLineEndings(ApplyTemplate(
                             sbNs.ToString(),
                             ns,
-                            TemplateDocumentKind.NamespaceIndex)),
+                            new DocumentDescriptor(
+                                TemplateDocumentKind.NamespaceIndex,
+                                $"N:{ns}",
+                                ns == "(global)" ? null : ns),
+                            $"namespaces/{fileSafe}.md")),
                         writtenFiles,
                         skippedFiles);
                 }
@@ -299,7 +308,10 @@ public sealed class MarkdownRenderer
                     NormalizeLineEndings(ApplyTemplate(
                         nsIndex.ToString(),
                         "Namespaces",
-                        TemplateDocumentKind.NamespaceOverview)),
+                        new DocumentDescriptor(
+                            TemplateDocumentKind.NamespaceOverview,
+                            "xml2doc:namespaces"),
+                        "namespaces.md")),
                     writtenFiles,
                     skippedFiles);
             }
@@ -377,7 +389,8 @@ public sealed class MarkdownRenderer
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
             RecordWriteResult(
                 outPath,
-                NormalizeLineEndings(BuildSingleFileContent()),
+                NormalizeLineEndings(BuildSingleFileContent(
+                    Path.GetFileName(Path.GetFullPath(outPath)))),
                 writtenFiles,
                 skippedFiles);
         }
@@ -399,7 +412,7 @@ public sealed class MarkdownRenderer
     /// Returns the consolidated single‑file content (index + all types) without writing.
     /// </summary>
     public string RenderToString() =>
-        NormalizeLineEndings(BuildSingleFileContent());
+        NormalizeLineEndings(BuildSingleFileContent(outputPath: null));
 
     private static bool WriteMarkdownFileIfChanged(
         string path,
@@ -470,7 +483,7 @@ public sealed class MarkdownRenderer
     /// Builds single‑file content, temporarily switching link mode to in‑document anchors.
     /// </summary>
     /// <returns>Markdown string containing index + all types.</returns>
-    private string BuildSingleFileContent()
+    private string BuildSingleFileContent(string? outputPath)
     {
         ValidateAnchors(singleFile: true);
         var prev = _linkMode;
@@ -504,7 +517,10 @@ public sealed class MarkdownRenderer
             return ApplyTemplate(
                 sb.ToString(),
                 "API Reference",
-                TemplateDocumentKind.SingleFile);
+                new DocumentDescriptor(
+                    TemplateDocumentKind.SingleFile,
+                    "xml2doc:single-file"),
+                outputPath);
         }
         finally
         {
@@ -515,9 +531,17 @@ public sealed class MarkdownRenderer
     private string ApplyTemplate(
         string content,
         string? title,
-        TemplateDocumentKind kind)
+        DocumentDescriptor document,
+        string? outputPath)
     {
-        var context = new TemplateRenderContext(content, title, kind);
+        var context = new TemplateRenderContext(
+            content,
+            title,
+            document.Kind)
+        {
+            Document = document,
+            OutputPath = outputPath
+        };
         var rendered = _templateRenderer.Render(context);
         var frontMatter = _opt.FrontMatter?.Invoke(context);
 
@@ -534,6 +558,23 @@ public sealed class MarkdownRenderer
     /// </summary>
     private IEnumerable<XMember> GetTypes() =>
         _symbolIndex.Types;
+
+    private static DocumentDescriptor CreateTypeDocumentDescriptor(XMember type)
+    {
+        var lastDot = type.Id.LastIndexOf('.');
+        var @namespace = lastDot > 0
+            ? type.Id.Substring(0, lastDot)
+            : null;
+        var symbol = lastDot >= 0
+            ? type.Id.Substring(lastDot + 1)
+            : type.Id;
+
+        return new DocumentDescriptor(
+            TemplateDocumentKind.Type,
+            type.Name,
+            @namespace,
+            symbol);
+    }
 
     /// <summary>
     /// Builds a type index linking either to per‑type files or heading anchors (single‑file mode).

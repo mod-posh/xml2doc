@@ -1,3 +1,5 @@
+using Xml2Doc.Core;
+
 namespace Xml2Doc.Core.Templates;
 
 /// <summary>Describes a rendered Markdown document before template application.</summary>
@@ -7,4 +9,22 @@ namespace Xml2Doc.Core.Templates;
 public sealed record TemplateRenderContext(
     string Content,
     string? Title,
-    TemplateDocumentKind Kind);
+    TemplateDocumentKind Kind)
+{
+    /// <summary>
+    /// Gets the logical identity metadata supplied by an Xml2Doc rendering operation.
+    /// </summary>
+    /// <remarks>
+    /// This remains <see langword="null"/> when a context is constructed directly through the
+    /// backward-compatible three-argument constructor.
+    /// </remarks>
+    public DocumentDescriptor? Document { get; init; }
+
+    /// <summary>
+    /// Gets the resolved output-root-relative logical path using forward slashes.
+    /// </summary>
+    /// <remarks>
+    /// In-memory rendering that has no resolved output location exposes <see langword="null"/>.
+    /// </remarks>
+    public string? OutputPath { get; init; }
+}
