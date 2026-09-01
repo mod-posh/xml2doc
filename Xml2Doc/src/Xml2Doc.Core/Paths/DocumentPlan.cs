@@ -36,7 +36,7 @@ public sealed class DocumentPlan : IReadOnlyList<DocumentPlanEntry>
 
     /// <summary>Returns a relative logical link between two planned documents.</summary>
     public string GetRelativeLink(string fromDocumentId, string toDocumentId) =>
-        GetRelativeLink(Get(fromDocumentId).Path, Get(toDocumentId).Path);
+        GetRelativePath(Get(fromDocumentId).Path, Get(toDocumentId).Path);
 
     /// <inheritdoc />
     public IEnumerator<DocumentPlanEntry> GetEnumerator() => _entries.GetEnumerator();
@@ -108,7 +108,7 @@ public sealed class DocumentPlan : IReadOnlyList<DocumentPlanEntry>
         }
     }
 
-    internal static string GetRelativeLink(string fromPath, string toPath)
+    internal static string GetRelativePath(string fromPath, string toPath)
     {
         var from = fromPath.Split('/');
         var to = toPath.Split('/');

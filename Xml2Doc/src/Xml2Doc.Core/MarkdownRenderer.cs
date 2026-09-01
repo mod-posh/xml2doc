@@ -1283,7 +1283,7 @@ public sealed class MarkdownRenderer
             return targetPath;
         }
 
-        return DocumentPlan.GetRelativeLink(source!.Path, targetPath);
+        return DocumentPlan.GetRelativePath(source!.Path, targetPath);
     }
 
     // === XML → Markdown normalization ===
