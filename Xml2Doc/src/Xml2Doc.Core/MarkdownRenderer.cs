@@ -314,16 +314,25 @@ public sealed class MarkdownRenderer
             {
                 var type = types[index];
                 var entry = typeEntries[index];
-                typeWasWritten[index] = WriteMarkdownFileIfChanged(
-                    typeFiles[index],
-                    NormalizeLineEndings(ApplyTemplate(
-                        RenderType(
-                            type,
-                            entry.Document.DocumentId,
-                            includeHeader: true),
-                        _signatureRenderer.RenderTypeName(type.Id),
-                        entry.Document,
-                        entry.Path)));
+                try
+                {
+                    typeWasWritten[index] = WriteMarkdownFileIfChanged(
+                        typeFiles[index],
+                        NormalizeLineEndings(ApplyTemplate(
+                            RenderType(
+                                type,
+                                entry.Document.DocumentId,
+                                includeHeader: true),
+                            _signatureRenderer.RenderTypeName(type.Id),
+                            entry.Document,
+                            entry.Path)));
+                }
+                finally
+                {
+                    _perDocumentAutoLinkContexts.TryRemove(
+                        entry.Document.DocumentId,
+                        out _);
+                }
             }
 
             var parallelDegree = _opt.ParallelDegree.GetValueOrDefault(1);

@@ -130,6 +130,8 @@ public class DocumentPathPlanTests
 
         exception.DiagnosticCode.ShouldBe(DiagnosticIds.UnsafeDocumentPath);
         sink.Diagnostics.Single().Code.ShouldBe(DiagnosticIds.UnsafeDocumentPath);
+        sink.Diagnostics.Single().Message.ShouldNotStartWith(
+            DiagnosticIds.UnsafeDocumentPath);
         Directory.Exists(output).ShouldBeFalse();
     }
 

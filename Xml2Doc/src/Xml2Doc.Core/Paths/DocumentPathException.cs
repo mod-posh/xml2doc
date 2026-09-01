@@ -5,7 +5,7 @@ public sealed class DocumentPathException : InvalidOperationException
 {
     /// <summary>Creates a document-path failure with a stable diagnostic code.</summary>
     public DocumentPathException(string diagnosticCode, string message)
-        : base($"{diagnosticCode}: {message}")
+        : base(message)
     {
         DiagnosticCode = diagnosticCode;
     }
