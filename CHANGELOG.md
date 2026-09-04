@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.4.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.4.0) - Unreleased
+## [2.4.0](https://github.com/mod-posh/Xml2Doc/releases/tag/2.4.0) - 2026-09-01
 
 ### Added
 
@@ -336,7 +336,7 @@ This release focuses on correctness and predictability: stable links/anchors acr
 ### Added
 
 - Token‑aware aliasing for framework types so identifiers like `StringComparer` remain intact while true tokens (e.g., `System.String`) are aliased to C# keywords.
-- Depth‑aware generic argument splitting in labels and headers. Nested generics like `Dictionary<string, List<Dictionary<string, int>>>` now render correctly in member headers and `<see/>` labels.
+- Depth‑aware generic argument splitting in labels and headers. Nested generics like `Dictionary<string, List<Dictionary<string, int>>>` now render correctly in member headers and labels.
 - Explicit member anchors are emitted consistently; in single‑file mode, types also have heading‑based anchors for reliable in‑document navigation.
 - New sample type `Xml2Doc.Sample.AliasingPlayground` to validate token‑aware aliasing and signature rendering.
 - New tests:
