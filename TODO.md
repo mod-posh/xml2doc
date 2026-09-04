@@ -183,8 +183,8 @@ Architecture and quality notes:
 
 Milestone preparation:
 
-- [ ] Create the `2.4.1` milestone.
-- [ ] Assign #136, #137, and #138 to `2.4.1`.
+- [x] Create the `2.4.1` milestone.
+- [x] Assign #136, #137, and #138 to `2.4.1`.
 - [ ] Confirm issue scope and acceptance criteria before implementation.
 - [ ] Draft and accept the CLR metadata/symbol-resolution ADR before implementing #137.
 - [ ] Implement issues in order: #136, #137, #138.
