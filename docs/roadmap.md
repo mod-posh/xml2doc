@@ -151,7 +151,7 @@ Architectural themes:
 
 ## Metadata and output extensibility — 2.4.0
 
-Prepared for release as the architectural extension of the `2.3.x` aggregation and rendering line.
+Released September 1, 2026, as the architectural extension of the `2.3.x` aggregation and rendering line.
 
 Key outcomes:
 
@@ -171,6 +171,44 @@ Architectural themes:
 
 See [ADR-014](adr/ADR-014-deterministic-document-metadata.md) and
 [ADR-015](adr/ADR-015-authoritative-document-paths.md) for the accepted designs.
+
+## Symbol resolution and link correctness — 2.4.1
+
+Planned stabilization release for correctness gaps discovered while consuming `2.4.0` in real multi-project documentation builds.
+
+Planned scope:
+
+- resolve inherited documentation from framework/reference-pack XML through deterministic resolved-reference inputs;
+- replace non-conventional interface inheritance guessing with authoritative CLR relationship metadata where available while retaining deterministic fallbacks;
+- expose Core external-symbol link policy through MSBuild and prevent known external symbols from becoming dead local Markdown links.
+
+Architectural themes:
+
+- inheritance and link semantics remain Core-owned;
+- MSBuild supplies deterministic resolved-reference inputs and exposes shared Core options without duplicating resolution behavior;
+- explicit inheritance targets remain authoritative;
+- metadata-backed relationships outrank naming heuristics without loading or executing consumer assemblies;
+- link correctness, incremental fingerprinting, and byte-identical repeated output remain public contracts.
+
+The metadata-backed inheritance work is expected to establish a reusable symbol-enrichment boundary that `2.5.0` can build on without coupling visibility policy to inheritance resolution.
+
+## API surface selection — 2.5.0
+
+Planned architectural release for defining which documented CLR symbols participate in generated output.
+
+Planned scope:
+
+- configurable visibility/accessibility filtering through one Core policy;
+- deterministic accessibility metadata enrichment before output planning;
+- equivalent Core, CLI, JSON configuration, and MSBuild behavior;
+- compatibility-preserving defaults and safe stale-output pruning when the selected surface changes.
+
+Architectural themes:
+
+- accessibility discovery and filtering remain Core-owned;
+- visibility is resolved before document planning and template metadata creation;
+- generated output, indexes, reports, manifests, and pruning consume the same filtered model;
+- the release builds on the authoritative CLR metadata boundary established during `2.4.1` where applicable.
 
 ## Future work
 
