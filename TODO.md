@@ -2,7 +2,7 @@
 
 This roadmap tracks the release sequence and the work that is complete or planned in the repository.
 
-The latest published release is `2.3.1`. The next planned releases are `2.4.0` — Metadata and Output Extensibility and `2.5.0` — API Surface Selection.
+The latest published release is `2.4.0`. The next planned releases are `2.4.1` — Symbol Resolution and Link Correctness and `2.5.0` — API Surface Selection.
 
 ## Release sequence
 
@@ -11,8 +11,9 @@ The latest published release is `2.3.1`. The next planned releases are `2.4.0` �
 3. `2.2.0` — Diagnostics and Pipeline (released)
 4. `2.3.0` — Multi-project Aggregation (released)
 5. `2.3.1` — Stabilization and Output Correctness (released)
-6. `2.4.0` — Metadata and Output Extensibility (planned)
-7. `2.5.0` — API Surface Selection (planned)
+6. `2.4.0` — Metadata and Output Extensibility (released)
+7. `2.4.1` — Symbol Resolution and Link Correctness (planned)
+8. `2.5.0` — API Surface Selection (planned)
 
 ## 2.0.3 — Documentation and Lifecycle Correctness
 
@@ -121,7 +122,7 @@ Milestone preparation:
 
 ## 2.4.0 — Metadata and Output Extensibility
 
-Planned architectural release for machine-addressable document metadata and deterministic output-layout extensibility.
+Released on September 1, 2026, as an architectural release for machine-addressable document metadata and deterministic output-layout extensibility.
 
 - [x] [#115 — Expose richer per-document metadata through `TemplateRenderContext`](https://github.com/mod-posh/xml2doc/issues/115)
 - [x] [#116 — Support caller-supplied metadata for deterministic per-document front matter](https://github.com/mod-posh/xml2doc/issues/116)
@@ -153,6 +154,42 @@ Milestone preparation:
 - [x] Implement issues in dependency order: #115, #116, #117.
 - [x] Update the roadmap, API documentation source, README examples, and migration guidance.
 - [x] Prepare `VersionPrefix` for `2.4.0`.
+- [x] Complete the standard milestone release workflow.
+
+## 2.4.1 — Symbol Resolution and Link Correctness
+
+Planned stabilization release for correctness gaps discovered while consuming `2.4.0` in real multi-project documentation builds.
+
+- [ ] [#136 — Resolve `<inheritdoc />` against .NET framework/reference-pack XML automatically](https://github.com/mod-posh/xml2doc/issues/136)
+- [ ] [#137 — Use assembly metadata to resolve non-conventional interface `<inheritdoc />` relationships](https://github.com/mod-posh/xml2doc/issues/137)
+- [ ] [#138 — Expose external-symbol link policy through Xml2Doc.MSBuild to avoid dead local cref links](https://github.com/mod-posh/xml2doc/issues/138)
+
+Design sequence and dependency gates:
+
+1. Define a deterministic resolved-reference input boundary for framework/reference-pack XML and compiled metadata.
+2. Resolve explicit `<inheritdoc cref="..."/>` targets from caller/project/framework reference documentation without filesystem guessing.
+3. Use authoritative CLR relationship metadata for non-conventional base/interface inheritance when available, preserving deterministic heuristic fallback when metadata is unavailable.
+4. Expose the existing Core external-symbol link policy through MSBuild and ensure known external symbols do not become dead local links.
+
+Architecture and quality notes:
+
+- #136 belongs at the MSBuild/Core boundary: MSBuild should provide deterministic resolved-reference inputs; Core remains responsible for inheritance semantics.
+- #137 requires an ADR because it introduces authoritative CLR relationship metadata into the Core symbol-resolution model. Prefer metadata-only inspection and never execute consumer assemblies.
+- #138 is host-parity and link-correctness work: MSBuild should expose existing Core behavior rather than implement independent external-link semantics.
+- Explicit inheritance targets remain authoritative; CLR relationships outrank naming conventions; unresolved ambiguity must remain unresolved rather than guessed.
+- Reference inputs and new host options must participate in incremental fingerprints.
+- Protect repeated-run byte identity, Windows/Linux behavior, aggregation, explicit-reference behavior, unresolved diagnostics, and link correctness with focused regressions.
+- Any README, MSBuild property, migration, API documentation, ADR, or generated-documentation changes required by the implemented behavior belong in the corresponding `2.4.1` work slices and release closeout.
+
+Milestone preparation:
+
+- [ ] Create the `2.4.1` milestone.
+- [ ] Assign #136, #137, and #138 to `2.4.1`.
+- [ ] Confirm issue scope and acceptance criteria before implementation.
+- [ ] Draft and accept the CLR metadata/symbol-resolution ADR before implementing #137.
+- [ ] Implement issues in order: #136, #137, #138.
+- [ ] Update behavior-specific documentation with the implementation slices.
+- [ ] Prepare `VersionPrefix` for `2.4.1`.
 - [ ] Complete the standard milestone release workflow.
 
 ## 2.5.0 — API Surface Selection
@@ -163,8 +200,8 @@ Planned architectural release for defining which documented CLR symbols particip
 
 Design sequence and dependency gates:
 
-1. Decide the authoritative source of CLR accessibility metadata. Compiler-generated XML documentation identifies symbols but does not encode whether a type or member is public, internal, protected, or private.
-2. Define a Core-owned symbol metadata model and deterministic enrichment boundary for single-input and aggregate loading.
+1. Reuse the authoritative CLR metadata boundary established by `2.4.1` where it satisfies accessibility-enrichment requirements.
+2. Define the Core-owned accessibility model and deterministic enrichment behavior needed for single-input and aggregate loading.
 3. Apply the selected visibility policy before output planning so rendering, indexes, TOCs, namespace indexes, reports, manifests, pruning, and writes consume the same filtered model.
 4. Expose the shared Core policy consistently through CLI, JSON configuration, MSBuild task properties, and package properties.
 
